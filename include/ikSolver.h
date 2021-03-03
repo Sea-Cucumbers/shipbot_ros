@@ -59,12 +59,13 @@ class IKSolver {
     double l0;
     double l1;
     double l2;
+    double l2_loc;
     double l3;
     double l4;
     double l5;
     double ee;
 
-    pin::FrameIndex l5_fid;
+    pin::FrameIndex ee_fid;
 };
 
 #endif

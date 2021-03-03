@@ -28,15 +28,17 @@ IKSolver::IKSolver(const string &urdf_file) {
   pin::FrameIndex l2_fid = model.getFrameId("link2");
   pin::FrameIndex l3_fid = model.getFrameId("link3");
   pin::FrameIndex l4_fid = model.getFrameId("link4");
-  l5_fid = model.getFrameId("link5");
-  D = model_data->oMf[l5_fid].translation()(0);
+  pin::FrameIndex l5_fid = model.getFrameId("link5");
+  ee_fid = model.getFrameId("end_effector");
+  D = model_data->oMf[ee_fid].translation()(0);
 
   l0 = model_data->oMf[l1_fid].translation()(2);
   l1 = model_data->oMf[l2_fid].translation()(2) - model_data->oMf[l1_fid].translation()(2);
   l2 = model_data->oMf[l3_fid].translation()(1) - model_data->oMf[l2_fid].translation()(1);
+  l2_loc = model_data->oMf[l2_fid].translation()(1);
   l3 = model_data->oMf[l4_fid].translation()(1) - model_data->oMf[l3_fid].translation()(1);
   l4 = model_data->oMf[l5_fid].translation()(1) - model_data->oMf[l4_fid].translation()(1);
-  l5 = 4.4386e-02; // Would have to use the urdf library to get this, but I'm feeling a bit lazy
+  l5 = model_data->oMf[ee_fid].translation()(1) - model_data->oMf[l5_fid].translation()(1);
   ee = l4 + l5;
 }
 
@@ -47,7 +49,7 @@ void IKSolver::solve(unordered_map<string, std_msgs::Float64> &cmd_msgs, double 
   double yp = y + D*cos(th1);
 
   // If we wanted a nonzero pitch, we'd have to subtract ee*cos(pitch) here
-  double a = sqrt(xp*xp + yp*yp) - ee;
+  double a = sqrt(xp*xp + yp*yp) - ee + l2_loc;
   // If we wanted a nonzero pitch, we'd have to subtract ee*sin(pitch) here
   double zp = z - l0 - l1; 
 
@@ -76,9 +78,9 @@ void IKSolver::fk(Vector3d &position, Quaterniond &orientation, shared_ptr<senso
 
   pin::forwardKinematics(model, *model_data, config, vel);
   pin::updateFramePlacements(model, *model_data);
-  position = model_data->oMf[l5_fid].translation();
+  position = model_data->oMf[ee_fid].translation();
 
   double th1 = config(0) + M_PI/2;
   position.head<2>() += l5*Vector2d(cos(th1), sin(th1));
-  orientation = Quaterniond(model_data->oMf[l5_fid].rotation());
+  orientation = Quaterniond(model_data->oMf[ee_fid].rotation());
 }
