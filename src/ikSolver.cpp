@@ -9,8 +9,6 @@
 #include <Eigen/Dense>
 #include <iostream>
 
-using namespace Eigen;
-
 IKSolver::IKSolver(const string &urdf_file) {
   pin::urdf::buildModel(urdf_file, model);
   model_data = make_unique<pin::Data>(model);
@@ -26,16 +24,19 @@ IKSolver::IKSolver(const string &urdf_file) {
     }
   }
 
+  pin::FrameIndex l1_fid = model.getFrameId("link1");
   pin::FrameIndex l2_fid = model.getFrameId("link2");
   pin::FrameIndex l3_fid = model.getFrameId("link3");
   pin::FrameIndex l4_fid = model.getFrameId("link4");
-  pin::FrameIndex l5_fid = model.getFrameId("link5");
+  l5_fid = model.getFrameId("link5");
   D = model_data->oMf[l5_fid].translation()(0);
 
+  l0 = model_data->oMf[l1_fid].translation()(2);
+  l1 = model_data->oMf[l2_fid].translation()(2) - model_data->oMf[l1_fid].translation()(2);
   l2 = model_data->oMf[l3_fid].translation()(1) - model_data->oMf[l2_fid].translation()(1);
   l3 = model_data->oMf[l4_fid].translation()(1) - model_data->oMf[l3_fid].translation()(1);
-  double l4 = model_data->oMf[l5_fid].translation()(1) - model_data->oMf[l4_fid].translation()(1);
-  double l5 = 4.4386e-02; // Would have to use the urdf library to get this, but I'm feeling a bit lazy
+  l4 = model_data->oMf[l5_fid].translation()(1) - model_data->oMf[l4_fid].translation()(1);
+  l5 = 4.4386e-02; // Would have to use the urdf library to get this, but I'm feeling a bit lazy
   ee = l4 + l5;
 }
 
@@ -48,7 +49,7 @@ void IKSolver::solve(unordered_map<string, std_msgs::Float64> &cmd_msgs, double 
   // If we wanted a nonzero pitch, we'd have to subtract ee*cos(pitch) here
   double a = sqrt(xp*xp + yp*yp) - ee;
   // If we wanted a nonzero pitch, we'd have to subtract ee*sin(pitch) here
-  double zp = z; 
+  double zp = z - l0 - l1; 
 
   double th3 = -acos((a*a + zp*zp - l2*l2 - l3*l3)/(2*l2*l3));
   double th2 = atan2(zp, a) - atan2(l3*sin(th3), l2 + l3*cos(th3));
@@ -60,4 +61,24 @@ void IKSolver::solve(unordered_map<string, std_msgs::Float64> &cmd_msgs, double 
   cmd_msgs["rotary2"].data = -th2;
   cmd_msgs["rotary3"].data = th3;
   cmd_msgs["rotary4"].data = -th4;
+}
+
+void IKSolver::fk(Vector3d &position, Quaterniond &orientation, shared_ptr<sensor_msgs::JointState> &joints_ptr) {
+  size_t njoints_msg = joints_ptr->name.size();
+  VectorXd config(2*njoints_msg);
+  VectorXd vel(njoints_msg);
+  for (size_t j = 0; j < njoints_msg; ++j) {
+    pin::JointIndex jidx = model.getJointId(joints_ptr->name[j]) - 1;
+    config(2*jidx) = cos(joints_ptr->position[j]);
+    config(2*jidx + 1) = sin(joints_ptr->position[j]);
+    vel(jidx) = joints_ptr->velocity[j];
+  }
+
+  pin::forwardKinematics(model, *model_data, config, vel);
+  pin::updateFramePlacements(model, *model_data);
+  position = model_data->oMf[l5_fid].translation();
+
+  double th1 = config(0) + M_PI/2;
+  position.head<2>() += l5*Vector2d(cos(th1), sin(th1));
+  orientation = Quaterniond(model_data->oMf[l5_fid].rotation());
 }

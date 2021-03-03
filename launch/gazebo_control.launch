@@ -1,4 +1,6 @@
 <launch>
+  <arg name="rvizconfig" default="$(find shipbot_ros)/rviz/shipbot.rviz" />
+  <node name="shipbot_rviz" pkg="rviz" type="rviz" args="-d $(arg rvizconfig)" required="true" />
   <node name="gazebo_control_node" pkg="shipbot_ros" type="gazebo_control_node" output="screen">
     <param name="urdf" value="$(find shipbot_urdf)/urdf/shipbot.urdf"/>
     <param name="cx" value="0"/>
