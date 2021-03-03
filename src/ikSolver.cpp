@@ -79,8 +79,5 @@ void IKSolver::fk(Vector3d &position, Quaterniond &orientation, shared_ptr<senso
   pin::forwardKinematics(model, *model_data, config, vel);
   pin::updateFramePlacements(model, *model_data);
   position = model_data->oMf[ee_fid].translation();
-
-  double th1 = config(0) + M_PI/2;
-  position.head<2>() += l5*Vector2d(cos(th1), sin(th1));
   orientation = Quaterniond(model_data->oMf[ee_fid].rotation());
 }
