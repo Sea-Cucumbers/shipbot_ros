@@ -55,7 +55,6 @@ int main(int argc, char** argv) {
   vector<int> switch_thresh;
   vector<int> wheel_thresh2;
   vector<int> spigot_thresh2;
-  vector<int> shuttlecock_thresh2;
 
   nh.getParam("/wheel_thresh", wheel_thresh);
   nh.getParam("/spigot_thresh", spigot_thresh);
@@ -63,7 +62,6 @@ int main(int argc, char** argv) {
   nh.getParam("/switch_thresh", switch_thresh);
   nh.getParam("/wheel_thresh2", wheel_thresh2);
   nh.getParam("/spigot_thresh2", spigot_thresh2);
-  nh.getParam("/shuttlecock_thresh2", shuttlecock_thresh2);
 
   tf2_ros::TransformBroadcaster pose_br;
   geometry_msgs::TransformStamped pose;
@@ -75,8 +73,7 @@ int main(int argc, char** argv) {
                       shuttlecock_thresh,
                       switch_thresh,
                       wheel_thresh2,
-                      spigot_thresh2,
-                      shuttlecock_thresh2);
+                      spigot_thresh2);
 
   shared_ptr<cv::Mat> image_ptr = make_shared<cv::Mat>();
   shared_ptr<double> time_ptr = make_shared<double>();
@@ -110,7 +107,8 @@ int main(int argc, char** argv) {
 
     sensor_msgs::Image processed_image_msg;
     processed_image_ptr->toImageMsg(processed_image_msg);
-    processed_image_msg.encoding = sensor_msgs::image_encodings::MONO8; // TODO: change
+    //processed_image_msg.encoding = sensor_msgs::image_encodings::MONO8; // TODO: change
+    processed_image_msg.encoding = sensor_msgs::image_encodings::BGR8; // TODO: change
     image_pub.publish(processed_image_msg);
 
     r.sleep();

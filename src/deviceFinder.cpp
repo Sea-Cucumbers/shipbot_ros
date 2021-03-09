@@ -8,15 +8,18 @@ DeviceFinder::DeviceFinder(vector<int> &wheel_thresh,
                            vector<int> &shuttlecock_thresh,
                            vector<int> &switch_thresh,
                            vector<int> &wheel_thresh2,
-                           vector<int> &spigot_thresh2,
-                           vector<int> &shuttlecock_thresh2) : wheel_thresh(wheel_thresh),
-                                                               spigot_thresh(spigot_thresh),
-                                                               shuttlecock_thresh(shuttlecock_thresh),
-                                                               switch_thresh(switch_thresh),
-                                                               wheel_thresh2(wheel_thresh2),
-                                                               spigot_thresh2(spigot_thresh2),
-                                                               shuttlecock_thresh2(shuttlecock_thresh2),
-                                                               position(0, 0, 0), orientation(1, 0, 0, 0), deviceType(WHEEL) {}
+                           vector<int> &spigot_thresh2) : wheel_thresh(wheel_thresh),
+                                                          spigot_thresh(spigot_thresh),
+                                                          shuttlecock_thresh(shuttlecock_thresh),
+                                                          switch_thresh(switch_thresh),
+                                                          wheel_thresh2(wheel_thresh2),
+                                                          spigot_thresh2(spigot_thresh2),
+                                                          position(0, 0, 0), orientation(1, 0, 0, 0) {
+  blobParams.minThreshold = 0;
+  blobParams.maxThreshold = 256;
+  blobParams.filterByArea = true;
+  setDevice(WHEEL);
+}
 
 void DeviceFinder::findDevice(Vector3d &position, Quaterniond &orientation,
                               cv::Mat &processed_image,
@@ -40,8 +43,36 @@ void DeviceFinder::findDevice(Vector3d &position, Quaterniond &orientation,
     }
   }
   cv::inRange(processed_image, cv::Scalar(thresh[0], thresh[1], thresh[2]), cv::Scalar(thresh[3], thresh[4], thresh[5]), processed_image);
+
+  std::vector<cv::KeyPoint> keypoints;
+  detector->detect(processed_image, keypoints);
+  cv::cvtColor(processed_image, processed_image, cv::COLOR_GRAY2BGR);
+  cv::drawKeypoints(processed_image, keypoints, processed_image, cv::Scalar(0,255,0));
 }
 
 void DeviceFinder::setDevice(DeviceType deviceType) {
   this->deviceType = deviceType;
+
+  // For circular types, look for circles (or ellipses)
+  if (deviceType == WHEEL || deviceType == SPIGOT) {
+    blobParams.filterByCircularity = true;
+    blobParams.minCircularity = 0.1;
+
+    blobParams.filterByConvexity = true;
+    blobParams.minConvexity = 0.87;
+
+    blobParams.filterByInertia = true;
+    blobParams.minInertiaRatio = 0.01;
+
+    blobParams.minArea = 400; // TODO: change
+  } else {
+    blobParams.filterByCircularity = false;
+    if (deviceType == SHUTTLECOCK) {
+      blobParams.filterByInertia = true;
+      blobParams.minInertiaRatio = 0.01;
+    } else {
+      blobParams.filterByInertia = false;
+    }
+  }
+  detector = cv::SimpleBlobDetector::create(blobParams);
 }

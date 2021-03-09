@@ -21,18 +21,16 @@ class DeviceFinder {
      * wheel_thresh: length-6 vector of threshold values for wheel valves
      * spigot_thresh: length-6 vector of threshold values for spigot valves
      * shuttlecock_thresh: length-6 vector of threshold values for shuttlecock valves
+     * switch thresh: length-6 vector of threshold values for switches
      * wheel_thresh2: length-6 vector of threshold values for the fiducial on wheel valves
      * spigot_thresh2: length-6 vector of threshold values for the fiducial on spigot valves
-     * shuttlecock_thresh2: length-6 vector of threshold values for the fiducial on shuttlecock valves
-     * switch thresh: length-6 vector of threshold values for switches
      */
     DeviceFinder(vector<int> &wheel_thresh,
                  vector<int> &spigot_thresh,
                  vector<int> &shuttlecock_thresh,
                  vector<int> &switch_thresh,
                  vector<int> &wheel_thresh2,
-                 vector<int> &spigot_thresh2,
-                 vector<int> &shuttlecock_thresh2);
+                 vector<int> &spigot_thresh2);
 
     /*
      * findDevice: estimates the pose of the device relative to the camera
@@ -68,7 +66,9 @@ class DeviceFinder {
 
      vector<int> wheel_thresh2;
      vector<int> spigot_thresh2;
-     vector<int> shuttlecock_thresh2;
+
+     cv::SimpleBlobDetector::Params blobParams;
+     cv::Ptr<cv::SimpleBlobDetector> detector;
 };
 
 #endif

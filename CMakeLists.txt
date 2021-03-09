@@ -129,7 +129,7 @@ add_executable(gazebo_control_node src/gazebo_control_node.cpp $<TARGET_OBJECTS:
 target_link_libraries(gazebo_control_node ${catkin_LIBRARIES} pinocchio::pinocchio)
 
 add_executable(ee_cam_node src/ee_cam_node.cpp $<TARGET_OBJECTS:ee_camera>)
-target_link_libraries(ee_cam_node ${catkin_LIBRARIES})
+target_link_libraries(ee_cam_node ${catkin_LIBRARIES} ${OpenCV_LIBS})
 
 ## Declare a C++ library
 add_library(arm_control OBJECT
