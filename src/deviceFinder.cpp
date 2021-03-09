@@ -15,8 +15,8 @@ DeviceFinder::DeviceFinder(vector<int> &wheel_thresh,
                                                           wheel_thresh2(wheel_thresh2),
                                                           spigot_thresh2(spigot_thresh2),
                                                           position(0, 0, 0), orientation(1, 0, 0, 0) {
-  blobParams.minThreshold = 0;
-  blobParams.maxThreshold = 256;
+  blobParams.filterByColor = true;
+  blobParams.blobColor = 255;
   blobParams.filterByArea = true;
   setDevice(WHEEL);
 }
@@ -46,8 +46,9 @@ void DeviceFinder::findDevice(Vector3d &position, Quaterniond &orientation,
 
   std::vector<cv::KeyPoint> keypoints;
   detector->detect(processed_image, keypoints);
+  cout << keypoints.size() << endl;
   cv::cvtColor(processed_image, processed_image, cv::COLOR_GRAY2BGR);
-  cv::drawKeypoints(processed_image, keypoints, processed_image, cv::Scalar(0,255,0));
+  cv::drawKeypoints(processed_image, keypoints, processed_image, cv::Scalar(0, 255, 0), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 }
 
 void DeviceFinder::setDevice(DeviceType deviceType) {
@@ -62,9 +63,14 @@ void DeviceFinder::setDevice(DeviceType deviceType) {
     blobParams.minConvexity = 0.87;
 
     blobParams.filterByInertia = true;
-    blobParams.minInertiaRatio = 0.01;
+    blobParams.minInertiaRatio = 0.5;
 
-    blobParams.minArea = 400; // TODO: change
+    blobParams.minArea = 400;
+    blobParams.maxArea = 100000;
+
+    if (deviceType == SPIGOT) {
+      blobParams.minArea = 100;
+    }
   } else {
     blobParams.filterByCircularity = false;
     if (deviceType == SHUTTLECOCK) {
