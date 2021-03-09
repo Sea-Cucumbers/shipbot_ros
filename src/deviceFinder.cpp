@@ -26,27 +26,10 @@ void DeviceFinder::findDevice(Vector3d &position, Quaterniond &orientation,
                               shared_ptr<cv::Mat> image_ptr, double t) {
   cvtColor(*image_ptr, processed_image, cv::COLOR_BGR2HSV);
 
-  vector<int> thresh;
-  switch (deviceType) {
-    case WHEEL: {
-      thresh = wheel_thresh;
-      break;
-    } case SPIGOT: {
-      thresh = spigot_thresh;
-      break;
-    } case SHUTTLECOCK: {
-      thresh = shuttlecock_thresh;
-      break;
-    } case SWITCH: {
-      thresh = switch_thresh;
-      break;
-    }
-  }
   cv::inRange(processed_image, cv::Scalar(thresh[0], thresh[1], thresh[2]), cv::Scalar(thresh[3], thresh[4], thresh[5]), processed_image);
 
   std::vector<cv::KeyPoint> keypoints;
   detector->detect(processed_image, keypoints);
-  cout << keypoints.size() << endl;
   cv::cvtColor(processed_image, processed_image, cv::COLOR_GRAY2BGR);
   cv::drawKeypoints(processed_image, keypoints, processed_image, cv::Scalar(0, 255, 0), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 }
@@ -81,4 +64,20 @@ void DeviceFinder::setDevice(DeviceType deviceType) {
     }
   }
   detector = cv::SimpleBlobDetector::create(blobParams);
+
+  switch (deviceType) {
+    case WHEEL: {
+      thresh = wheel_thresh;
+      break;
+    } case SPIGOT: {
+      thresh = spigot_thresh;
+      break;
+    } case SHUTTLECOCK: {
+      thresh = shuttlecock_thresh;
+      break;
+    } case SWITCH: {
+      thresh = switch_thresh;
+      break;
+    }
+  }
 }
