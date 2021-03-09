@@ -5,11 +5,13 @@ project(shipbot_ros)
 # add_compile_options(-std=c++11)
 
 find_package(pinocchio REQUIRED)
+find_package(OpenCV REQUIRED)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  cv_bridge
   roscpp
   urdf
   rospy
@@ -126,9 +128,16 @@ include_directories(
 add_executable(gazebo_control_node src/gazebo_control_node.cpp $<TARGET_OBJECTS:arm_control>)
 target_link_libraries(gazebo_control_node ${catkin_LIBRARIES} pinocchio::pinocchio)
 
+add_executable(ee_cam_node src/ee_cam_node.cpp $<TARGET_OBJECTS:ee_camera>)
+target_link_libraries(ee_cam_node ${catkin_LIBRARIES})
+
 ## Declare a C++ library
 add_library(arm_control OBJECT
   ${CMAKE_CURRENT_SOURCE_DIR}/src/ikSolver.cpp
+)
+
+add_library(ee_camera OBJECT
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/deviceFinder.cpp
 )
 
 ## Add cmake target dependencies of the library
