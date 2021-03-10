@@ -69,12 +69,6 @@ class DeviceFinder {
 
      const vector<int> wheel_thresh2;
      const vector<int> spigot_thresh2;
-
-     cv::SimpleBlobDetector::Params blobParams;
-     cv::Ptr<cv::SimpleBlobDetector> detector;
-
-     cv::SimpleBlobDetector::Params fid_blobParams;
-     cv::Ptr<cv::SimpleBlobDetector> fid_detector;
 };
 
 #endif
