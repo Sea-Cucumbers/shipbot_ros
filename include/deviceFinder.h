@@ -24,13 +24,16 @@ class DeviceFinder {
      * switch thresh: length-6 vector of threshold values for switches
      * wheel_thresh2: length-6 vector of threshold values for the fiducial on wheel valves
      * spigot_thresh2: length-6 vector of threshold values for the fiducial on spigot valves
+     * fx, fy, cx, cy, k1, k2, p1, p2, k3: intrinsics
      */
     DeviceFinder(vector<int> &wheel_thresh,
                  vector<int> &spigot_thresh,
                  vector<int> &shuttlecock_thresh,
                  vector<int> &switch_thresh,
                  vector<int> &wheel_thresh2,
-                 vector<int> &spigot_thresh2);
+                 vector<int> &spigot_thresh2,
+                 double fx, double fy, double cx, double cy,
+                 double k1, double k2, double p1, double p2, double k3);
 
     /*
      * findDevice: estimates the pose of the device relative to the camera
@@ -41,7 +44,7 @@ class DeviceFinder {
      * image_ptr: pointer to image hypothetically containing the device
      * t: time stamp of the image
      */
-    void findDevice(Vector3d &position, Quaterniond &orientation,
+    void findDevice(Vector3f &position, Quaternionf &orientation,
                     cv::Mat &processed_image,
                     shared_ptr<cv::Mat> image_ptr, double t);
 
@@ -54,8 +57,8 @@ class DeviceFinder {
 
    private:
      // Not used now, but we might want to do some filtering later on
-     Vector3d position;
-     Quaterniond orientation;
+     Vector3f position;
+     Quaternionf orientation;
 
      DeviceType deviceType;
 
@@ -69,6 +72,9 @@ class DeviceFinder {
 
      const vector<int> wheel_thresh2;
      const vector<int> spigot_thresh2;
+
+     cv::Mat K;
+     cv::Mat distortion;
 };
 
 #endif

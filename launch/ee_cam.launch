@@ -2,6 +2,7 @@
   <arg name="rvizconfig" default="$(find shipbot_ros)/rviz/shipbot.rviz" />
   <node name="shipbot_rviz" pkg="rviz" type="rviz" args="-d $(arg rvizconfig)" required="true" />
   <rosparam file="$(find shipbot_ros)/config/openmv_thresholds.yaml" />
+  <rosparam file="$(find shipbot_ros)/config/openmv.yaml" />
   <node name="ee_cam_node" pkg="shipbot_ros" type="ee_cam_node" output="screen">
   </node>
 </launch>

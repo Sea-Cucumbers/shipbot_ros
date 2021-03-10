@@ -63,6 +63,25 @@ int main(int argc, char** argv) {
   nh.getParam("/wheel_thresh2", wheel_thresh2);
   nh.getParam("/spigot_thresh2", spigot_thresh2);
 
+  double fx;
+  double fy;
+  double cx;
+  double cy;
+  double k1;
+  double k2;
+  double p1;
+  double p2;
+  double k3;
+  nh.getParam("/fx", fx);
+  nh.getParam("/fy", fy);
+  nh.getParam("/cx", cx);
+  nh.getParam("/cy", cy);
+  nh.getParam("/k1", k1);
+  nh.getParam("/k2", k2);
+  nh.getParam("/p1", p1);
+  nh.getParam("/p2", p2);
+  nh.getParam("/k3", k3);
+
   tf2_ros::TransformBroadcaster pose_br;
   geometry_msgs::TransformStamped pose;
   pose.header.frame_id = "world";
@@ -73,7 +92,8 @@ int main(int argc, char** argv) {
                       shuttlecock_thresh,
                       switch_thresh,
                       wheel_thresh2,
-                      spigot_thresh2);
+                      spigot_thresh2,
+                      fx, fy, cx, cx, k1, k2, p1, p2, k3);
 
   shared_ptr<cv::Mat> image_ptr = make_shared<cv::Mat>();
   shared_ptr<double> time_ptr = make_shared<double>();
@@ -88,10 +108,10 @@ int main(int argc, char** argv) {
   }
 
   double start_t = ros::Time::now().toSec();
+  Vector3f position(0, 0, 0);
+  Quaternionf orientation(1, 0, 0, 0);
   while (ros::ok())
   {
-    Vector3d position(0, 0, 0);
-    Quaterniond orientation(1, 0, 0, 0);
     cv_bridge::CvImagePtr processed_image_ptr = boost::make_shared<cv_bridge::CvImage>(); 
     finder.findDevice(position, orientation, processed_image_ptr->image, image_ptr, *time_ptr);
     pose.transform.translation.x = position(0);
