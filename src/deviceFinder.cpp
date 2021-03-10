@@ -21,9 +21,9 @@ DeviceFinder::DeviceFinder(vector<int> &wheel_thresh,
 
   fid_blobParams.filterByColor = true;
   fid_blobParams.blobColor = 255;
-  fid_blobParams.filterByArea = true;
+  fid_blobParams.filterByArea = false;
   fid_blobParams.minArea = 25;
-  fid_blobParams.maxArea = 500;
+  fid_blobParams.maxArea = 1000;
   fid_blobParams.filterByCircularity = false;
   fid_blobParams.filterByConvexity = false;
   fid_blobParams.filterByInertia = false;
@@ -35,6 +35,8 @@ DeviceFinder::DeviceFinder(vector<int> &wheel_thresh,
 void DeviceFinder::findDevice(Vector3d &position, Quaterniond &orientation,
                               cv::Mat &processed_image,
                               shared_ptr<cv::Mat> image_ptr, double t) {
+  processed_image = *image_ptr;
+
   cv::Mat hsv;
   cvtColor(*image_ptr, hsv, cv::COLOR_BGR2HSV);
 
@@ -43,8 +45,6 @@ void DeviceFinder::findDevice(Vector3d &position, Quaterniond &orientation,
 
   vector<cv::KeyPoint> keypoints;
   detector->detect(thresh1, keypoints);
-
-  cv::cvtColor(thresh1, processed_image, cv::COLOR_GRAY2BGR);
 
   if (keypoints.size() == 0) {
     return;
@@ -73,7 +73,19 @@ void DeviceFinder::findDevice(Vector3d &position, Quaterniond &orientation,
   cv::bitwise_not(thresh1, thresh1);
   cv::bitwise_and(thresh1, thresh2, thresh2);
 
-  cv::cvtColor(thresh2, processed_image, cv::COLOR_GRAY2BGR);
+  // Circle the fiducial
+  fid_detector->detect(thresh2, keypoints);
+  if (keypoints.size() == 0) {
+    return;
+  }
+  best = keypoints[0];
+  for (vector<cv::KeyPoint>::iterator it = keypoints.begin(); it != keypoints.end(); ++it) {
+    if (it->size > best.size) {
+      best = *it;
+    }
+  }
+
+  cv::circle(processed_image, best.pt, best.size/2, cv::Scalar(255, 0, 0), 5, cv::LINE_AA);
 }
 
 void DeviceFinder::setDevice(DeviceType deviceType) {
