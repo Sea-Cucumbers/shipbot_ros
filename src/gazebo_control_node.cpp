@@ -119,7 +119,7 @@ int main(int argc, char** argv) {
     double t = ros::Time::now().toSec();
     double x = cx + radius*cos(t);
     double z = cz + radius*sin(t);
-    solver.solve(cmd_msgs, x, cy, z);
+    solver.solve(cmd_msgs, x, cy, z, 0);
 
     Vector3d position(0, 0, 0);
     Quaterniond orientation(1, 0, 0, 0);

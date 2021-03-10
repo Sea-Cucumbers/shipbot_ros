@@ -42,18 +42,22 @@ IKSolver::IKSolver(const string &urdf_file) {
   ee = l4 + l5;
 }
 
-void IKSolver::solve(unordered_map<string, std_msgs::Float64> &cmd_msgs, double x, double y, double z) {
+bool IKSolver::solve(unordered_map<string, std_msgs::Float64> &cmd_msgs, double x, double y, double z, double pitch) {
   double th1 = atan2(y, x) + asin(D/sqrt(x*x + y*y));
 
   double xp = x - D*sin(th1);
   double yp = y + D*cos(th1);
 
   // If we wanted a nonzero pitch, we'd have to subtract ee*cos(pitch) here
-  double a = sqrt(xp*xp + yp*yp) - ee + l2_loc;
+  double a = sqrt(xp*xp + yp*yp) - ee*cos(pitch) + l2_loc;
   // If we wanted a nonzero pitch, we'd have to subtract ee*sin(pitch) here
-  double zp = z - l0 - l1; 
+  double zp = z - l0 - l1 - ee*sin(pitch); 
 
-  double th3 = -acos((a*a + zp*zp - l2*l2 - l3*l3)/(2*l2*l3));
+  double c = (a*a + zp*zp - l2*l2 - l3*l3)/(2*l2*l3);
+  if (c > 1 || c < -1) {
+    return false;
+  }
+  double th3 = -acos(c);
   double th2 = atan2(zp, a) - atan2(l3*sin(th3), l2 + l3*cos(th3));
 
   // If we wanted a nonzero pitch, we'd have to add pitch here
@@ -63,6 +67,8 @@ void IKSolver::solve(unordered_map<string, std_msgs::Float64> &cmd_msgs, double 
   cmd_msgs["rotary2"].data = -th2;
   cmd_msgs["rotary3"].data = th3;
   cmd_msgs["rotary4"].data = -th4;
+
+  return true;
 }
 
 void IKSolver::fk(Vector3d &position, Quaterniond &orientation, shared_ptr<sensor_msgs::JointState> &joints_ptr) {

@@ -128,6 +128,9 @@ include_directories(
 add_executable(gazebo_control_node src/gazebo_control_node.cpp $<TARGET_OBJECTS:arm_control>)
 target_link_libraries(gazebo_control_node ${catkin_LIBRARIES} pinocchio::pinocchio)
 
+add_executable(test_workspace src/test_workspace.cpp $<TARGET_OBJECTS:arm_control>)
+target_link_libraries(test_workspace ${catkin_LIBRARIES} pinocchio::pinocchio)
+
 add_executable(ee_cam_node src/ee_cam_node.cpp $<TARGET_OBJECTS:ee_camera>)
 target_link_libraries(ee_cam_node ${catkin_LIBRARIES} ${OpenCV_LIBS})
 

@@ -1,0 +1,11 @@
+<launch>
+  <node name="test_workspace" pkg="shipbot_ros" type="test_workspace" output="screen">
+    <param name="urdf" value="$(find shipbot_urdf)/urdf/shipbot.urdf"/>
+    <param name="left" value="-0.0635"/>
+    <param name="right" value="0.0635"/>
+    <param name="bottom" value="0.3429"/>
+    <param name="top" value="0.5715"/>
+    <param name="front" value="0.2413"/>
+    <param name="back" value="0.3683"/>
+  </node>
+</launch>

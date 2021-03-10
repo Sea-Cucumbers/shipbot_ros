@@ -33,8 +33,9 @@ class IKSolver {
      * ARGUMENTS
      * cmd_msgs: populated with messages to send
      * x, y, z: we place the end-effector at this position with pitch zero
+     * RETURN: true if a solution was found, false if not
      */
-    void solve(unordered_map<string, std_msgs::Float64> &cmd_msgs, double x, double y, double z);
+    bool solve(unordered_map<string, std_msgs::Float64> &cmd_msgs, double x, double y, double z, double pitch);
 
     /*
      * fk: get forward kinematics of end-effector
