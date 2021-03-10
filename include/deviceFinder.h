@@ -37,7 +37,7 @@ class DeviceFinder {
      * ARGUMENTS
      * position: populated with the position estimate
      * orientation: populated with the orientation estimate
-     * processed_image: populated with an image indicating the device with a bounding box
+     * processed_image: populated with an image indicating the located device
      * image_ptr: pointer to image hypothetically containing the device
      * t: time stamp of the image
      */
@@ -59,16 +59,22 @@ class DeviceFinder {
 
      DeviceType deviceType;
 
-     vector<int> wheel_thresh;
-     vector<int> spigot_thresh;
-     vector<int> shuttlecock_thresh;
-     vector<int> switch_thresh;
+     vector<int> device_thresh;
+     vector<int> fid_thresh;
 
-     vector<int> wheel_thresh2;
-     vector<int> spigot_thresh2;
+     const vector<int> wheel_thresh;
+     const vector<int> spigot_thresh;
+     const vector<int> shuttlecock_thresh;
+     const vector<int> switch_thresh;
+
+     const vector<int> wheel_thresh2;
+     const vector<int> spigot_thresh2;
 
      cv::SimpleBlobDetector::Params blobParams;
      cv::Ptr<cv::SimpleBlobDetector> detector;
+
+     cv::SimpleBlobDetector::Params fid_blobParams;
+     cv::Ptr<cv::SimpleBlobDetector> fid_detector;
 };
 
 #endif

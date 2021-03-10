@@ -18,20 +18,62 @@ DeviceFinder::DeviceFinder(vector<int> &wheel_thresh,
   blobParams.filterByColor = true;
   blobParams.blobColor = 255;
   blobParams.filterByArea = true;
+
+  fid_blobParams.filterByColor = true;
+  fid_blobParams.blobColor = 255;
+  fid_blobParams.filterByArea = true;
+  fid_blobParams.minArea = 25;
+  fid_blobParams.maxArea = 500;
+  fid_blobParams.filterByCircularity = false;
+  fid_blobParams.filterByConvexity = false;
+  fid_blobParams.filterByInertia = false;
+  fid_detector = cv::SimpleBlobDetector::create(fid_blobParams);
+
   setDevice(WHEEL);
 }
 
 void DeviceFinder::findDevice(Vector3d &position, Quaterniond &orientation,
                               cv::Mat &processed_image,
                               shared_ptr<cv::Mat> image_ptr, double t) {
-  cvtColor(*image_ptr, processed_image, cv::COLOR_BGR2HSV);
+  cv::Mat hsv;
+  cvtColor(*image_ptr, hsv, cv::COLOR_BGR2HSV);
 
-  cv::inRange(processed_image, cv::Scalar(thresh[0], thresh[1], thresh[2]), cv::Scalar(thresh[3], thresh[4], thresh[5]), processed_image);
+  cv::Mat thresh1;
+  cv::inRange(hsv, cv::Scalar(device_thresh[0], device_thresh[1], device_thresh[2]), cv::Scalar(device_thresh[3], device_thresh[4], device_thresh[5]), thresh1);
 
-  std::vector<cv::KeyPoint> keypoints;
-  detector->detect(processed_image, keypoints);
-  cv::cvtColor(processed_image, processed_image, cv::COLOR_GRAY2BGR);
-  cv::drawKeypoints(processed_image, keypoints, processed_image, cv::Scalar(0, 255, 0), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+  vector<cv::KeyPoint> keypoints;
+  detector->detect(thresh1, keypoints);
+
+  cv::cvtColor(thresh1, processed_image, cv::COLOR_GRAY2BGR);
+
+  if (keypoints.size() == 0) {
+    return;
+  }
+
+  cv::KeyPoint best = keypoints[0];
+  for (vector<cv::KeyPoint>::iterator it = keypoints.begin(); it != keypoints.end(); ++it) {
+    if (it->size > best.size) {
+      best = *it;
+    }
+  }
+
+  // Circle the device
+  cv::circle(processed_image, best.pt, best.size/2, cv::Scalar(0, 255, 0), 5, cv::LINE_AA);
+
+  // We've found the circle we're looking for. Search its rim for the fiducial
+  cv::Mat mask = cv::Mat::zeros(image_ptr->rows, image_ptr->cols, CV_8UC1);
+  circle(mask, best.pt, best.size/2, cv::Scalar(255), cv::FILLED, cv::LINE_AA);
+  cv::Mat mask2 = cv::Mat::zeros(image_ptr->rows, image_ptr->cols, CV_8UC1);
+  circle(mask2, best.pt, best.size/3, cv::Scalar(255), cv::FILLED, cv::LINE_AA);
+  cv::bitwise_xor(mask, mask2, mask);
+  
+  cv::Mat thresh2;
+  cv::inRange(hsv, cv::Scalar(fid_thresh[0], fid_thresh[1], fid_thresh[2]), cv::Scalar(fid_thresh[3], fid_thresh[4], fid_thresh[5]), thresh2);
+  cv::bitwise_and(mask, thresh2, thresh2);
+  cv::bitwise_not(thresh1, thresh1);
+  cv::bitwise_and(thresh1, thresh2, thresh2);
+
+  cv::cvtColor(thresh2, processed_image, cv::COLOR_GRAY2BGR);
 }
 
 void DeviceFinder::setDevice(DeviceType deviceType) {
@@ -67,16 +109,18 @@ void DeviceFinder::setDevice(DeviceType deviceType) {
 
   switch (deviceType) {
     case WHEEL: {
-      thresh = wheel_thresh;
+      device_thresh = wheel_thresh;
+      fid_thresh = wheel_thresh2;
       break;
     } case SPIGOT: {
-      thresh = spigot_thresh;
+      device_thresh = spigot_thresh;
+      fid_thresh = spigot_thresh2;
       break;
     } case SHUTTLECOCK: {
-      thresh = shuttlecock_thresh;
+      device_thresh = shuttlecock_thresh;
       break;
     } case SWITCH: {
-      thresh = switch_thresh;
+      device_thresh = switch_thresh;
       break;
     }
   }
