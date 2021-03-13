@@ -73,6 +73,8 @@ class DeviceFinder {
      const vector<int> wheel_thresh2;
      const vector<int> spigot_thresh2;
 
+     const double wheel_radius = 0.047625;
+
      cv::Mat K;
      cv::Mat distortion;
 };

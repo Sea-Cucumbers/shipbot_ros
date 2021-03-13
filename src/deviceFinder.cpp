@@ -70,10 +70,10 @@ void DeviceFinder::findDevice(Vector3f &position, Quaternionf &orientation,
 
   vector<cv::Point3f> objectPoints;
   objectPoints.push_back(cv::Point3f(0, 0, 0));
-  objectPoints.push_back(cv::Point3f(-0.0635, 0, 0));
-  objectPoints.push_back(cv::Point3f(0.0635, 0, 0));
-  objectPoints.push_back(cv::Point3f(0, -0.0635, 0));
-  objectPoints.push_back(cv::Point3f(0, 0.0635, 0));
+  objectPoints.push_back(cv::Point3f(-wheel_radius, 0, 0));
+  objectPoints.push_back(cv::Point3f(wheel_radius, 0, 0));
+  objectPoints.push_back(cv::Point3f(0, -wheel_radius, 0));
+  objectPoints.push_back(cv::Point3f(0, wheel_radius, 0));
 
   vector<cv::Point2f> imagePoints;
   double c = cos(ell.angle);
@@ -88,6 +88,7 @@ void DeviceFinder::findDevice(Vector3f &position, Quaternionf &orientation,
 
   cv::Mat rvec;
   cv::Mat tvec;
+
   cv::solvePnP(objectPoints, imagePoints, K, distortion, rvec, tvec);
 
   cv::Mat rmat;
@@ -97,9 +98,13 @@ void DeviceFinder::findDevice(Vector3f &position, Quaternionf &orientation,
   cv::cv2eigen(rmat, rmat_eigen);
   cv::cv2eigen(tvec, position);
 
-  rmat_eigen.col(0) = -rmat_eigen.col(2).cross(Vector3f(0, 1, 0));
-  rmat_eigen.col(1) = rmat_eigen.col(2).cross(rmat_eigen.col(0));
+  rmat_eigen.col(0) = -rmat_eigen.col(2).cross(Vector3f(0, 1, 0)).normalized();
+  rmat_eigen.col(1) = rmat_eigen.col(2).cross(rmat_eigen.col(0)).normalized();
+
   orientation = Quaternionf(rmat_eigen);
+
+  this->position = position;
+  this->orientation = orientation;
 }
 
 void DeviceFinder::setDevice(DeviceType deviceType) {
