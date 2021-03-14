@@ -84,7 +84,7 @@ int main(int argc, char** argv) {
 
   tf2_ros::TransformBroadcaster pose_br;
   geometry_msgs::TransformStamped pose;
-  pose.header.frame_id = "world";
+  pose.header.frame_id = "camera";
   pose.child_frame_id = "device pose";
 
   DeviceFinder finder(wheel_thresh,
