@@ -4,13 +4,39 @@
 #include <vector>
 #include <tf2_ros/transform_broadcaster.h>
 #include <geometry_msgs/TransformStamped.h>
-#include "deviceFinder.h"
+#include "deviceTracker.h"
 #include <opencv2/opencv.hpp>
 #include "opencv2/video/tracking.hpp"
 #include "opencv2/core/eigen.hpp"
 #include <cv_bridge/cv_bridge.h>
 
 using namespace std;
+
+class track_device {
+  private:
+    shared_ptr<DeviceTracker> tracker;
+
+  public:
+    /*
+     * track_device: constructor
+     * ARGUMENTS
+     * tracker: pointer to device tracker whom we should tell
+     * to track a new device
+     */
+     track_device(shared_ptr<DeviceTracker> _tracker) : tracker(_tracker) {}
+
+    /*
+     * operator (): tell the tracker to track the new device type
+     * ARGUMENTS
+     * req: request, telling us which device to track
+     * res: technically supposed to be populated with the response, but
+     * the response isn't used
+     */
+    bool operator () (shipbot_ros::track_device::Request &req,
+                      shipbot_ros::track_device::Response &res) {
+      tracker->setDevice(req.deviceType);
+    }
+};
 
 static bool got_image;
 
@@ -87,13 +113,15 @@ int main(int argc, char** argv) {
   pose.header.frame_id = "camera";
   pose.child_frame_id = "device pose";
 
-  DeviceFinder finder(wheel_thresh,
-                      spigot_thresh,
-                      shuttlecock_thresh,
-                      switch_thresh,
-                      wheel_thresh2,
-                      spigot_thresh2,
-                      fx, fy, cx, cx, k1, k2, p1, p2, k3);
+  shared_ptr<DeviceTracker> tracker = make_shared<DeviceTracker>(wheel_thresh,
+                                                                 spigot_thresh,
+                                                                 shuttlecock_thresh,
+                                                                 switch_thresh,
+                                                                 wheel_thresh2,
+                                                                 spigot_thresh2,
+                                                                 fx, fy, cx, cx, k1, k2, p1, p2, k3);
+
+  ros::ServiceServer track_device_service = nh.advertiseService<shipbot_ros::track_device::Request, shipbot_ros::track_device::Response>("track_device", track_device(tracker));
 
   shared_ptr<cv::Mat> image_ptr = make_shared<cv::Mat>();
   shared_ptr<double> time_ptr = make_shared<double>();
@@ -113,7 +141,7 @@ int main(int argc, char** argv) {
   while (ros::ok())
   {
     cv_bridge::CvImagePtr processed_image_ptr = boost::make_shared<cv_bridge::CvImage>(); 
-    finder.findDevice(position, orientation, processed_image_ptr->image, image_ptr, *time_ptr);
+    tracker->findDevice(position, orientation, processed_image_ptr->image, image_ptr, *time_ptr);
     pose.transform.translation.x = position(0);
     pose.transform.translation.y = position(1);
     pose.transform.translation.z = position(2);
@@ -127,8 +155,7 @@ int main(int argc, char** argv) {
 
     sensor_msgs::Image processed_image_msg;
     processed_image_ptr->toImageMsg(processed_image_msg);
-    //processed_image_msg.encoding = sensor_msgs::image_encodings::MONO8; // TODO: change
-    processed_image_msg.encoding = sensor_msgs::image_encodings::BGR8; // TODO: change
+    processed_image_msg.encoding = sensor_msgs::image_encodings::BGR8;
     image_pub.publish(processed_image_msg);
 
     r.sleep();

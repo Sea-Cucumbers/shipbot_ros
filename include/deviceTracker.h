@@ -5,14 +5,13 @@
 #include <Eigen/Dense>
 #include <opencv2/opencv.hpp>
 #include <array>
+#include "shipbot_ros/track_device.h"
 
 using namespace std;
 using namespace Eigen;
 
-// TODO: how do we handle multiple switches?
-enum DeviceType {WHEEL, SPIGOT, SHUTTLECOCK, SWITCH};
 
-class DeviceFinder {
+class DeviceTracker {
   public:
     /*
      * constructor: sets the device type to WHEEL. Note that all thresholds should be
@@ -26,14 +25,14 @@ class DeviceFinder {
      * spigot_thresh2: length-6 vector of threshold values for the fiducial on spigot valves
      * fx, fy, cx, cy, k1, k2, p1, p2, k3: intrinsics
      */
-    DeviceFinder(vector<int> &wheel_thresh,
-                 vector<int> &spigot_thresh,
-                 vector<int> &shuttlecock_thresh,
-                 vector<int> &switch_thresh,
-                 vector<int> &wheel_thresh2,
-                 vector<int> &spigot_thresh2,
-                 double fx, double fy, double cx, double cy,
-                 double k1, double k2, double p1, double p2, double k3);
+    DeviceTracker(vector<int> &wheel_thresh,
+                  vector<int> &spigot_thresh,
+                  vector<int> &shuttlecock_thresh,
+                  vector<int> &switch_thresh,
+                  vector<int> &wheel_thresh2,
+                  vector<int> &spigot_thresh2,
+                  double fx, double fy, double cx, double cy,
+                  double k1, double k2, double p1, double p2, double k3);
 
     /*
      * findDevice: estimates the pose of the device relative to the camera
@@ -53,14 +52,14 @@ class DeviceFinder {
      * ARGUMENTS
      * deviceType: device type to look for next time findDevice is called
      */
-    void setDevice(DeviceType deviceType);
+    void setDevice(int deviceType);
 
    private:
      // Not used now, but we might want to do some filtering later on
      Vector3f position;
      Quaternionf orientation;
 
-     DeviceType deviceType;
+     int deviceType;
 
      vector<int> device_thresh;
      vector<int> fid_thresh;

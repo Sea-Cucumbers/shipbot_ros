@@ -1,0 +1,11 @@
+int8 WHEELV = 0
+int8 SPIGOTV = 1
+int8 SHUTTLECOCKV = 2
+int8 SWITCH = 3
+int8 WHEELH = 4
+int8 SPIGOTH = 5
+int8 SHUTTLECOCKH = 6
+
+int8 deviceType
+---
+int8 noResponse

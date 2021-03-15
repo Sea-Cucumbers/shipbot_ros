@@ -1,24 +1,25 @@
-#include "deviceFinder.h"
+#include "deviceTracker.h"
 #include "opencv2/video/tracking.hpp"
 #include "opencv2/core/eigen.hpp"
 #include <iostream>
+#include "shipbot_ros/track_device.h"
 
-DeviceFinder::DeviceFinder(vector<int> &wheel_thresh,
-                           vector<int> &spigot_thresh,
-                           vector<int> &shuttlecock_thresh,
-                           vector<int> &switch_thresh,
-                           vector<int> &wheel_thresh2,
-                           vector<int> &spigot_thresh2,
-                           double fx, double fy, double cx, double cy,
-                           double k1, double k2, double p1, double p2, double k3) : 
-                                                          wheel_thresh(wheel_thresh),
-                                                          spigot_thresh(spigot_thresh),
-                                                          shuttlecock_thresh(shuttlecock_thresh),
-                                                          switch_thresh(switch_thresh),
-                                                          wheel_thresh2(wheel_thresh2),
-                                                          spigot_thresh2(spigot_thresh2),
-                                                          position(0, 0, 0), 
-                                                          orientation(1, 0, 0, 0) {
+DeviceTracker::DeviceTracker(vector<int> &wheel_thresh,
+                             vector<int> &spigot_thresh,
+                             vector<int> &shuttlecock_thresh,
+                             vector<int> &switch_thresh,
+                             vector<int> &wheel_thresh2,
+                             vector<int> &spigot_thresh2,
+                             double fx, double fy, double cx, double cy,
+                             double k1, double k2, double p1, double p2, double k3) : 
+                                                            wheel_thresh(wheel_thresh),
+                                                            spigot_thresh(spigot_thresh),
+                                                            shuttlecock_thresh(shuttlecock_thresh),
+                                                            switch_thresh(switch_thresh),
+                                                            wheel_thresh2(wheel_thresh2),
+                                                            spigot_thresh2(spigot_thresh2),
+                                                            position(0, 0, 0), 
+                                                            orientation(1, 0, 0, 0) {
   K = cv::Mat::eye(3, 3, CV_32F);
   K.at<float>(0, 0) = fx;
   K.at<float>(0, 2) = cx;
@@ -32,10 +33,10 @@ DeviceFinder::DeviceFinder(vector<int> &wheel_thresh,
   distortion.at<float>(0, 3) = p2;
   distortion.at<float>(0, 4) = k3;
 
-  setDevice(WHEEL);
+  setDevice(shipbot_ros::track_device::Request::WHEELV);
 }
 
-void DeviceFinder::findDevice(Vector3f &position, Quaternionf &orientation,
+void DeviceTracker::findDevice(Vector3f &position, Quaternionf &orientation,
                               cv::Mat &processed_image,
                               shared_ptr<cv::Mat> image_ptr, double t) {
   processed_image = image_ptr->clone();
@@ -107,21 +108,32 @@ void DeviceFinder::findDevice(Vector3f &position, Quaternionf &orientation,
   this->orientation = orientation;
 }
 
-void DeviceFinder::setDevice(DeviceType deviceType) {
+void DeviceTracker::setDevice(int deviceType) {
   this->deviceType = deviceType;
   switch (deviceType) {
-    case WHEEL: {
+    case shipbot_ros::track_device::Request::WHEELV: {
       device_thresh = wheel_thresh;
       fid_thresh = wheel_thresh2;
       break;
-    } case SPIGOT: {
+    } case shipbot_ros::track_device::Request::WHEELH: {
+      device_thresh = wheel_thresh;
+      fid_thresh = wheel_thresh2;
+      break;
+    } case shipbot_ros::track_device::Request::SPIGOTV: {
       device_thresh = spigot_thresh;
       fid_thresh = spigot_thresh2;
       break;
-    } case SHUTTLECOCK: {
+    } case shipbot_ros::track_device::Request::SPIGOTH: {
+      device_thresh = spigot_thresh;
+      fid_thresh = spigot_thresh2;
+      break;
+    } case shipbot_ros::track_device::Request::SHUTTLECOCKV: {
       device_thresh = shuttlecock_thresh;
       break;
-    } case SWITCH: {
+    } case shipbot_ros::track_device::Request::SHUTTLECOCKH: {
+      device_thresh = shuttlecock_thresh;
+      break;
+    } case shipbot_ros::track_device::Request::SWITCH: {
       device_thresh = switch_thresh;
       break;
     }
