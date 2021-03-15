@@ -37,8 +37,46 @@ DeviceTracker::DeviceTracker(vector<int> &wheel_thresh,
 }
 
 void DeviceTracker::findDevice(Vector3f &position, Quaternionf &orientation,
-                              cv::Mat &processed_image,
-                              shared_ptr<cv::Mat> image_ptr, double t) {
+                               cv::Mat &processed_image,
+                               shared_ptr<cv::Mat> image_ptr, double t) {
+  // TODO: most of the code in these functions is repeat. Figure out a better way to 
+  // divide functionality
+  if (deviceType == shipbot_ros::track_device::Request::WHEEL ||
+      deviceType == shipbot_ros::track_device::Request::SPIGOT) {
+    findCircle(position, orientation, processed_image, image_ptr, t);
+  } else if (deviceType == shipbot_ros::track_device::Request::SHUTTLECOCK) {
+    findShuttlecock(position, orientation, processed_image, image_ptr, t);
+  } else {
+    findSwitches(position, orientation, processed_image, image_ptr, t);
+  }
+}
+
+void DeviceTracker::setDevice(int deviceType) {
+  this->deviceType = deviceType;
+  switch (deviceType) {
+    case shipbot_ros::track_device::Request::WHEEL: {
+      device_thresh = wheel_thresh;
+      fid_thresh = wheel_thresh2;
+      device_radius = wheel_radius;
+      break;
+    } case shipbot_ros::track_device::Request::SPIGOT: {
+      device_thresh = spigot_thresh;
+      fid_thresh = spigot_thresh2;
+      device_radius = spigot_radius;
+      break;
+    } case shipbot_ros::track_device::Request::SHUTTLECOCK: {
+      device_thresh = shuttlecock_thresh;
+      break;
+    } case shipbot_ros::track_device::Request::SWITCH: {
+      device_thresh = switch_thresh;
+      break;
+    }
+  }
+}
+
+void DeviceTracker::findCircle(Vector3f &position, Quaternionf &orientation,
+                               cv::Mat &processed_image,
+                               shared_ptr<cv::Mat> image_ptr, double t) {
   processed_image = image_ptr->clone();
 
   cv::Mat hsv;
@@ -108,23 +146,85 @@ void DeviceTracker::findDevice(Vector3f &position, Quaternionf &orientation,
   this->orientation = orientation;
 }
 
-void DeviceTracker::setDevice(int deviceType) {
-  this->deviceType = deviceType;
-  switch (deviceType) {
-    case shipbot_ros::track_device::Request::WHEEL: {
-      device_thresh = wheel_thresh;
-      fid_thresh = wheel_thresh2;
-      break;
-    } case shipbot_ros::track_device::Request::SPIGOT: {
-      device_thresh = spigot_thresh;
-      fid_thresh = spigot_thresh2;
-      break;
-    } case shipbot_ros::track_device::Request::SHUTTLECOCK: {
-      device_thresh = shuttlecock_thresh;
-      break;
-    } case shipbot_ros::track_device::Request::SWITCH: {
-      device_thresh = switch_thresh;
-      break;
+void DeviceTracker::findShuttlecock(Vector3f &position, Quaternionf &orientation,
+                                    cv::Mat &processed_image,
+                                    shared_ptr<cv::Mat> image_ptr, double t) {
+  processed_image = image_ptr->clone();
+
+  cv::Mat hsv;
+  cvtColor(*image_ptr, hsv, cv::COLOR_BGR2HSV);
+
+  cv::Mat thresh1;
+  cv::inRange(hsv, cv::Scalar(device_thresh[0], device_thresh[1], device_thresh[2]), cv::Scalar(device_thresh[3], device_thresh[4], device_thresh[5]), thresh1);
+
+  vector<vector<cv::Point>> contours;
+  findContours(thresh1, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
+  if (contours.size() == 0) {
+    return;
+  }
+  double best_area = cv::contourArea(contours[0]);
+  size_t best_idx = 0;
+  for (size_t i = 1; i < contours.size(); ++i) {
+    double area = cv::contourArea(contours[i]);
+    if (area > best_area) {
+      best_idx = i;
+      best_area = area;
     }
   }
+
+  if (contours[best_idx].size() < 5) {
+    return;
+  }
+
+  cv::RotatedRect rect = cv::minAreaRect(contours[best_idx]);
+
+  // Draw rectangle
+  cv::Point2f rect_points[4];
+  rect.points(rect_points);
+  for (int j = 0; j < 4; j++)
+  {
+    cv::line(processed_image, rect_points[j], rect_points[(j + 1) % 4], cv::Scalar(0, 255, 0));
+  }
+
+  vector<cv::Point3f> objectPoints;
+  objectPoints.push_back(cv::Point3f(0, 0, 0));
+  objectPoints.push_back(cv::Point3f(-shuttlecock_width, 0, 0));
+  objectPoints.push_back(cv::Point3f(shuttlecock_width, 0, 0));
+  objectPoints.push_back(cv::Point3f(0, -shuttlecock_length, 0));
+  objectPoints.push_back(cv::Point3f(0, shuttlecock_length, 0));
+
+  vector<cv::Point2f> imagePoints;
+  double c = cos(rect.angle);
+  double s = sin(rect.angle);
+  cv::Point2f hvec(rect.size.height*c/2, rect.size.height*s/2);
+  cv::Point2f wvec(-rect.size.width*s/2, rect.size.width*c/2);
+  imagePoints.push_back(rect.center);
+  imagePoints.push_back(rect.center + hvec);
+  imagePoints.push_back(rect.center - hvec);
+  imagePoints.push_back(rect.center + wvec);
+  imagePoints.push_back(rect.center - wvec);
+
+  cv::Mat rvec;
+  cv::Mat tvec;
+
+  cv::solvePnP(objectPoints, imagePoints, K, distortion, rvec, tvec);
+
+  cv::Mat rmat;
+  cv::Rodrigues(rvec, rmat);
+
+  Matrix3f rmat_eigen;
+  cv::cv2eigen(rmat, rmat_eigen);
+  cv::cv2eigen(tvec, position);
+
+  rmat_eigen.col(0) = -rmat_eigen.col(2).cross(Vector3f(0, 1, 0)).normalized();
+  rmat_eigen.col(1) = rmat_eigen.col(2).cross(rmat_eigen.col(0)).normalized();
+
+  orientation = Quaternionf(rmat_eigen);
+
+  this->position = position;
+  this->orientation = orientation;
 }
+
+void DeviceTracker::findSwitches(Vector3f &position, Quaternionf &orientation,
+                                 cv::Mat &processed_image,
+                                 shared_ptr<cv::Mat> image_ptr, double t) {}

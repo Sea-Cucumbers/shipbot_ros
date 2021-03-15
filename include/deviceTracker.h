@@ -63,6 +63,7 @@ class DeviceTracker {
 
      vector<int> device_thresh;
      vector<int> fid_thresh;
+     double device_radius; // Only used for wheel and spigot
 
      const vector<int> wheel_thresh;
      const vector<int> spigot_thresh;
@@ -72,10 +73,55 @@ class DeviceTracker {
      const vector<int> wheel_thresh2;
      const vector<int> spigot_thresh2;
 
+     // in meters
      const double wheel_radius = 0.047625;
+     const double spigot_radius = 0.041275;
+     const double shuttlecock_length = 0.07;
+     const double shuttlecock_width = 0.0185;
+     const double switch_seph = 0.04; // TODO: measure the right value
+     const double switch_sepv = 0.01; // TODO: measure the right value
 
      cv::Mat K;
      cv::Mat distortion;
+ 
+     /*
+      * findCircle: finds the pose of a circular (i.e. wheel or spigot) valve
+      * ARGUMENTS
+      * position: populated with the position estimate
+      * orientation: populated with the orientation estimate
+      * processed_image: populated with an image indicating the located device
+      * image_ptr: pointer to image hypothetically containing the device
+      * t: time stamp of the image
+      */
+     void findCircle(Vector3f &position, Quaternionf &orientation,
+                     cv::Mat &processed_image,
+                     shared_ptr<cv::Mat> image_ptr, double t);
+
+     /*
+      * findShuttlecock: finds the pose of a shuttlecock valve
+      * ARGUMENTS
+      * position: populated with the position estimate
+      * orientation: populated with the orientation estimate
+      * processed_image: populated with an image indicating the located device
+      * image_ptr: pointer to image hypothetically containing the device
+      * t: time stamp of the image
+      */
+     void findShuttlecock(Vector3f &position, Quaternionf &orientation,
+                          cv::Mat &processed_image,
+                          shared_ptr<cv::Mat> image_ptr, double t);
+
+     /*
+      * findSwitches: finds the pose of the leftmost switch in a breaker
+      * ARGUMENTS
+      * position: populated with the position estimate
+      * orientation: populated with the orientation estimate
+      * processed_image: populated with an image indicating the located device
+      * image_ptr: pointer to image hypothetically containing the device
+      * t: time stamp of the image
+      */
+     void findSwitches(Vector3f &position, Quaternionf &orientation,
+                       cv::Mat &processed_image,
+                       shared_ptr<cv::Mat> image_ptr, double t);
 };
 
 #endif
