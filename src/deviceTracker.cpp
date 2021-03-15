@@ -33,7 +33,7 @@ DeviceTracker::DeviceTracker(vector<int> &wheel_thresh,
   distortion.at<float>(0, 3) = p2;
   distortion.at<float>(0, 4) = k3;
 
-  setDevice(shipbot_ros::track_device::Request::WHEEL);
+  setDevice(shipbot_ros::track_device::Request::NONE);
 }
 
 void DeviceTracker::findDevice(Vector3f &position, Quaternionf &orientation,
@@ -46,8 +46,10 @@ void DeviceTracker::findDevice(Vector3f &position, Quaternionf &orientation,
     findCircle(position, orientation, processed_image, image_ptr, t);
   } else if (deviceType == shipbot_ros::track_device::Request::SHUTTLECOCK) {
     findShuttlecock(position, orientation, processed_image, image_ptr, t);
-  } else {
+  } else if (deviceType == shipbot_ros::track_device::Request::SWITCH) {
     findSwitches(position, orientation, processed_image, image_ptr, t);
+  } else {
+    processed_image = image_ptr->clone();
   }
 }
 
@@ -196,8 +198,17 @@ void DeviceTracker::findShuttlecock(Vector3f &position, Quaternionf &orientation
   vector<cv::Point2f> imagePoints;
   double c = cos(rect.angle);
   double s = sin(rect.angle);
-  cv::Point2f hvec(rect.size.height*c/2, rect.size.height*s/2);
-  cv::Point2f wvec(-rect.size.width*s/2, rect.size.width*c/2);
+  double width;
+  double length;
+  if (rect.size.height > rect.size.width) {
+    length = rect.size.height;
+    width = rect.size.width;
+  } else {
+    length = rect.size.width;
+    width = rect.size.height;
+  }
+  cv::Point2f hvec(length*c/2, length*s/2);
+  cv::Point2f wvec(-width*s/2, width*c/2);
   imagePoints.push_back(rect.center);
   imagePoints.push_back(rect.center + hvec);
   imagePoints.push_back(rect.center - hvec);

@@ -11,6 +11,7 @@
 #include <cv_bridge/cv_bridge.h>
 
 using namespace std;
+bool run_tracker = false;
 
 class track_device {
   private:
@@ -35,6 +36,7 @@ class track_device {
     bool operator () (shipbot_ros::track_device::Request &req,
                       shipbot_ros::track_device::Response &res) {
       tracker->setDevice(req.deviceType);
+      run_tracker = req.deviceType != shipbot_ros::track_device::Request::NONE;
     }
 };
 
@@ -140,23 +142,25 @@ int main(int argc, char** argv) {
   Quaternionf orientation(1, 0, 0, 0);
   while (ros::ok())
   {
-    cv_bridge::CvImagePtr processed_image_ptr = boost::make_shared<cv_bridge::CvImage>(); 
-    tracker->findDevice(position, orientation, processed_image_ptr->image, image_ptr, *time_ptr);
-    pose.transform.translation.x = position(0);
-    pose.transform.translation.y = position(1);
-    pose.transform.translation.z = position(2);
-    pose.transform.rotation.x = orientation.x();
-    pose.transform.rotation.y = orientation.y();
-    pose.transform.rotation.z = orientation.z();
-    pose.transform.rotation.w = orientation.w();
+    if (run_tracker) {
+      cv_bridge::CvImagePtr processed_image_ptr = boost::make_shared<cv_bridge::CvImage>(); 
+      tracker->findDevice(position, orientation, processed_image_ptr->image, image_ptr, *time_ptr);
+      pose.transform.translation.x = position(0);
+      pose.transform.translation.y = position(1);
+      pose.transform.translation.z = position(2);
+      pose.transform.rotation.x = orientation.x();
+      pose.transform.rotation.y = orientation.y();
+      pose.transform.rotation.z = orientation.z();
+      pose.transform.rotation.w = orientation.w();
 
-    pose.header.stamp = ros::Time::now();
-    pose_br.sendTransform(pose);
+      pose.header.stamp = ros::Time::now();
+      pose_br.sendTransform(pose);
 
-    sensor_msgs::Image processed_image_msg;
-    processed_image_ptr->toImageMsg(processed_image_msg);
-    processed_image_msg.encoding = sensor_msgs::image_encodings::BGR8;
-    image_pub.publish(processed_image_msg);
+      sensor_msgs::Image processed_image_msg;
+      processed_image_ptr->toImageMsg(processed_image_msg);
+      processed_image_msg.encoding = sensor_msgs::image_encodings::BGR8;
+      image_pub.publish(processed_image_msg);
+    }
 
     r.sleep();
     ros::spinOnce();

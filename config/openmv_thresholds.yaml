@@ -1,7 +1,7 @@
 # HSV thresholds
 wheel_thresh: [80, 122, 0, 115, 255, 255]
 spigot_thresh: [80, 122, 0, 115, 255, 255]
-shuttlecock_thresh: [80, 122, 0, 115, 255, 255]
+shuttlecock_thresh: [100, 175, 0, 115, 255, 255]
 switch_thresh: [0, 27, 165, 255, 100, 255]
 wheel_thresh2: [0, 0, 0, 255, 255, 50]
 spigot_thresh2: [0, 0, 0, 0, 0, 0]
