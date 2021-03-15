@@ -33,7 +33,7 @@ DeviceTracker::DeviceTracker(vector<int> &wheel_thresh,
   distortion.at<float>(0, 3) = p2;
   distortion.at<float>(0, 4) = k3;
 
-  setDevice(shipbot_ros::track_device::Request::WHEELV);
+  setDevice(shipbot_ros::track_device::Request::WHEEL);
 }
 
 void DeviceTracker::findDevice(Vector3f &position, Quaternionf &orientation,
@@ -111,26 +111,15 @@ void DeviceTracker::findDevice(Vector3f &position, Quaternionf &orientation,
 void DeviceTracker::setDevice(int deviceType) {
   this->deviceType = deviceType;
   switch (deviceType) {
-    case shipbot_ros::track_device::Request::WHEELV: {
+    case shipbot_ros::track_device::Request::WHEEL: {
       device_thresh = wheel_thresh;
       fid_thresh = wheel_thresh2;
       break;
-    } case shipbot_ros::track_device::Request::WHEELH: {
-      device_thresh = wheel_thresh;
-      fid_thresh = wheel_thresh2;
-      break;
-    } case shipbot_ros::track_device::Request::SPIGOTV: {
+    } case shipbot_ros::track_device::Request::SPIGOT: {
       device_thresh = spigot_thresh;
       fid_thresh = spigot_thresh2;
       break;
-    } case shipbot_ros::track_device::Request::SPIGOTH: {
-      device_thresh = spigot_thresh;
-      fid_thresh = spigot_thresh2;
-      break;
-    } case shipbot_ros::track_device::Request::SHUTTLECOCKV: {
-      device_thresh = shuttlecock_thresh;
-      break;
-    } case shipbot_ros::track_device::Request::SHUTTLECOCKH: {
+    } case shipbot_ros::track_device::Request::SHUTTLECOCK: {
       device_thresh = shuttlecock_thresh;
       break;
     } case shipbot_ros::track_device::Request::SWITCH: {
