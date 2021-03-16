@@ -78,8 +78,8 @@ class DeviceTracker {
      const double spigot_radius = 0.041275;
      const double shuttlecock_length = 0.07;
      const double shuttlecock_width = 0.0185;
-     const double switch_seph = 0.04; // TODO: measure the right value
-     const double switch_sepv = 0.01; // TODO: measure the right value
+     const double switch_seph = 0.0381;
+     const double switch_sepv = 0.0127;
 
      cv::Mat K;
      cv::Mat distortion;
