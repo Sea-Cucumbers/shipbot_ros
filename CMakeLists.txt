@@ -63,7 +63,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
-  track_device.srv
+  find_device.srv
 )
 
 ## Generate actions in the 'action' folder
@@ -77,6 +77,7 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
+  geometry_msgs
 )
 
 ################################################
@@ -134,13 +135,16 @@ target_link_libraries(test_workspace ${catkin_LIBRARIES} pinocchio::pinocchio)
 add_executable(ee_cam_node src/ee_cam_node.cpp $<TARGET_OBJECTS:ee_camera>)
 target_link_libraries(ee_cam_node ${catkin_LIBRARIES} ${OpenCV_LIBS})
 
+add_executable(ee_cam_server src/ee_cam_server.cpp $<TARGET_OBJECTS:ee_camera>)
+target_link_libraries(ee_cam_server ${catkin_LIBRARIES} ${OpenCV_LIBS})
+
 ## Declare a C++ library
 add_library(arm_control OBJECT
   ${CMAKE_CURRENT_SOURCE_DIR}/src/ikSolver.cpp
 )
 
 add_library(ee_camera OBJECT
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/deviceTracker.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/deviceFinder.cpp
 )
 
 ## Add cmake target dependencies of the library

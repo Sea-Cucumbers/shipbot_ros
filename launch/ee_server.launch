@@ -1,0 +1,6 @@
+<launch>
+  <rosparam file="$(find shipbot_ros)/config/openmv_thresholds.yaml" />
+  <rosparam file="$(find shipbot_ros)/config/openmv.yaml" />
+  <node name="ee_cam_server" pkg="shipbot_ros" type="ee_cam_server" output="screen">
+  </node>
+</launch>
