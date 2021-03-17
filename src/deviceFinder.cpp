@@ -189,7 +189,6 @@ void DeviceFinder::findShuttlecock(Vector3f &position, Quaternionf &orientation,
   }
 
   vector<cv::Point3f> objectPoints;
-  objectPoints.push_back(cv::Point3f(0, 0, 0));
   objectPoints.push_back(cv::Point3f(-shuttlecock_blue_width, 0, 0));
   objectPoints.push_back(cv::Point3f(shuttlecock_blue_width, 0, 0));
   objectPoints.push_back(cv::Point3f(0, -shuttlecock_blue_length, 0));
@@ -209,7 +208,6 @@ void DeviceFinder::findShuttlecock(Vector3f &position, Quaternionf &orientation,
   }
   cv::Point2f hvec(length*c/2, length*s/2);
   cv::Point2f wvec(-width*s/2, width*c/2);
-  imagePoints.push_back(rect.center);
   imagePoints.push_back(rect.center + hvec);
   imagePoints.push_back(rect.center - hvec);
   imagePoints.push_back(rect.center + wvec);
