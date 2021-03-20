@@ -23,9 +23,7 @@ KDHelper::KDHelper(const string &urdf_file) {
   for (pin::JointIndex joint_id = 1;
        joint_id < model.joints.size();
        ++joint_id) {
-    if (model.names[joint_id].rfind("rotary") != string::npos) {
-      actuator_names.push_back(model.names[joint_id]);
-    }
+    actuator_names.push_back(model.names[joint_id]);
   }
 
   pin::FrameIndex l1_fid = model.getFrameId("link1");

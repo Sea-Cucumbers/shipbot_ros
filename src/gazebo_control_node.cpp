@@ -61,6 +61,7 @@ int main(int argc, char** argv) {
   KDHelper kd(urdf_file);
 
   const vector<string> &actuator_names = kd.get_actuator_names();
+  unordered_map<string, size_t> actuator_idx;
   vector<std_msgs::Float64> cmd_msgs;
   vector<ros::Publisher> cmd_pubs;
   VectorXd position_cmds = VectorXd::Zero(actuator_names.size());
@@ -70,6 +71,7 @@ int main(int argc, char** argv) {
                                                        "_controller/command", 1));
     cmd_msgs.push_back(std_msgs::Float64());
     cmd_msgs[j].data = 0;
+    actuator_idx[actuator_names[j]] = j;
   }
 
   shared_ptr<sensor_msgs::JointState> joints_ptr = make_shared<sensor_msgs::JointState>();
@@ -126,10 +128,11 @@ int main(int argc, char** argv) {
     double x = cx + radius*cos(t);
     double z = cz + radius*sin(t);
 
-    for (size_t j = 0; j < actuator_names.size(); ++j) {
-      positions(j) = joints_ptr->position[j];
-      velocities(j) = joints_ptr->velocity[j];
-      efforts(j) = joints_ptr->effort[j];
+    for (size_t j = 0; j < joints_ptr->position.size(); ++j) {
+      size_t idx = actuator_idx[joints_ptr->name[j]];
+      positions(idx) = joints_ptr->position[j];
+      velocities(idx) = joints_ptr->velocity[j];
+      efforts(idx) = joints_ptr->effort[j];
     }
       
     kd.update_state(positions, velocities, efforts);

@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
 
   // HEBI initialization
   hebi::Lookup lookup;
-  auto group = lookup.getGroupFromNames({"SEA Cucumbers"}, actuator_names);
+  auto group = lookup.getGroupFromNames({"ShipBot"}, actuator_names);
 
   if (!group) {
     std::cout
