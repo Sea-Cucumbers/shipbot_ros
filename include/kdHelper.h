@@ -4,7 +4,6 @@
 #include <pinocchio/fwd.hpp>
 #include <pinocchio/parsers/urdf.hpp>
 #include <pinocchio/algorithm/kinematics.hpp>
-#include <std_msgs/Float64.h>
 #include <unordered_map>
 #include <memory>
 #include <sensor_msgs/JointState.h>
@@ -29,22 +28,29 @@ class KDHelper {
     }
 
     /*
+     * update_state: updates the internal state of the kinematics/dynamics object
+     * ARGUMENTS
+     * joints_ptr: pointer to joint state message
+     */
+    void update_state(shared_ptr<sensor_msgs::JointState> &joints_ptr);
+
+    /*
      * ik: determine joint positions given end-effector position
      * ARGUMENTS
      * cmd_msgs: populated with messages to send
      * x, y, z: we place the end-effector at this position with pitch zero
      * RETURN: true if a solution was found, false if not
      */
-    bool ik(unordered_map<string, std_msgs::Float64> &cmd_msgs, double x, double y, double z, double pitch);
+    bool ik(unordered_map<string, double> &joint_positions, double x, double y, double z, double pitch);
 
     /*
-     * fk: get forward kinematics of end-effector
+     * fk: get forward kinematics of end-effector. update_state must be called beforehand
      * ARGUMENTS
      * position: populated with end-effector position
      * orientation: populated with end-effector orientation
      * joints_ptr: pointer to joint state message
      */
-    void fk(Vector3d &position, Quaterniond &orientation, shared_ptr<sensor_msgs::JointState> &joints_ptr);
+    void fk(Vector3d &position, Quaterniond &orientation);
 
    private:
     pin::Model model;

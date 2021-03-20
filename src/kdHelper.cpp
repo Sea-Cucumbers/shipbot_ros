@@ -6,6 +6,7 @@
 #include <pinocchio/algorithm/kinematics.hpp>
 #include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/algorithm/frames.hpp>
+#include <pinocchio/algorithm/rnea.hpp>
 #include <Eigen/Dense>
 #include <iostream>
 
@@ -42,36 +43,7 @@ KDHelper::KDHelper(const string &urdf_file) {
   ee = l4 + l5;
 }
 
-bool KDHelper::ik(unordered_map<string, std_msgs::Float64> &cmd_msgs, double x, double y, double z, double pitch) {
-  double th1 = atan2(y, x) + asin(D/sqrt(x*x + y*y));
-
-  double xp = x - D*sin(th1);
-  double yp = y + D*cos(th1);
-
-  // If we wanted a nonzero pitch, we'd have to subtract ee*cos(pitch) here
-  double a = sqrt(xp*xp + yp*yp) - ee*cos(pitch) + l2_loc;
-  // If we wanted a nonzero pitch, we'd have to subtract ee*sin(pitch) here
-  double zp = z - l0 - l1 - ee*sin(pitch); 
-
-  double c = (a*a + zp*zp - l2*l2 - l3*l3)/(2*l2*l3);
-  if (c > 1 || c < -1) {
-    return false;
-  }
-  double th3 = -acos(c);
-  double th2 = atan2(zp, a) - atan2(l3*sin(th3), l2 + l3*cos(th3));
-
-  // If we wanted a nonzero pitch, we'd have to add pitch here
-  double th4 = -th3 - th2;
-
-  cmd_msgs["rotary1"].data = th1 - M_PI/2;
-  cmd_msgs["rotary2"].data = -th2;
-  cmd_msgs["rotary3"].data = th3;
-  cmd_msgs["rotary4"].data = -th4;
-
-  return true;
-}
-
-void KDHelper::fk(Vector3d &position, Quaterniond &orientation, shared_ptr<sensor_msgs::JointState> &joints_ptr) {
+void KDHelper::update_state(shared_ptr<sensor_msgs::JointState> &joints_ptr) {
   size_t njoints_msg = joints_ptr->name.size();
   VectorXd config(2*njoints_msg);
   VectorXd vel(njoints_msg);
@@ -83,7 +55,36 @@ void KDHelper::fk(Vector3d &position, Quaterniond &orientation, shared_ptr<senso
   }
 
   pin::forwardKinematics(model, *model_data, config, vel);
+  pin::computeJointJacobians(model, *model_data);
   pin::updateFramePlacements(model, *model_data);
+}
+
+bool KDHelper::ik(unordered_map<string, double> &joint_positions, double x, double y, double z, double pitch) {
+  double th1 = atan2(y, x) + asin(D/sqrt(x*x + y*y));
+
+  double xp = x - D*sin(th1);
+  double yp = y + D*cos(th1);
+
+  double a = sqrt(xp*xp + yp*yp) - ee*cos(pitch) + l2_loc;
+  double zp = z - l0 - l1 - ee*sin(pitch); 
+
+  double c = (a*a + zp*zp - l2*l2 - l3*l3)/(2*l2*l3);
+  if (c > 1 || c < -1) {
+    return false;
+  }
+  double th3 = -acos(c);
+  double th2 = atan2(zp, a) - atan2(l3*sin(th3), l2 + l3*cos(th3));
+  double th4 = pitch - th3 - th2;
+
+  joint_positions["rotary1"] = th1 - M_PI/2;
+  joint_positions["rotary2"] = -th2;
+  joint_positions["rotary3"] = th3;
+  joint_positions["rotary4"] = -th4;
+
+  return true;
+}
+
+void KDHelper::fk(Vector3d &position, Quaterniond &orientation) {
   position = model_data->oMf[ee_fid].translation();
   orientation = Quaterniond(model_data->oMf[ee_fid].rotation());
 }

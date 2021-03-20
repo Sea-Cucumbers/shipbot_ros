@@ -61,6 +61,7 @@ int main(int argc, char** argv) {
   KDHelper kd(urdf_file);
 
   unordered_map<string, std_msgs::Float64> cmd_msgs;
+  unordered_map<string, double> position_cmds;
   unordered_map<string, ros::Publisher> cmd_pubs;
   const vector<string> &actuator_names = kd.get_actuator_names();
   for (vector<string>::const_iterator it = actuator_names.begin();
@@ -68,6 +69,7 @@ int main(int argc, char** argv) {
     cmd_pubs[*it] = nh.advertise<std_msgs::Float64>("/shipbot/" + *it + "_controller/command", 1);
     cmd_msgs[*it] = std_msgs::Float64();
     cmd_msgs.at(*it).data = 0;
+    position_cmds[*it] = 0;
   }
 
   shared_ptr<sensor_msgs::JointState> joints_ptr = make_shared<sensor_msgs::JointState>();
@@ -119,11 +121,19 @@ int main(int argc, char** argv) {
     double t = ros::Time::now().toSec();
     double x = cx + radius*cos(t);
     double z = cz + radius*sin(t);
-    kd.ik(cmd_msgs, x, cy, z, 0);
+
+    kd.update_state(joints_ptr);
+
+    kd.ik(position_cmds, x, cy, z, 0);
+
+    for (vector<string>::const_iterator it = actuator_names.begin();
+         it != actuator_names.end(); ++it) {
+      cmd_msgs.at(*it).data = position_cmds.at(*it);
+    }
 
     Vector3d position(0, 0, 0);
     Quaterniond orientation(1, 0, 0, 0);
-    kd.fk(position, orientation, joints_ptr);
+    kd.fk(position, orientation);
     pose.transform.translation.x = position(0);
     pose.transform.translation.y = position(1);
     pose.transform.translation.z = position(2);
