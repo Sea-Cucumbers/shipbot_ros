@@ -52,6 +52,13 @@ class KDHelper {
      */
     void fk(Vector3d &position, Quaterniond &orientation);
 
+    /*
+     * grav_comp: get torques needed to counteract gravity. update_state must be called beforehand
+     * ARGUMENTS
+     * joint_torques: populated with joint torques
+     */
+    void grav_comp(unordered_map<string, double> &joint_torques);
+
    private:
     pin::Model model;
     unique_ptr<pin::Data> model_data;
@@ -73,6 +80,9 @@ class KDHelper {
     double ee;
 
     pin::FrameIndex ee_fid;
+
+    VectorXd config;
+    VectorXd vel;
 };
 
 #endif

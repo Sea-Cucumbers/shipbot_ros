@@ -14,10 +14,13 @@ KDHelper::KDHelper(const string &urdf_file) {
   pin::urdf::buildModel(urdf_file, model);
   model_data = make_unique<pin::Data>(model);
 
-  forwardKinematics(model, *model_data, pin::neutral(model));
+  config = pin::neutral(model);
+  vel = VectorXd::Zero(model.nv);
+  forwardKinematics(model, *model_data, config);
   pin::updateFramePlacements(model, *model_data);
 
-  for (pin::JointIndex joint_id = 0;
+  // Start at 1 because 0 is universe
+  for (pin::JointIndex joint_id = 1;
        joint_id < model.joints.size();
        ++joint_id) {
     if (model.names[joint_id].rfind("rotary") != string::npos) {
@@ -45,8 +48,6 @@ KDHelper::KDHelper(const string &urdf_file) {
 
 void KDHelper::update_state(shared_ptr<sensor_msgs::JointState> &joints_ptr) {
   size_t njoints_msg = joints_ptr->name.size();
-  VectorXd config(2*njoints_msg);
-  VectorXd vel(njoints_msg);
   for (size_t j = 0; j < njoints_msg; ++j) {
     pin::JointIndex jidx = model.getJointId(joints_ptr->name[j]) - 1;
     config(2*jidx) = cos(joints_ptr->position[j]);
@@ -87,4 +88,14 @@ bool KDHelper::ik(unordered_map<string, double> &joint_positions, double x, doub
 void KDHelper::fk(Vector3d &position, Quaterniond &orientation) {
   position = model_data->oMf[ee_fid].translation();
   orientation = Quaterniond(model_data->oMf[ee_fid].rotation());
+}
+
+void KDHelper::grav_comp(unordered_map<string, double> &joint_torques) {
+  VectorXd tau = pin::computeGeneralizedGravity(model, *model_data, config);
+  // Start at 1 because 0 is universe
+  for (pin::JointIndex joint_id = 1;
+       joint_id < model.joints.size();
+       ++joint_id) {
+    joint_torques[model.names[joint_id]] = tau(model.joints[joint_id].idx_v());
+  }
 }
