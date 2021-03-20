@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.2)
 project(shipbot_ros)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++17)
 
 find_package(pinocchio REQUIRED)
 find_package(OpenCV REQUIRED)
