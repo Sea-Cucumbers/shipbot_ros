@@ -38,18 +38,17 @@ class KDHelper {
     /*
      * ik: determine joint positions given end-effector position
      * ARGUMENTS
-     * cmd_msgs: populated with messages to send
+     * joint_positions: populated with joint positions
      * x, y, z: we place the end-effector at this position with pitch zero
      * RETURN: true if a solution was found, false if not
      */
-    bool ik(unordered_map<string, double> &joint_positions, double x, double y, double z, double pitch);
+    bool ik(VectorXd &joint_positions, double x, double y, double z, double pitch);
 
     /*
      * fk: get forward kinematics of end-effector. update_state must be called beforehand
      * ARGUMENTS
      * position: populated with end-effector position
      * orientation: populated with end-effector orientation
-     * joints_ptr: pointer to joint state message
      */
     void fk(Vector3d &position, Quaterniond &orientation);
 
@@ -58,7 +57,7 @@ class KDHelper {
      * ARGUMENTS
      * joint_torques: populated with joint torques
      */
-    void grav_comp(unordered_map<string, double> &joint_torques);
+    void grav_comp(VectorXd &joint_torques);
 
    private:
     pin::Model model;

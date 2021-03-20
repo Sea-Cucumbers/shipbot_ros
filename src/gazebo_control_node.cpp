@@ -60,16 +60,16 @@ int main(int argc, char** argv) {
   nh.getParam("radius", radius);
   KDHelper kd(urdf_file);
 
-  unordered_map<string, std_msgs::Float64> cmd_msgs;
-  unordered_map<string, double> position_cmds;
-  unordered_map<string, ros::Publisher> cmd_pubs;
   const vector<string> &actuator_names = kd.get_actuator_names();
-  for (vector<string>::const_iterator it = actuator_names.begin();
-       it != actuator_names.end(); ++it) {
-    cmd_pubs[*it] = nh.advertise<std_msgs::Float64>("/shipbot/" + *it + "_controller/command", 1);
-    cmd_msgs[*it] = std_msgs::Float64();
-    cmd_msgs.at(*it).data = 0;
-    position_cmds[*it] = 0;
+  vector<std_msgs::Float64> cmd_msgs;
+  vector<ros::Publisher> cmd_pubs;
+  VectorXd position_cmds = VectorXd::Zero(actuator_names.size());
+  for (size_t j = 0; j < actuator_names.size(); ++j) {
+    cmd_pubs.push_back(nh.advertise<std_msgs::Float64>("/shipbot/" +
+                                                       actuator_names[j] +
+                                                       "_controller/command", 1));
+    cmd_msgs.push_back(std_msgs::Float64());
+    cmd_msgs[j].data = 0;
   }
 
   shared_ptr<sensor_msgs::JointState> joints_ptr = make_shared<sensor_msgs::JointState>();
@@ -136,9 +136,9 @@ int main(int argc, char** argv) {
 
     kd.ik(position_cmds, x, cy, z, 0);
 
-    for (vector<string>::const_iterator it = actuator_names.begin();
-         it != actuator_names.end(); ++it) {
-      cmd_msgs.at(*it).data = position_cmds.at(*it);
+    for (size_t j = 0; j < actuator_names.size(); ++j) {
+      cmd_msgs[j].data = position_cmds(j);
+      cmd_pubs[j].publish(cmd_msgs[j]);
     }
 
     Vector3d position(0, 0, 0);
@@ -154,11 +154,6 @@ int main(int argc, char** argv) {
 
     pose.header.stamp = ros::Time::now();
     pose_br.sendTransform(pose);
-
-    for (vector<string>::const_iterator it = actuator_names.begin();
-         it != actuator_names.end(); ++it) {
-      cmd_pubs.at(*it).publish(cmd_msgs.at(*it));
-    }
 
     marker.header.stamp = ros::Time::now();
     trajectory_pub.publish(marker);

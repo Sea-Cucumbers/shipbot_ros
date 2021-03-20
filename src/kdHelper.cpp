@@ -61,7 +61,7 @@ void KDHelper::update_state(const VectorXd &positions, const VectorXd &velocitie
   pin::updateFramePlacements(model, *model_data);
 }
 
-bool KDHelper::ik(unordered_map<string, double> &joint_positions, double x, double y, double z, double pitch) {
+bool KDHelper::ik(VectorXd &joint_positions, double x, double y, double z, double pitch) {
   double th1 = atan2(y, x) + asin(D/sqrt(x*x + y*y));
 
   double xp = x - D*sin(th1);
@@ -78,10 +78,10 @@ bool KDHelper::ik(unordered_map<string, double> &joint_positions, double x, doub
   double th2 = atan2(zp, a) - atan2(l3*sin(th3), l2 + l3*cos(th3));
   double th4 = pitch - th3 - th2;
 
-  joint_positions["rotary1"] = th1 - M_PI/2;
-  joint_positions["rotary2"] = -th2;
-  joint_positions["rotary3"] = th3;
-  joint_positions["rotary4"] = -th4;
+  joint_positions(0) = th1 - M_PI/2;
+  joint_positions(1) = -th2;
+  joint_positions(2) = th3;
+  joint_positions(3) = -th4;
 
   return true;
 }
@@ -91,12 +91,6 @@ void KDHelper::fk(Vector3d &position, Quaterniond &orientation) {
   orientation = Quaterniond(model_data->oMf[ee_fid].rotation());
 }
 
-void KDHelper::grav_comp(unordered_map<string, double> &joint_torques) {
-  VectorXd tau = pin::computeGeneralizedGravity(model, *model_data, config);
-  // Start at 1 because 0 is universe
-  for (pin::JointIndex joint_id = 1;
-       joint_id < model.joints.size();
-       ++joint_id) {
-    joint_torques[model.names[joint_id]] = tau(model.joints[joint_id].idx_v());
-  }
+void KDHelper::grav_comp(VectorXd &joint_torques) {
+  joint_torques = pin::computeGeneralizedGravity(model, *model_data, config);
 }

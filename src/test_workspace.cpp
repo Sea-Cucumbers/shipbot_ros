@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
   nh.getParam("back", back);
   KDHelper kd(urdf_file);
 
-  unordered_map<string, double> position_cmds;
+  VectorXd position_cmds = VectorXd::Zero(kd.get_actuator_names().size());
 
   for (double x = left; x < right; x += 0.01) {
     for (double y = bottom; y < top; y += 0.01) {

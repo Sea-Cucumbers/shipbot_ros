@@ -37,14 +37,10 @@ int main(int argc, char** argv) {
   nh.getParam("radius", radius);
   KDHelper kd(urdf_file);
 
-  unordered_map<string, double> position_cmds;
-  unordered_map<string, double> torque_cmds;
   const vector<string> &actuator_names = kd.get_actuator_names();
-  for (vector<string>::const_iterator it = actuator_names.begin();
-       it != actuator_names.end(); ++it) {
-    position_cmds[*it] = 0;
-    torque_cmds[*it] = 0;
-  }
+  VectorXd position_cmds = VectorXd::Zero(actuator_names.size());
+  VectorXd velocity_cmds = VectorXd::Zero(actuator_names.size());
+  VectorXd effort_cmds = VectorXd::Zero(actuator_names.size());
 
   tf2_ros::TransformBroadcaster pose_br;
   geometry_msgs::TransformStamped pose;
@@ -92,15 +88,8 @@ int main(int argc, char** argv) {
   }
 
   hebi::GroupCommand group_command(group->size());
-  VectorXd position_cmd_vec(group->size());
-  // TODO: use these
-  /*
-  VectorXd velocity_cmd_vec(group->size());
-  VectorXd effort_cmd_vec(group->size());
-  */
   hebi::GroupFeedback group_feedback(group->size());
 
-  shared_ptr<sensor_msgs::JointState> joints_ptr = make_shared<sensor_msgs::JointState>();
   VectorXd position_fbk = VectorXd::Zero(group->size());
   VectorXd velocity_fbk = VectorXd::Zero(group->size());
   VectorXd effort_fbk = VectorXd::Zero(group->size());
@@ -123,10 +112,7 @@ int main(int argc, char** argv) {
     kd.ik(position_cmds, x, cy, z, 0);
 
     // Send commands to HEBI modules
-    for (size_t j = 0; j < group->size(); ++j) {
-      position_cmd_vec(j) = position_cmds[actuator_names[j]];
-    }
-    group_command.setPosition(position_cmd_vec);
+    group_command.setPosition(position_cmds);
     group->sendCommand(group_command);
 
     Vector3d position(0, 0, 0);
