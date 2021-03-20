@@ -1,4 +1,4 @@
-#include "ikSolver.h"
+#include "kdHelper.h"
 #include <pinocchio/container/boost-container-limits.hpp>
 #include "pinocchio/parsers/urdf.hpp"
 #include "pinocchio/algorithm/joint-configuration.hpp"
@@ -9,7 +9,7 @@
 #include <Eigen/Dense>
 #include <iostream>
 
-IKSolver::IKSolver(const string &urdf_file) {
+KDHelper::KDHelper(const string &urdf_file) {
   pin::urdf::buildModel(urdf_file, model);
   model_data = make_unique<pin::Data>(model);
 
@@ -42,7 +42,7 @@ IKSolver::IKSolver(const string &urdf_file) {
   ee = l4 + l5;
 }
 
-bool IKSolver::solve(unordered_map<string, std_msgs::Float64> &cmd_msgs, double x, double y, double z, double pitch) {
+bool KDHelper::ik(unordered_map<string, std_msgs::Float64> &cmd_msgs, double x, double y, double z, double pitch) {
   double th1 = atan2(y, x) + asin(D/sqrt(x*x + y*y));
 
   double xp = x - D*sin(th1);
@@ -71,7 +71,7 @@ bool IKSolver::solve(unordered_map<string, std_msgs::Float64> &cmd_msgs, double 
   return true;
 }
 
-void IKSolver::fk(Vector3d &position, Quaterniond &orientation, shared_ptr<sensor_msgs::JointState> &joints_ptr) {
+void KDHelper::fk(Vector3d &position, Quaterniond &orientation, shared_ptr<sensor_msgs::JointState> &joints_ptr) {
   size_t njoints_msg = joints_ptr->name.size();
   VectorXd config(2*njoints_msg);
   VectorXd vel(njoints_msg);

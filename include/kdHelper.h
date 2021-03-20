@@ -1,5 +1,5 @@
-#ifndef IK_SOLVER_H
-#define IK_SOLVER_H
+#ifndef KD_HELPER_H
+#define KD_HELPER_H
 
 #include <pinocchio/fwd.hpp>
 #include <pinocchio/parsers/urdf.hpp>
@@ -14,14 +14,14 @@ using namespace Eigen;
 
 namespace pin = pinocchio;
 
-class IKSolver {
+class KDHelper {
   public:
     /*
      * constructor: initializes internal kinematics/dynamics object
      * ARGUMENTS
      * urdf_file: urdf modeling robot
      */
-    IKSolver(const string &urdf_file);
+    KDHelper(const string &urdf_file);
 
     
     inline const vector<string> &get_actuator_names() {
@@ -29,13 +29,13 @@ class IKSolver {
     }
 
     /*
-     * solve: determine joint positions given end-effector position
+     * ik: determine joint positions given end-effector position
      * ARGUMENTS
      * cmd_msgs: populated with messages to send
      * x, y, z: we place the end-effector at this position with pitch zero
      * RETURN: true if a solution was found, false if not
      */
-    bool solve(unordered_map<string, std_msgs::Float64> &cmd_msgs, double x, double y, double z, double pitch);
+    bool ik(unordered_map<string, std_msgs::Float64> &cmd_msgs, double x, double y, double z, double pitch);
 
     /*
      * fk: get forward kinematics of end-effector

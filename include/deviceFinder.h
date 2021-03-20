@@ -79,7 +79,7 @@ class DeviceFinder {
      // in meters
      const double wheel_radius = 0.047625;
      const double spigot_radius = 0.041275;
-     const double shuttlecock_blue_length = 0.07;
+     const double shuttlecock_blue_length = 0.0635;
      const double shuttlecock_blue_width = 0.0185;
 
      // Distance from center of bronze shuttlecock base to edge

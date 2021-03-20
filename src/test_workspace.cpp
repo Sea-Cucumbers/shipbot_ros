@@ -1,4 +1,4 @@
-#include "ikSolver.h"
+#include "kdHelper.h"
 #include <ros/ros.h>
 #include <iostream>
 #include <vector>
@@ -24,17 +24,17 @@ int main(int argc, char** argv) {
   nh.getParam("bottom", bottom);
   nh.getParam("front", front);
   nh.getParam("back", back);
-  IKSolver solver(urdf_file);
+  KDHelper kd(urdf_file);
 
   unordered_map<string, std_msgs::Float64> cmd_msgs;
 
   for (double x = left; x < right; x += 0.01) {
     for (double y = bottom; y < top; y += 0.01) {
       for (double z = front; z < back; z += 0.01) {
-        if (!solver.solve(cmd_msgs, x, y, z, 0)) {
+        if (!kd.ik(cmd_msgs, x, y, z, 0)) {
           cout << "Can't reach " << x << " " << y << " " << z << " with pitch 0." << endl;
         }
-        if (!solver.solve(cmd_msgs, x, y, z, -M_PI/2)) {
+        if (!kd.ik(cmd_msgs, x, y, z, -M_PI/2)) {
           cout << "Can't reach " << x << " " << y << " " << z << " with pitch -90 degrees." << endl;
         }
       }

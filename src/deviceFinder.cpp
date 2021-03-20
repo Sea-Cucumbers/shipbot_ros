@@ -112,10 +112,10 @@ void DeviceFinder::findCircle(Vector3f &position, Quaternionf &orientation,
   ellipse(processed_image, ell, cv::Scalar(0, 255, 0), 2);
 
   vector<cv::Point3f> objectPoints;
-  objectPoints.push_back(cv::Point3f(-wheel_radius, 0, 0));
-  objectPoints.push_back(cv::Point3f(wheel_radius, 0, 0));
-  objectPoints.push_back(cv::Point3f(0, -wheel_radius, 0));
-  objectPoints.push_back(cv::Point3f(0, wheel_radius, 0));
+  objectPoints.push_back(cv::Point3f(-device_radius, 0, 0));
+  objectPoints.push_back(cv::Point3f(device_radius, 0, 0));
+  objectPoints.push_back(cv::Point3f(0, -device_radius, 0));
+  objectPoints.push_back(cv::Point3f(0, device_radius, 0));
 
   vector<cv::Point2f> imagePoints;
   double c = cos(ell.angle);
@@ -142,7 +142,9 @@ void DeviceFinder::findCircle(Vector3f &position, Quaternionf &orientation,
   rmat_eigen.col(0) = -rmat_eigen.col(2).cross(Vector3f(0, 1, 0)).normalized();
   rmat_eigen.col(1) = rmat_eigen.col(2).cross(rmat_eigen.col(0)).normalized();
 
-  orientation = Quaternionf(rmat_eigen);
+  //orientation = Quaternionf(rmat_eigen);
+
+  cout << position/0.0254 << endl << endl;
 
   this->position = position;
   this->orientation = orientation;
@@ -228,7 +230,8 @@ void DeviceFinder::findShuttlecock(Vector3f &position, Quaternionf &orientation,
   rmat_eigen.col(0) = -rmat_eigen.col(2).cross(Vector3f(0, 1, 0)).normalized();
   rmat_eigen.col(1) = rmat_eigen.col(2).cross(rmat_eigen.col(0)).normalized();
 
-  orientation = Quaternionf(rmat_eigen);
+  //orientation = Quaternionf(rmat_eigen);
+  cout << position/0.0254 << endl << endl;
 
   this->position = position;
   this->orientation = orientation;
