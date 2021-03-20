@@ -46,13 +46,14 @@ KDHelper::KDHelper(const string &urdf_file) {
   ee = l4 + l5;
 }
 
-void KDHelper::update_state(shared_ptr<sensor_msgs::JointState> &joints_ptr) {
-  size_t njoints_msg = joints_ptr->name.size();
-  for (size_t j = 0; j < njoints_msg; ++j) {
-    pin::JointIndex jidx = model.getJointId(joints_ptr->name[j]) - 1;
-    config(2*jidx) = cos(joints_ptr->position[j]);
-    config(2*jidx + 1) = sin(joints_ptr->position[j]);
-    vel(jidx) = joints_ptr->velocity[j];
+void KDHelper::update_state(const VectorXd &positions, const VectorXd &velocities, const VectorXd &efforts) {
+  for (size_t j = 0; j < actuator_names.size(); ++j) { 
+    pin::JointIndex jidx = model.getJointId(actuator_names[j]);
+    int qidx = model.joints[jidx].idx_q();
+    int vidx = model.joints[jidx].idx_v();
+    config(qidx) = cos(positions(j));
+    config(qidx + 1) = sin(positions(j));
+    vel(vidx) = velocities(j);
   }
 
   pin::forwardKinematics(model, *model_data, config, vel);

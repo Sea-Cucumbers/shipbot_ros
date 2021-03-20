@@ -64,6 +64,7 @@
   <depend>tf2_ros</depend>
   <build_depend>message_generation</build_depend>
   <exec_depend>message_runtime</exec_depend>
+  <depend>hebi_cpp_api</depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

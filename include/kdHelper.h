@@ -6,7 +6,6 @@
 #include <pinocchio/algorithm/kinematics.hpp>
 #include <unordered_map>
 #include <memory>
-#include <sensor_msgs/JointState.h>
 
 using namespace std;
 using namespace Eigen;
@@ -30,9 +29,11 @@ class KDHelper {
     /*
      * update_state: updates the internal state of the kinematics/dynamics object
      * ARGUMENTS
-     * joints_ptr: pointer to joint state message
+     * position: joint positions (order should correspond to order of actuator_names)
+     * velocity: joint velocities (order should correspond to order of actuator_names)
+     * effort: joint efforts (order should correspond to order of actuator_names)
      */
-    void update_state(shared_ptr<sensor_msgs::JointState> &joints_ptr);
+    void update_state(const VectorXd &positions, const VectorXd &velocities, const VectorXd &efforts);
 
     /*
      * ik: determine joint positions given end-effector position

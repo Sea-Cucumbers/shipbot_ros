@@ -18,6 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   tf2_ros
   message_generation
+  hebi_cpp_api
 )
 
 ## System dependencies are found with CMake's conventions
@@ -111,7 +112,7 @@ generate_messages(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS roscpp
+  CATKIN_DEPENDS roscpp hebi_cpp_api
 )
 
 ###########
@@ -128,6 +129,9 @@ include_directories(
 
 add_executable(gazebo_control_node src/gazebo_control_node.cpp $<TARGET_OBJECTS:arm_control>)
 target_link_libraries(gazebo_control_node ${catkin_LIBRARIES} pinocchio::pinocchio)
+
+add_executable(arm_control_node src/arm_control_node.cpp $<TARGET_OBJECTS:arm_control>)
+target_link_libraries(arm_control_node ${catkin_LIBRARIES} pinocchio::pinocchio)
 
 add_executable(test_workspace src/test_workspace.cpp $<TARGET_OBJECTS:arm_control>)
 target_link_libraries(test_workspace ${catkin_LIBRARIES} pinocchio::pinocchio)

@@ -7,43 +7,20 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <visualization_msgs/Marker.h>
+#include <chrono>
+#include <thread>
+#include "hebi_cpp_api/lookup.hpp"
+#include "hebi_cpp_api/group_command.hpp"
+#include "hebi_cpp_api/group_feedback.hpp"
 
 using namespace std;
-
-static bool got_joints;
-
-/* 
- * handle_joints: joint message handler
- */
-class handle_joints {
-  private:
-    shared_ptr<sensor_msgs::JointState> msg_ptr;
-    
-  public:
-    /*
-     * handle_joints: constructor
-     * ARGUMENTS
-     * _msg_ptr: the pointer we should populate with the received message
-     */
-    handle_joints(shared_ptr<sensor_msgs::JointState> _msg_ptr) : msg_ptr(_msg_ptr) {}
-
-    /*
-     * operator (): populate our message pointer with the received message
-     * ARGUMENTS
-     * joints_ptr: pointer to received message
-     */
-    void operator () (const sensor_msgs::JointStateConstPtr &joints_ptr) {
-      *msg_ptr = *joints_ptr;
-      got_joints = true;
-    }
-};
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "arm_control_node");
   ros::NodeHandle nh("~");
 
   string urdf_file;
-  double rate;
+  double rate = 20;
   
   // This controller makes the end effector move along a circle with the following
   // parameters
@@ -60,20 +37,14 @@ int main(int argc, char** argv) {
   nh.getParam("radius", radius);
   KDHelper kd(urdf_file);
 
-  unordered_map<string, std_msgs::Float64> cmd_msgs;
   unordered_map<string, double> position_cmds;
-  unordered_map<string, ros::Publisher> cmd_pubs;
+  unordered_map<string, double> torque_cmds;
   const vector<string> &actuator_names = kd.get_actuator_names();
   for (vector<string>::const_iterator it = actuator_names.begin();
        it != actuator_names.end(); ++it) {
-    cmd_pubs[*it] = nh.advertise<std_msgs::Float64>("/shipbot/" + *it + "_controller/command", 1);
-    cmd_msgs[*it] = std_msgs::Float64();
-    cmd_msgs.at(*it).data = 0;
     position_cmds[*it] = 0;
+    torque_cmds[*it] = 0;
   }
-
-  shared_ptr<sensor_msgs::JointState> joints_ptr = make_shared<sensor_msgs::JointState>();
-  ros::Subscriber joint_sub = nh.subscribe<sensor_msgs::JointState>("/shipbot/joint_states", 1, handle_joints(joints_ptr));
 
   tf2_ros::TransformBroadcaster pose_br;
   geometry_msgs::TransformStamped pose;
@@ -109,37 +80,54 @@ int main(int argc, char** argv) {
   }
   trajectory_pub.publish(marker);
 
-  ros::Rate r(100);
-  while (!got_joints && ros::ok()) {
-    r.sleep();
-    ros::spinOnce();
+  // HEBI initialization
+  hebi::Lookup lookup;
+  auto group = lookup.getGroupFromNames({"SEA Cucumbers"}, actuator_names);
+
+  if (!group) {
+    std::cout
+      << "Group not found! Check that the family and name of a module on the network" << std::endl
+      << "matches what is given in the source file." << std::endl;
+    return -1;
   }
 
-  VectorXd positions = VectorXd::Zero(actuator_names.size());
-  VectorXd velocities = VectorXd::Zero(actuator_names.size());
-  VectorXd efforts = VectorXd::Zero(actuator_names.size());
+  hebi::GroupCommand group_command(group->size());
+  VectorXd position_cmd_vec(group->size());
+  // TODO: use these
+  /*
+  VectorXd velocity_cmd_vec(group->size());
+  VectorXd effort_cmd_vec(group->size());
+  */
+  hebi::GroupFeedback group_feedback(group->size());
+
+  shared_ptr<sensor_msgs::JointState> joints_ptr = make_shared<sensor_msgs::JointState>();
+  VectorXd position_fbk = VectorXd::Zero(group->size());
+  VectorXd velocity_fbk = VectorXd::Zero(group->size());
+  VectorXd effort_fbk = VectorXd::Zero(group->size());
 
   double start_t = ros::Time::now().toSec();
+  ros::Rate r(rate);
   while (ros::ok())
   {
     double t = ros::Time::now().toSec();
     double x = cx + radius*cos(t);
     double z = cz + radius*sin(t);
 
-    for (size_t j = 0; j < actuator_names.size(); ++j) {
-      positions(j) = joints_ptr->position[j];
-      velocities(j) = joints_ptr->velocity[j];
-      efforts(j) = joints_ptr->effort[j];
-    }
-      
-    kd.update_state(positions, velocities, efforts);
+    group->getNextFeedback(group_feedback);
+    group_feedback.getPosition(position_fbk);
+    group_feedback.getVelocity(velocity_fbk);
+    group_feedback.getEffort(effort_fbk);
+
+    kd.update_state(position_fbk, velocity_fbk, effort_fbk);
 
     kd.ik(position_cmds, x, cy, z, 0);
 
-    for (vector<string>::const_iterator it = actuator_names.begin();
-         it != actuator_names.end(); ++it) {
-      cmd_msgs.at(*it).data = position_cmds.at(*it);
+    // Send commands to HEBI modules
+    for (size_t j = 0; j < group->size(); ++j) {
+      position_cmd_vec(j) = position_cmds[actuator_names[j]];
     }
+    group_command.setPosition(position_cmd_vec);
+    group->sendCommand(group_command);
 
     Vector3d position(0, 0, 0);
     Quaterniond orientation(1, 0, 0, 0);
@@ -154,11 +142,6 @@ int main(int argc, char** argv) {
 
     pose.header.stamp = ros::Time::now();
     pose_br.sendTransform(pose);
-
-    for (vector<string>::const_iterator it = actuator_names.begin();
-         it != actuator_names.end(); ++it) {
-      cmd_pubs.at(*it).publish(cmd_msgs.at(*it));
-    }
 
     marker.header.stamp = ros::Time::now();
     trajectory_pub.publish(marker);
