@@ -26,18 +26,18 @@ KDHelper::KDHelper(const string &urdf_file) {
     actuator_names.push_back(model.names[joint_id]);
   }
 
-  pin::FrameIndex l1_fid = model.getFrameId("link1");
-  pin::FrameIndex l2_fid = model.getFrameId("link2");
-  pin::FrameIndex l3_fid = model.getFrameId("link3");
-  pin::FrameIndex l4_fid = model.getFrameId("link4");
-  pin::FrameIndex l5_fid = model.getFrameId("link5");
-  ee_fid = model.getFrameId("end_effector");
+  pin::FrameIndex l1_fid = model.getFrameId("shoulder1_joint");
+  pin::FrameIndex l2_fid = model.getFrameId("shoulder2_joint");
+  pin::FrameIndex l3_fid = model.getFrameId("elbow_joint");
+  pin::FrameIndex l4_fid = model.getFrameId("wrist1_joint");
+  pin::FrameIndex l5_fid = model.getFrameId("wrist2_joint");
+  ee_fid = model.getFrameId("ee_tip");
   D = model_data->oMf[ee_fid].translation()(0);
 
   l0 = model_data->oMf[l1_fid].translation()(2);
-  l1 = model_data->oMf[l2_fid].translation()(2) - model_data->oMf[l1_fid].translation()(2);
-  l2 = model_data->oMf[l3_fid].translation()(1) - model_data->oMf[l2_fid].translation()(1);
+  l1 = model_data->oMf[l2_fid].translation()(2) - l0;
   l2_loc = model_data->oMf[l2_fid].translation()(1);
+  l2 = model_data->oMf[l3_fid].translation()(1) - l2_loc;
   l3 = model_data->oMf[l4_fid].translation()(1) - model_data->oMf[l3_fid].translation()(1);
   l4 = model_data->oMf[l5_fid].translation()(1) - model_data->oMf[l4_fid].translation()(1);
   l5 = model_data->oMf[ee_fid].translation()(1) - model_data->oMf[l5_fid].translation()(1);
@@ -78,7 +78,7 @@ bool KDHelper::ik(VectorXd &joint_positions, double x, double y, double z, doubl
 
   joint_positions(0) = th1 - M_PI/2;
   joint_positions(1) = -th2;
-  joint_positions(2) = th3;
+  joint_positions(2) = -th3;
   joint_positions(3) = -th4;
 
   return true;
