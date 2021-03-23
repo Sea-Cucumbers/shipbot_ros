@@ -12,6 +12,7 @@
 #include "hebi_cpp_api/lookup.hpp"
 #include "hebi_cpp_api/group_command.hpp"
 #include "hebi_cpp_api/group_feedback.hpp"
+#include "armPlanner.h"
 
 using namespace std;
 
@@ -36,6 +37,7 @@ int main(int argc, char** argv) {
   nh.getParam("cz", cz);
   nh.getParam("radius", radius);
   KDHelper kd(urdf_file);
+  ArmPlanner planner;
 
   const vector<string> &actuator_names = kd.get_actuator_names();
   VectorXd position_cmds = VectorXd::Zero(actuator_names.size());
@@ -93,15 +95,35 @@ int main(int argc, char** argv) {
   VectorXd position_fbk = VectorXd::Zero(group->size());
   VectorXd velocity_fbk = VectorXd::Zero(group->size());
   VectorXd effort_fbk = VectorXd::Zero(group->size());
-
+  
   double start_t = ros::Time::now().toSec();
+
+  Vector3d position(0, 0, 0);
+  Quaterniond orientation(1, 0, 0, 0);
+  group->getNextFeedback(group_feedback);
+  group_feedback.getPosition(position_fbk);
+  group_feedback.getVelocity(velocity_fbk);
+  group_feedback.getEffort(effort_fbk);
+  kd.update_state(position_fbk, velocity_fbk, effort_fbk);
+  kd.fk(position, orientation);
+  VectorXd start = VectorXd::Zero(5);
+  start.head<3>() = position;
+  VectorXd end = VectorXd::Zero(5);
+  end.head<3>() = Vector3d(cx, cy, cz);
+  planner.plan(start, end, start_t, start_t + 4);
+
   ros::Rate r(rate);
   while (ros::ok())
   {
     double t = ros::Time::now().toSec();
-    double x = cx + radius*cos(t);
+    /*
+    double x = cx;// + radius*cos(t);
     double y = cy;
-    double z = cz + radius*sin(t);
+    double z = cz;// + radius*sin(t);
+    */
+    VectorXd task_config = planner.eval(t);
+    VectorXd task_vel = planner.deriv1(t);
+    VectorXd task_acc = planner.deriv2(t);
 
     group->getNextFeedback(group_feedback);
     group_feedback.getPosition(position_fbk);
@@ -110,18 +132,21 @@ int main(int argc, char** argv) {
 
     kd.update_state(position_fbk, velocity_fbk, effort_fbk);
 
-    kd.ik(position_cmds, x, y, z, 0);
+    kd.ik(position_cmds, task_config);
     kd.grav_comp(effort_cmds);
+
+    // These don't seem to help
+    //kd.tsid(effort_cmds, task_acc);
+    //kd.idk(velocity_cmds, task_vel);
 
     // Send commands to HEBI modules
     group_command.setPosition(position_cmds);
+    //group_command.setVelocity(velocity_cmds);
     group_command.setEffort(effort_cmds);
     group->sendCommand(group_command);
 
-    Vector3d position(0, 0, 0);
-    Quaterniond orientation(1, 0, 0, 0);
     kd.fk(position, orientation);
-    cout << position/0.0254 << endl << endl;
+    cout << position/0.0254 << endl << endl << endl;
     pose.transform.translation.x = position(0);
     pose.transform.translation.y = position(1);
     pose.transform.translation.z = position(2);

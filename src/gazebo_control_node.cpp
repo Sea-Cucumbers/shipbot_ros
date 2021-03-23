@@ -126,6 +126,7 @@ int main(int argc, char** argv) {
   {
     double t = ros::Time::now().toSec();
     double x = cx + radius*cos(t);
+    double y = cy;
     double z = cz + radius*sin(t);
 
     for (size_t j = 0; j < joints_ptr->position.size(); ++j) {
@@ -137,7 +138,11 @@ int main(int argc, char** argv) {
       
     kd.update_state(positions, velocities, efforts);
 
-    kd.ik(position_cmds, x, cy, z, 0);
+    VectorXd task_config = VectorXd::Zero(5);
+    task_config(0) = x;
+    task_config(1) = y;
+    task_config(2) = z;
+    kd.ik(position_cmds, task_config);
 
     for (size_t j = 0; j < actuator_names.size(); ++j) {
       cmd_msgs[j].data = position_cmds(j);

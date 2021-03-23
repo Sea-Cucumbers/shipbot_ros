@@ -28,13 +28,19 @@ int main(int argc, char** argv) {
 
   VectorXd position_cmds = VectorXd::Zero(kd.get_actuator_names().size());
 
+  VectorXd task_config = VectorXd::Zero(5);
   for (double x = left; x < right; x += 0.01) {
+    task_config(0) = x;
     for (double y = bottom; y < top; y += 0.01) {
+      task_config(0) = y;
       for (double z = front; z < back; z += 0.01) {
-        if (!kd.ik(position_cmds, x, y, z, 0)) {
+        task_config(2) = z;
+        task_config(3) = 0;
+        if (!kd.ik(position_cmds, task_config)) {
           cout << "Can't reach " << x << " " << y << " " << z << " with pitch 0." << endl;
         }
-        if (!kd.ik(position_cmds, x, y, z, -M_PI/2)) {
+        task_config(3) = -M_PI/2;
+        if (!kd.ik(position_cmds, task_config)) {
           cout << "Can't reach " << x << " " << y << " " << z << " with pitch -90 degrees." << endl;
         }
       }

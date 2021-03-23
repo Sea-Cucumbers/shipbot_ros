@@ -59,7 +59,13 @@ void KDHelper::update_state(const VectorXd &positions, const VectorXd &velocitie
   pin::updateFramePlacements(model, *model_data);
 }
 
-bool KDHelper::ik(VectorXd &joint_positions, double x, double y, double z, double pitch) {
+bool KDHelper::ik(VectorXd &joint_positions, const VectorXd& task_config) {
+  double x = task_config(0);
+  double y = task_config(1);
+  double z = task_config(2);
+  double pitch = task_config(3);
+  double roll = task_config(4);
+
   double th1 = atan2(y, x) + asin(D/sqrt(x*x + y*y));
 
   double xp = x - D*sin(th1);
@@ -80,6 +86,7 @@ bool KDHelper::ik(VectorXd &joint_positions, double x, double y, double z, doubl
   joint_positions(1) = -th2;
   joint_positions(2) = th3;
   joint_positions(3) = -th4;
+  joint_positions(4) = -roll;
 
   return true;
 }
@@ -87,8 +94,47 @@ bool KDHelper::ik(VectorXd &joint_positions, double x, double y, double z, doubl
 void KDHelper::fk(Vector3d &position, Quaterniond &orientation) {
   position = model_data->oMf[ee_fid].translation();
   orientation = Quaterniond(model_data->oMf[ee_fid].rotation());
+
+  /*
+  cout << model_data->oMf[model.getFrameId("shoulder1_joint")].translation()/0.0254 << endl << endl;
+  cout << model_data->oMf[model.getFrameId("shoulder2_joint")].translation()/0.0254 << endl << endl;
+  cout << model_data->oMf[model.getFrameId("elbow_joint")].translation()/0.0254 << endl << endl;
+  cout << model_data->oMf[model.getFrameId("wrist1_joint")].translation()/0.0254 << endl << endl;
+  cout << model_data->oMf[model.getFrameId("wrist2_joint")].translation()/0.0254 << endl << endl;
+  cout << 2.84547 - l2*config(3)/0.0254 << endl << endl;
+  */
 }
 
 void KDHelper::grav_comp(VectorXd &joint_torques) {
   joint_torques = pin::computeGeneralizedGravity(model, *model_data, config);
+}
+
+void KDHelper::tsid(VectorXd &joint_torques, const VectorXd &acc) {
+  MatrixXd J = MatrixXd::Zero(5, 5);
+  MatrixXd dJ = MatrixXd::Zero(5, 5);
+  MatrixXd Jee = MatrixXd::Zero(6, 5);
+  MatrixXd dJee = MatrixXd::Zero(6, 5);
+  pin::getFrameJacobian(model, *model_data, ee_fid, pin::ReferenceFrame::WORLD, Jee);
+  pin::getFrameJacobianTimeVariation(model, *model_data, ee_fid, pin::ReferenceFrame::WORLD, dJee);
+  J.topRows<3>() = Jee.topRows<3>();
+  J(3, 1) = -1;
+  J(3, 2) = 1;
+  J(3, 3) = -1;
+  J(4, 4) = 1;
+  dJ.topRows<3>() = dJee.topRows<3>();
+  joint_torques = pin::rnea(model, *model_data, config, vel, J.completeOrthogonalDecomposition().solve(acc - dJ*vel));
+}
+
+void KDHelper::idk(VectorXd &joint_velocities, const VectorXd &task_velocity) {
+  MatrixXd J = MatrixXd::Zero(5, 5);
+  MatrixXd dJ = MatrixXd::Zero(5, 5);
+  MatrixXd Jee = MatrixXd::Zero(6, 5);
+  MatrixXd dJee = MatrixXd::Zero(6, 5);
+  pin::getFrameJacobian(model, *model_data, ee_fid, pin::ReferenceFrame::WORLD, Jee);
+  J.topRows<3>() = Jee.topRows<3>();
+  J(3, 1) = -1;
+  J(3, 2) = 1;
+  J(3, 3) = -1;
+  J(4, 4) = 1;
+  joint_velocities = J.completeOrthogonalDecomposition().solve(task_velocity);
 }

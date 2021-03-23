@@ -36,13 +36,13 @@ class KDHelper {
     void update_state(const VectorXd &positions, const VectorXd &velocities, const VectorXd &efforts);
 
     /*
-     * ik: determine joint positions given end-effector position
+     * ik: determine joint positions given task-space configuration
      * ARGUMENTS
      * joint_positions: populated with joint positions
-     * x, y, z: we place the end-effector at this position with pitch zero
+     * task_config: task-space configuration (x, y, z, pitch, roll)
      * RETURN: true if a solution was found, false if not
      */
-    bool ik(VectorXd &joint_positions, double x, double y, double z, double pitch);
+    bool ik(VectorXd &joint_positions, const VectorXd &task_config);
 
     /*
      * fk: get forward kinematics of end-effector. update_state must be called beforehand
@@ -58,6 +58,22 @@ class KDHelper {
      * joint_torques: populated with joint torques
      */
     void grav_comp(VectorXd &joint_torques);
+
+    /*
+     * tsid: get torques needed to achieve desired task-space acceleration, where the task
+     * space is defined as x, y, z, pitch, roll
+     * ARGUMENTS
+     * joint_torques: populated with joint torques
+     */
+    void tsid(VectorXd &joint_torques, const VectorXd &acc);
+
+    /*
+     * idk: determine joint velocities given task velocity
+     * ARGUMENTS
+     * joint_velocities: populated with joint velocities
+     * task_velocity: task velocity
+     */
+    void idk(VectorXd &joint_velocities, const VectorXd &task_velocity);
 
    private:
     pin::Model model;

@@ -145,6 +145,7 @@ target_link_libraries(ee_cam_server ${catkin_LIBRARIES} ${OpenCV_LIBS})
 ## Declare a C++ library
 add_library(arm_control OBJECT
   ${CMAKE_CURRENT_SOURCE_DIR}/src/kdHelper.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/armPlanner.cpp
 )
 
 add_library(ee_camera OBJECT
