@@ -100,6 +100,7 @@ int main(int argc, char** argv) {
   {
     double t = ros::Time::now().toSec();
     double x = cx + radius*cos(t);
+    double y = cy;
     double z = cz + radius*sin(t);
 
     group->getNextFeedback(group_feedback);
@@ -109,15 +110,18 @@ int main(int argc, char** argv) {
 
     kd.update_state(position_fbk, velocity_fbk, effort_fbk);
 
-    kd.ik(position_cmds, x, cy, z, 0);
+    kd.ik(position_cmds, x, y, z, 0);
+    kd.grav_comp(effort_cmds);
 
     // Send commands to HEBI modules
     group_command.setPosition(position_cmds);
+    group_command.setEffort(effort_cmds);
     group->sendCommand(group_command);
 
     Vector3d position(0, 0, 0);
     Quaterniond orientation(1, 0, 0, 0);
     kd.fk(position, orientation);
+    cout << position/0.0254 << endl << endl;
     pose.transform.translation.x = position(0);
     pose.transform.translation.y = position(1);
     pose.transform.translation.z = position(2);

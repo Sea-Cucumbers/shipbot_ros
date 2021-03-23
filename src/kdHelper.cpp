@@ -78,7 +78,7 @@ bool KDHelper::ik(VectorXd &joint_positions, double x, double y, double z, doubl
 
   joint_positions(0) = th1 - M_PI/2;
   joint_positions(1) = -th2;
-  joint_positions(2) = -th3;
+  joint_positions(2) = th3;
   joint_positions(3) = -th4;
 
   return true;
