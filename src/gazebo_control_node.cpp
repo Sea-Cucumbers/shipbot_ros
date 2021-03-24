@@ -151,7 +151,9 @@ int main(int argc, char** argv) {
 
     Vector3d position(0, 0, 0);
     Quaterniond orientation(1, 0, 0, 0);
-    kd.fk(position, orientation);
+    double pitch;
+    double roll;
+    kd.fk(position, orientation, pitch, roll);
     pose.transform.translation.x = position(0);
     pose.transform.translation.y = position(1);
     pose.transform.translation.z = position(2);

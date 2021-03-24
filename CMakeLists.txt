@@ -65,6 +65,10 @@ find_package(catkin REQUIRED COMPONENTS
 add_service_files(
   FILES
   find_device.srv
+  spin_rotary.srv
+  spin_shuttlecock.srv
+  switch_breaker.srv
+  reset_arm.srv
 )
 
 ## Generate actions in the 'action' folder
@@ -146,6 +150,7 @@ target_link_libraries(ee_cam_server ${catkin_LIBRARIES} ${OpenCV_LIBS})
 add_library(arm_control OBJECT
   ${CMAKE_CURRENT_SOURCE_DIR}/src/kdHelper.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/armPlanner.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/minJerkInterpolator.cpp
 )
 
 add_library(ee_camera OBJECT

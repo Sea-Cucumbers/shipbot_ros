@@ -91,18 +91,11 @@ bool KDHelper::ik(VectorXd &joint_positions, const VectorXd& task_config) {
   return true;
 }
 
-void KDHelper::fk(Vector3d &position, Quaterniond &orientation) {
+void KDHelper::fk(Vector3d &position, Quaterniond &orientation, double &pitch, double &roll) {
   position = model_data->oMf[ee_fid].translation();
   orientation = Quaterniond(model_data->oMf[ee_fid].rotation());
-
-  /*
-  cout << model_data->oMf[model.getFrameId("shoulder1_joint")].translation()/0.0254 << endl << endl;
-  cout << model_data->oMf[model.getFrameId("shoulder2_joint")].translation()/0.0254 << endl << endl;
-  cout << model_data->oMf[model.getFrameId("elbow_joint")].translation()/0.0254 << endl << endl;
-  cout << model_data->oMf[model.getFrameId("wrist1_joint")].translation()/0.0254 << endl << endl;
-  cout << model_data->oMf[model.getFrameId("wrist2_joint")].translation()/0.0254 << endl << endl;
-  cout << 2.84547 - l2*config(3)/0.0254 << endl << endl;
-  */
+  pitch = -config(1) + config(2) + -config(3);
+  roll = config(4);
 }
 
 void KDHelper::grav_comp(VectorXd &joint_torques) {

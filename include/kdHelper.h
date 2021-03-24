@@ -49,8 +49,10 @@ class KDHelper {
      * ARGUMENTS
      * position: populated with end-effector position
      * orientation: populated with end-effector orientation
+     * pitch: populated with pitch
+     * roll: populated with roll
      */
-    void fk(Vector3d &position, Quaterniond &orientation);
+    void fk(Vector3d &position, Quaterniond &orientation, double &pitch, double &roll);
 
     /*
      * grav_comp: get torques needed to counteract gravity. update_state must be called beforehand

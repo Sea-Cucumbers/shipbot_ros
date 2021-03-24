@@ -13,8 +13,111 @@
 #include "hebi_cpp_api/group_command.hpp"
 #include "hebi_cpp_api/group_feedback.hpp"
 #include "armPlanner.h"
+#include "shipbot_ros/spin_rotary.h"
+#include "shipbot_ros/spin_shuttlecock.h"
+#include "shipbot_ros/switch_breaker.h"
+#include "shipbot_ros/reset_arm.h"
 
 using namespace std;
+
+class spin_rotary {
+  private:
+    shared_ptr<ArmPlanner> planner;
+    shared_ptr<VectorXd> task_space_config;
+
+  public:
+    /*
+     * spin_rotary: constructor
+     * ARGUMENTS
+     * _planner: pointer to planner
+     * _task_space_config: pointer to task-space configuration
+     */
+     spin_rotary(shared_ptr<ArmPlanner> _planner,
+                 shared_ptr<VectorXd> _task_space_config) : planner(_planner),
+                                                            task_space_config(_task_space_config) {}
+
+    /*
+     * operator (): plan trajectory to manipulate device
+     * ARGUMENTS
+     * req: request
+     * res: technically supposed to be populated with the response, but
+     * the response isn't used
+     */
+    bool operator () (shipbot_ros::spin_rotary::Request &req,
+                      shipbot_ros::spin_rotary::Response &res) {
+      planner->spin_rotary(*task_space_config,
+                           Vector3d(req.position.x, req.position.y, req.position.z),
+                           req.vertical_spin_axis,
+                           (double)req.degrees,
+                           ros::Time::now().toSec());
+    }
+};
+
+class spin_shuttlecock {
+  private:
+    shared_ptr<ArmPlanner> planner;
+    shared_ptr<VectorXd> task_space_config;
+
+  public:
+    /*
+     * spin_shuttlecock: constructor
+     * ARGUMENTS
+     * _planner: pointer to planner
+     * _task_space_config: pointer to task-space configuration
+     */
+     spin_shuttlecock(shared_ptr<ArmPlanner> _planner,
+                      shared_ptr<VectorXd> _task_space_config) : planner(_planner),
+                                                                 task_space_config(_task_space_config) {}
+
+    /*
+     * operator (): plan trajectory to manipulate device
+     * ARGUMENTS
+     * req: request
+     * res: technically supposed to be populated with the response, but
+     * the response isn't used
+     */
+    bool operator () (shipbot_ros::spin_shuttlecock::Request &req,
+                      shipbot_ros::spin_shuttlecock::Response &res) {
+      planner->spin_shuttlecock(*task_space_config,
+                                Vector3d(req.position.x, req.position.y, req.position.z),
+                                Vector3d(req.handle_end.x, req.handle_end.y, req.handle_end.z),
+                                req.vertical_spin_axis,
+                                req.clockwise,
+                                ros::Time::now().toSec());
+    }
+};
+
+class switch_breaker {
+  private:
+    shared_ptr<ArmPlanner> planner;
+    shared_ptr<VectorXd> task_space_config;
+
+  public:
+    /*
+     * switch_breaker: constructor
+     * ARGUMENTS
+     * _planner: pointer to planner
+     * _task_space_config: pointer to task-space configuration
+     */
+     switch_breaker(shared_ptr<ArmPlanner> _planner,
+                    shared_ptr<VectorXd> _task_space_config) : planner(_planner),
+                                                               task_space_config(_task_space_config) {}
+
+    /*
+     * operator (): plan trajectory to manipulate device
+     * ARGUMENTS
+     * req: request
+     * res: technically supposed to be populated with the response, but
+     * the response isn't used
+     */
+    bool operator () (shipbot_ros::switch_breaker::Request &req,
+                      shipbot_ros::switch_breaker::Response &res) {
+      planner->switch_breaker(*task_space_config,
+                              Vector3d(req.position.x, req.position.y, req.position.z),
+                              req.push_up,
+                              ros::Time::now().toSec());
+    }
+};
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "arm_control_node");
@@ -23,21 +126,10 @@ int main(int argc, char** argv) {
   string urdf_file;
   double rate = 20;
   
-  // This controller makes the end effector move along a circle with the following
-  // parameters
-  double cx;
-  double cy;
-  double cz;
-  double radius;
-
   nh.getParam("urdf", urdf_file);
   nh.getParam("rate", rate);
-  nh.getParam("cx", cx);
-  nh.getParam("cy", cy);
-  nh.getParam("cz", cz);
-  nh.getParam("radius", radius);
   KDHelper kd(urdf_file);
-  ArmPlanner planner;
+  shared_ptr<ArmPlanner> planner = make_shared<ArmPlanner>(4, 1.0/90);
 
   const vector<string> &actuator_names = kd.get_actuator_names();
   VectorXd position_cmds = VectorXd::Zero(actuator_names.size());
@@ -66,16 +158,6 @@ int main(int argc, char** argv) {
   marker.scale.x = 0.02f;
   marker.color.g = 1.0f;
   marker.color.a = 1.0;
-  marker.header.stamp = ros::Time::now();
-  for (double t = 0; t < 2*M_PI + 0.1; t += 0.1) {
-    geometry_msgs::Point p;
-    p.x = cx + radius*cos(t);
-    p.y = cy;
-    p.z = cz + radius*sin(t);
-
-    marker.points.push_back(p);
- 
-  }
   trajectory_pub.publish(marker);
 
   // HEBI initialization
@@ -100,30 +182,37 @@ int main(int argc, char** argv) {
 
   Vector3d position(0, 0, 0);
   Quaterniond orientation(1, 0, 0, 0);
+  double pitch;
+  double roll;
   group->getNextFeedback(group_feedback);
   group_feedback.getPosition(position_fbk);
   group_feedback.getVelocity(velocity_fbk);
   group_feedback.getEffort(effort_fbk);
   kd.update_state(position_fbk, velocity_fbk, effort_fbk);
-  kd.fk(position, orientation);
-  VectorXd start = VectorXd::Zero(5);
-  start.head<3>() = position;
-  VectorXd end = VectorXd::Zero(5);
-  end.head<3>() = Vector3d(cx, cy, cz);
-  planner.plan(start, end, start_t, start_t + 4);
+  kd.fk(position, orientation, pitch, roll);
+  VectorXd current_task_config = VectorXd::Zero(5);
+  current_task_config.head<3>() = position;
+  current_task_config(3) = pitch;
+  current_task_config(4) = roll;
+  shared_ptr<VectorXd> config_ptr(&current_task_config);
+
+  ros::ServiceServer spin_rotary_service = nh.advertiseService<shipbot_ros::spin_rotary::Request, shipbot_ros::spin_rotary::Response>("spin_rotary", spin_rotary(planner, config_ptr));
+  ros::ServiceServer spin_shuttlecock_service = nh.advertiseService<shipbot_ros::spin_shuttlecock::Request, shipbot_ros::spin_shuttlecock::Response>("spin_shuttlecock", spin_shuttlecock(planner, config_ptr));
+  ros::ServiceServer switch_breaker_service = nh.advertiseService<shipbot_ros::switch_breaker::Request, shipbot_ros::switch_breaker::Response>("switch_breaker", switch_breaker(planner, config_ptr));
 
   ros::Rate r(rate);
   while (ros::ok())
   {
+    kd.fk(position, orientation, pitch, roll);
+    VectorXd current_task_config = VectorXd::Zero(5);
+    current_task_config.head<3>() = position;
+    current_task_config(3) = pitch;
+    current_task_config(4) = roll;
+
     double t = ros::Time::now().toSec();
-    /*
-    double x = cx;// + radius*cos(t);
-    double y = cy;
-    double z = cz;// + radius*sin(t);
-    */
-    VectorXd task_config = planner.eval(t);
-    VectorXd task_vel = planner.deriv1(t);
-    VectorXd task_acc = planner.deriv2(t);
+    VectorXd task_config = planner->eval(t);
+    VectorXd task_vel = planner->deriv1(t);
+    VectorXd task_acc = planner->deriv2(t);
 
     group->getNextFeedback(group_feedback);
     group_feedback.getPosition(position_fbk);
@@ -145,7 +234,6 @@ int main(int argc, char** argv) {
     group_command.setEffort(effort_cmds);
     group->sendCommand(group_command);
 
-    kd.fk(position, orientation);
     cout << position/0.0254 << endl << endl << endl;
     pose.transform.translation.x = position(0);
     pose.transform.translation.y = position(1);
@@ -159,6 +247,7 @@ int main(int argc, char** argv) {
     pose_br.sendTransform(pose);
 
     marker.header.stamp = ros::Time::now();
+    // Add points!
     trajectory_pub.publish(marker);
 
     r.sleep();

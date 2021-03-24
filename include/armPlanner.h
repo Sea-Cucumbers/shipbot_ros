@@ -1,31 +1,92 @@
 #include <Eigen/Dense>
+#include <vector>
+#include "minJerkInterpolator.h"
 
 using namespace Eigen;
+using namespace std;
 
 /*
  * ArmPlanner: currently just generates min-jerk straight lines between a given start and end
  */
 class ArmPlanner {
   private:
-    VectorXd start;
-    VectorXd end;
-    double start_time;
-    double end_time;
-    double delta_t;
-    bool plan_exists;
+    vector<MinJerkInterpolator> segments;
+    double seconds_per_meter;
+    double seconds_per_degree;
+
+    // How far back do we stop before engaging a rotary valve? How far to the side do
+    // we stop before pushing a shuttlecock valve? How far above/below do we stop
+    // before pushing a breaker switch?
+    const double pause_dist = 0.1; 
+
+    const double shuttlecock_length = 0.08174;
+
+    vector<MinJerkInterpolator>::iterator current_segment;
+
+    /*
+     * retrieve_segment: populated current_segment with the segment
+     * containing this value of t. If t is farther into the future
+     * than the time of all segments, use the last segment. If
+     * it's farther into the past than the time of all segments,
+     * use the first segment
+     * ARGUMENTS
+     * t: time
+     */
+    void retrieve_segment(double t);
 
   public:
     /*
      * constructor
+     * ARGUMENTS
+     * seconds_per_meter: motions are constructed as a series of line segments.
+     * how many seconds should a meter long segment take?
+     * seconds_per_degree: if we're spinning a rotary valve, how many seconds
+     * per degree do we spin?
      */
-    ArmPlanner();
+    ArmPlanner(double seconds_per_meter,
+               double seconds_per_degree);
 
     /*
-     * plan: generate task-space motion plan between start and end
-     * start, end: starting and ending (x, y, z, pitch, roll)
-     * start_time, end_time: start and end times
+     * spin_rotary: generate task-space motion plan to manipulate a rotary valve
+     * start: starting task-space configuration
+     * position: position of valve center
+     * vertical_spin_axis: if true, valve spin axis points up. Otherwise forward
+     * degrees: relative number of counterclockwise degrees to spin the valve
+     * start_time: start time for trajectory
      */
-    void plan(const VectorXd &start, const VectorXd &end, double start_time, double end_time);
+    void spin_rotary(const VectorXd &start,
+                     const Vector3d &position,
+                     bool vertical_spin_axis,
+                     double degrees,
+                     double start_time);
+
+    /*
+     * spin_shuttlecock: generate task-space motion plan to manipulate a shuttlecock valve
+     * start: starting task-space configuration
+     * position: position of valve center
+     * handle_end: postition of end of handle
+     * vertical_spin_axis: if true, valve spin axis points up. Otherwise forward
+     * clockwise: if true, spin the valve 90 deg clockwise, otherwise counterclockwise
+     * start_time: start time for trajectory
+     */
+    void spin_shuttlecock(const VectorXd &start,
+                          const Vector3d &position, 
+                          const Vector3d &handle_end,
+                          bool vertical_spin_axis,
+                          bool clockwise,
+                          double start_time);
+
+    /*
+     * switch_breaker: generate task-space motion plan to manipulate a rotary valve
+     * start: starting task-space configuration
+     * position: position of valve center
+     * push_up: if true, we push the switch up. If false, push it down
+     * start_time: start time for trajectory
+     */
+    void switch_breaker(const VectorXd &start,
+                        const Vector3d &position,
+                        bool push_up,
+                        double start_time);
 
     /*
      * eval: returns the desired task configuration. If t is outside the
