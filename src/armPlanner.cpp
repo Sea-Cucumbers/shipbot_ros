@@ -8,6 +8,24 @@ ArmPlanner::ArmPlanner(double seconds_per_meter,
                                                     seconds_per_degree(seconds_per_degree),
                                                     reset_position(0, 0.4, 0.5) {}
 
+void ArmPlanner::sample_points(vector<geometry_msgs::Point> &points) {
+  points.clear();
+  if (segments.size() == 0) {
+    cout << "Tried sampling trajectory but no trajectory was planned!" << endl;
+    return;
+  }
+  for (double t = segments[0].get_start_time();
+       t < segments.back().get_end_time();
+       t += 0.1) {
+    geometry_msgs::Point point;
+    VectorXd tppt = eval(t);
+    point.x = tppt(0);
+    point.y = tppt(1);
+    point.z = tppt(2);
+    points.push_back(point);
+  }
+}
+
 void ArmPlanner::reset_arm(const VectorXd &start,
                            double start_time) {
   segments.clear();

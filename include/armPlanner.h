@@ -1,6 +1,7 @@
 #include <Eigen/Dense>
 #include <vector>
 #include "minJerkInterpolator.h"
+#include <geometry_msgs/Point.h>
 
 using namespace Eigen;
 using namespace std;
@@ -11,8 +12,8 @@ using namespace std;
 class ArmPlanner {
   private:
     vector<MinJerkInterpolator> segments;
-    double seconds_per_meter;
-    double seconds_per_degree;
+    const double seconds_per_meter;
+    const double seconds_per_degree;
 
     // How far back do we stop before engaging a rotary valve? How far to the side do
     // we stop before pushing a shuttlecock valve? How far above/below do we stop
@@ -47,6 +48,13 @@ class ArmPlanner {
      */
     ArmPlanner(double seconds_per_meter,
                double seconds_per_degree);
+
+    /*
+     * sample_points: sample points along current trajectory
+     * ARGUMENTS
+     * points: populated with samples
+     */
+    void sample_points(vector<geometry_msgs::Point> &points);
 
     /*
      * reset_arm: generate task-space motion plan to reset the arm

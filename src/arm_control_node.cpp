@@ -20,6 +20,9 @@
 
 using namespace std;
 
+// TODO: shouldn't be static, got lazy
+static visualization_msgs::Marker marker;
+
 class reset_arm {
   private:
     shared_ptr<ArmPlanner> planner;
@@ -47,6 +50,7 @@ class reset_arm {
                       shipbot_ros::reset_arm::Response &res) {
       planner->reset_arm(*task_space_config,
                          ros::Time::now().toSec());
+      planner->sample_points(marker.points);
     }
 };
 
@@ -80,6 +84,7 @@ class spin_rotary {
                            req.vertical_spin_axis,
                            (double)req.degrees,
                            ros::Time::now().toSec());
+      planner->sample_points(marker.points);
     }
 };
 
@@ -114,6 +119,7 @@ class spin_shuttlecock {
                                 req.vertical_spin_axis,
                                 req.clockwise,
                                 ros::Time::now().toSec());
+      planner->sample_points(marker.points);
     }
 };
 
@@ -159,7 +165,6 @@ int main(int argc, char** argv) {
   nh.getParam("urdf", urdf_file);
   nh.getParam("rate", rate);
   KDHelper kd(urdf_file);
-  shared_ptr<ArmPlanner> planner = make_shared<ArmPlanner>(4, 1.0/90);
 
   const vector<string> &actuator_names = kd.get_actuator_names();
   VectorXd position_cmds = VectorXd::Zero(actuator_names.size());
@@ -173,7 +178,6 @@ int main(int argc, char** argv) {
 
   // Publish trajectory to rviz
   ros::Publisher trajectory_pub = nh.advertise<visualization_msgs::Marker>("/shipbot/desired_trajectory", 1);
-  visualization_msgs::Marker marker;
   marker.header.frame_id = "world";
   marker.ns = "shipbot";
   marker.action = visualization_msgs::Marker::ADD;
@@ -208,7 +212,7 @@ int main(int argc, char** argv) {
   VectorXd velocity_fbk = VectorXd::Zero(group->size());
   VectorXd effort_fbk = VectorXd::Zero(group->size());
   
-  double start_t = ros::Time::now().toSec();
+  shared_ptr<ArmPlanner> planner = make_shared<ArmPlanner>(4, 1.0/90);
 
   Vector3d position(0, 0, 0);
   Quaterniond orientation(1, 0, 0, 0);
@@ -278,7 +282,7 @@ int main(int argc, char** argv) {
     pose_br.sendTransform(pose);
 
     marker.header.stamp = ros::Time::now();
-    // Add points!
+
     trajectory_pub.publish(marker);
 
     r.sleep();
