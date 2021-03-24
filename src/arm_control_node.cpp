@@ -51,6 +51,7 @@ class reset_arm {
       planner->reset_arm(*task_space_config,
                          ros::Time::now().toSec());
       planner->sample_points(marker.points);
+      return true;
     }
 };
 
@@ -85,6 +86,7 @@ class spin_rotary {
                            (double)req.degrees,
                            ros::Time::now().toSec());
       planner->sample_points(marker.points);
+      return true;
     }
 };
 
@@ -120,6 +122,7 @@ class spin_shuttlecock {
                                 req.clockwise,
                                 ros::Time::now().toSec());
       planner->sample_points(marker.points);
+      return true;
     }
 };
 
@@ -152,6 +155,8 @@ class switch_breaker {
                               Vector3d(req.position.x, req.position.y, req.position.z),
                               req.push_up,
                               ros::Time::now().toSec());
+      planner->sample_points(marker.points);
+      return true;
     }
 };
 
@@ -161,9 +166,13 @@ int main(int argc, char** argv) {
 
   string urdf_file;
   double rate = 20;
+  double seconds_per_meter = 6;
+  double seconds_per_degree = 0.011;
   
   nh.getParam("urdf", urdf_file);
   nh.getParam("rate", rate);
+  nh.getParam("seconds_per_meter", seconds_per_meter);
+  nh.getParam("seconds_per_degree", seconds_per_degree);
   KDHelper kd(urdf_file);
 
   const vector<string> &actuator_names = kd.get_actuator_names();
@@ -212,7 +221,7 @@ int main(int argc, char** argv) {
   VectorXd velocity_fbk = VectorXd::Zero(group->size());
   VectorXd effort_fbk = VectorXd::Zero(group->size());
   
-  shared_ptr<ArmPlanner> planner = make_shared<ArmPlanner>(4, 1.0/90);
+  shared_ptr<ArmPlanner> planner = make_shared<ArmPlanner>(seconds_per_meter, seconds_per_degree);
 
   Vector3d position(0, 0, 0);
   Quaterniond orientation(1, 0, 0, 0);
@@ -238,17 +247,6 @@ int main(int argc, char** argv) {
   ros::Rate r(rate);
   while (ros::ok())
   {
-    kd.fk(position, orientation, pitch, roll);
-    VectorXd current_task_config = VectorXd::Zero(5);
-    current_task_config.head<3>() = position;
-    current_task_config(3) = pitch;
-    current_task_config(4) = roll;
-
-    double t = ros::Time::now().toSec();
-    VectorXd task_config = planner->eval(t);
-    VectorXd task_vel = planner->deriv1(t);
-    VectorXd task_acc = planner->deriv2(t);
-
     group->getNextFeedback(group_feedback);
     group_feedback.getPosition(position_fbk);
     group_feedback.getVelocity(velocity_fbk);
@@ -256,18 +254,31 @@ int main(int argc, char** argv) {
 
     kd.update_state(position_fbk, velocity_fbk, effort_fbk);
 
-    kd.ik(position_cmds, task_config);
-    kd.grav_comp(effort_cmds);
+    kd.fk(position, orientation, pitch, roll);
+    current_task_config.head<3>() = position;
+    current_task_config(3) = pitch;
+    current_task_config(4) = roll;
 
-    // These don't seem to help
-    //kd.tsid(effort_cmds, task_acc);
-    //kd.idk(velocity_cmds, task_vel);
+    double t = ros::Time::now().toSec();
 
-    // Send commands to HEBI modules
-    group_command.setPosition(position_cmds);
-    //group_command.setVelocity(velocity_cmds);
-    group_command.setEffort(effort_cmds);
-    group->sendCommand(group_command);
+    if (planner->planned()) {
+      VectorXd task_config = planner->eval(t);
+      VectorXd task_vel = planner->deriv1(t);
+      VectorXd task_acc = planner->deriv2(t);
+
+      kd.ik(position_cmds, task_config);
+      kd.grav_comp(effort_cmds);
+
+      // These don't seem to help
+      //kd.tsid(effort_cmds, task_acc);
+      //kd.idk(velocity_cmds, task_vel);
+
+      // Send commands to HEBI modules
+      group_command.setPosition(position_cmds);
+      //group_command.setVelocity(velocity_cmds);
+      group_command.setEffort(effort_cmds);
+      group->sendCommand(group_command);
+    }
 
     cout << position/0.0254 << endl << endl << endl;
     pose.transform.translation.x = position(0);
@@ -282,7 +293,6 @@ int main(int argc, char** argv) {
     pose_br.sendTransform(pose);
 
     marker.header.stamp = ros::Time::now();
-
     trajectory_pub.publish(marker);
 
     r.sleep();

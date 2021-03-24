@@ -96,6 +96,8 @@ void KDHelper::fk(Vector3d &position, Quaterniond &orientation, double &pitch, d
   orientation = Quaterniond(model_data->oMf[ee_fid].rotation());
   pitch = -config(1) + config(2) + -config(3);
   roll = config(4);
+
+  //cout << model_data->oMf[model.getFrameId("elbow_joint")].translation() << endl << endl;
 }
 
 void KDHelper::grav_comp(VectorXd &joint_torques) {

@@ -132,4 +132,10 @@ class ArmPlanner {
      * RETURN: acceleration at time t
      */
     VectorXd deriv2(double t);
+
+    /*
+     * planned: returns true if plan exists, false otherwise
+     * RETURN: true if plan exists, false otherwise
+     */
+    bool planned();
 };
