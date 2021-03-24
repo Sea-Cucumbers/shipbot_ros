@@ -88,6 +88,10 @@ void ArmPlanner::spin_rotary(const VectorXd &start,
   end_time += seconds_per_degree*degrees;
   seg_start = seg_end;
   seg_end(4) -= degrees*M_PI/180;
+  segments.push_back(MinJerkInterpolator(seg_start,
+                                         seg_end,
+                                         start_time,
+                                         end_time));
 
   // Move back
   seg_start = seg_end;
@@ -300,7 +304,7 @@ VectorXd ArmPlanner::deriv2(double t) {
 void ArmPlanner::retrieve_segment(double t) {
   if (t > segments.back().get_end_time()) {
     current_segment = prev(segments.end());
-  } else if (t > segments.back().get_end_time()) {
+  } else if (t < segments.front().get_start_time()) {
     current_segment = segments.begin();
   } else {
     while (!current_segment->contains_time(t)) {

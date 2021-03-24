@@ -22,6 +22,7 @@ using namespace std;
 
 // TODO: shouldn't be static, got lazy
 static visualization_msgs::Marker marker;
+static double start_time;
 
 class reset_arm {
   private:
@@ -49,7 +50,7 @@ class reset_arm {
     bool operator () (shipbot_ros::reset_arm::Request &req,
                       shipbot_ros::reset_arm::Response &res) {
       planner->reset_arm(*task_space_config,
-                         ros::Time::now().toSec());
+                         ros::Time::now().toSec() - start_time);
       planner->sample_points(marker.points);
       return true;
     }
@@ -84,7 +85,7 @@ class spin_rotary {
                            Vector3d(req.position.x, req.position.y, req.position.z),
                            req.vertical_spin_axis,
                            (double)req.degrees,
-                           ros::Time::now().toSec());
+                           ros::Time::now().toSec() - start_time);
       planner->sample_points(marker.points);
       return true;
     }
@@ -120,7 +121,7 @@ class spin_shuttlecock {
                                 Vector3d(req.handle_end.x, req.handle_end.y, req.handle_end.z),
                                 req.vertical_spin_axis,
                                 req.clockwise,
-                                ros::Time::now().toSec());
+                                ros::Time::now().toSec() - start_time);
       planner->sample_points(marker.points);
       return true;
     }
@@ -154,7 +155,7 @@ class switch_breaker {
       planner->switch_breaker(*task_space_config,
                               Vector3d(req.position.x, req.position.y, req.position.z),
                               req.push_up,
-                              ros::Time::now().toSec());
+                              ros::Time::now().toSec() - start_time);
       planner->sample_points(marker.points);
       return true;
     }
@@ -244,6 +245,8 @@ int main(int argc, char** argv) {
   ros::ServiceServer switch_breaker_service = nh.advertiseService<shipbot_ros::switch_breaker::Request, shipbot_ros::switch_breaker::Response>("switch_breaker", switch_breaker(planner, config_ptr));
   ros::ServiceServer reset_arm_service = nh.advertiseService<shipbot_ros::reset_arm::Request, shipbot_ros::reset_arm::Response>("reset_arm", reset_arm(planner, config_ptr));
 
+  start_time = ros::Time::now().toSec();
+
   ros::Rate r(rate);
   while (ros::ok())
   {
@@ -259,7 +262,7 @@ int main(int argc, char** argv) {
     current_task_config(3) = pitch;
     current_task_config(4) = roll;
 
-    double t = ros::Time::now().toSec();
+    double t = ros::Time::now().toSec() - start_time;
 
     if (planner->planned()) {
       VectorXd task_config = planner->eval(t);

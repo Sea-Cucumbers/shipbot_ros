@@ -134,6 +134,9 @@ include_directories(
 add_executable(gazebo_control_node src/gazebo_control_node.cpp $<TARGET_OBJECTS:arm_control>)
 target_link_libraries(gazebo_control_node ${catkin_LIBRARIES} pinocchio::pinocchio)
 
+add_executable(test_fk src/test_fk.cpp $<TARGET_OBJECTS:arm_control>)
+target_link_libraries(test_fk ${catkin_LIBRARIES} pinocchio::pinocchio)
+
 add_executable(arm_control_node src/arm_control_node.cpp $<TARGET_OBJECTS:arm_control>)
 target_link_libraries(arm_control_node ${catkin_LIBRARIES} pinocchio::pinocchio)
 
