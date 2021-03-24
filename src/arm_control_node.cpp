@@ -20,6 +20,36 @@
 
 using namespace std;
 
+class reset_arm {
+  private:
+    shared_ptr<ArmPlanner> planner;
+    shared_ptr<VectorXd> task_space_config;
+
+  public:
+    /*
+     * reset_arm: constructor
+     * ARGUMENTS
+     * _planner: pointer to planner
+     * _task_space_config: pointer to task-space configuration
+     */
+     reset_arm(shared_ptr<ArmPlanner> _planner,
+               shared_ptr<VectorXd> _task_space_config) : planner(_planner),
+                                                          task_space_config(_task_space_config) {}
+
+    /*
+     * operator (): plan trajectory to reset arm
+     * ARGUMENTS
+     * req: request
+     * res: technically supposed to be populated with the response, but
+     * the response isn't used
+     */
+    bool operator () (shipbot_ros::reset_arm::Request &req,
+                      shipbot_ros::reset_arm::Response &res) {
+      planner->reset_arm(*task_space_config,
+                         ros::Time::now().toSec());
+    }
+};
+
 class spin_rotary {
   private:
     shared_ptr<ArmPlanner> planner;
@@ -199,6 +229,7 @@ int main(int argc, char** argv) {
   ros::ServiceServer spin_rotary_service = nh.advertiseService<shipbot_ros::spin_rotary::Request, shipbot_ros::spin_rotary::Response>("spin_rotary", spin_rotary(planner, config_ptr));
   ros::ServiceServer spin_shuttlecock_service = nh.advertiseService<shipbot_ros::spin_shuttlecock::Request, shipbot_ros::spin_shuttlecock::Response>("spin_shuttlecock", spin_shuttlecock(planner, config_ptr));
   ros::ServiceServer switch_breaker_service = nh.advertiseService<shipbot_ros::switch_breaker::Request, shipbot_ros::switch_breaker::Response>("switch_breaker", switch_breaker(planner, config_ptr));
+  ros::ServiceServer reset_arm_service = nh.advertiseService<shipbot_ros::reset_arm::Request, shipbot_ros::reset_arm::Response>("reset_arm", reset_arm(planner, config_ptr));
 
   ros::Rate r(rate);
   while (ros::ok())

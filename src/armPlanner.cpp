@@ -5,13 +5,31 @@ using namespace std;
 
 ArmPlanner::ArmPlanner(double seconds_per_meter,
                        double seconds_per_degree) : seconds_per_meter(seconds_per_meter),
-                                                    seconds_per_degree(seconds_per_degree) {}
+                                                    seconds_per_degree(seconds_per_degree),
+                                                    reset_position(0, 0.4, 0.5) {}
+
+void ArmPlanner::reset_arm(const VectorXd &start,
+                           double start_time) {
+  segments.clear();
+  VectorXd seg_start = start;
+  VectorXd seg_end = VectorXd::Zero(5);
+  seg_end.head<3>() = reset_position;
+  Vector3d diff = seg_end.head<3>() - seg_start.head<3>();
+  double end_time = start_time + seconds_per_meter*diff.norm();
+  segments.push_back(MinJerkInterpolator(seg_start,
+                                         seg_end,
+                                         start_time,
+                                         end_time));
+                                         
+  current_segment = segments.begin();
+}
 
 void ArmPlanner::spin_rotary(const VectorXd &start,
                              const Vector3d &position,
                              bool vertical_spin_axis,
                              double degrees,
                              double start_time) {
+  segments.clear();
   VectorXd seg_start = start;
   VectorXd seg_end = VectorXd::Zero(5);
   seg_end.head<3>() = position;
@@ -79,6 +97,7 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
                                   bool vertical_spin_axis,
                                   bool clockwise,
                                   double start_time) {
+  segments.clear();
   VectorXd seg_start = start;
   VectorXd seg_end = VectorXd::Zero(5);
   seg_end.head<3>() = position;
@@ -194,6 +213,7 @@ void ArmPlanner::switch_breaker(const VectorXd &start,
                                 const Vector3d &position,
                                 bool push_up,
                                 double start_time) {
+  segments.clear();
   VectorXd seg_start = start;
   VectorXd seg_end = VectorXd::Zero(5);
   seg_end.head<3>() = position;

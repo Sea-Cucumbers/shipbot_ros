@@ -21,6 +21,8 @@ class ArmPlanner {
 
     const double shuttlecock_length = 0.08174;
 
+    const Vector3d reset_position;
+
     vector<MinJerkInterpolator>::iterator current_segment;
 
     /*
@@ -45,6 +47,14 @@ class ArmPlanner {
      */
     ArmPlanner(double seconds_per_meter,
                double seconds_per_degree);
+
+    /*
+     * reset_arm: generate task-space motion plan to reset the arm
+     * start: starting task-space configuration
+     * start_time: start time for trajectory
+     */
+    void reset_arm(const VectorXd &start,
+                   double start_time);
 
     /*
      * spin_rotary: generate task-space motion plan to manipulate a rotary valve
