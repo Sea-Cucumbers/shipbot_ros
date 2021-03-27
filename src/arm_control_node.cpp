@@ -285,7 +285,7 @@ int main(int argc, char** argv) {
       group->sendCommand(group_command);
     }
 
-    cout << position/0.0254 << endl << endl << endl;
+    //cout << position/0.0254 << endl << endl << endl;
     pose.transform.translation.x = position(0);
     pose.transform.translation.y = position(1);
     pose.transform.translation.z = position(2);
