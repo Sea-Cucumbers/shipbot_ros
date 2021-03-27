@@ -177,9 +177,6 @@ int main(int argc, char** argv) {
   KDHelper kd(urdf_file);
 
   const vector<string> &actuator_names = kd.get_actuator_names();
-  VectorXd position_cmds = VectorXd::Zero(actuator_names.size());
-  VectorXd velocity_cmds = VectorXd::Zero(actuator_names.size());
-  VectorXd effort_cmds = VectorXd::Zero(actuator_names.size());
 
   tf2_ros::TransformBroadcaster pose_br;
   geometry_msgs::TransformStamped pose;
@@ -240,6 +237,10 @@ int main(int argc, char** argv) {
   current_task_config(4) = roll;
   shared_ptr<VectorXd> config_ptr(&current_task_config);
 
+  VectorXd position_cmds = position_fbk;
+  VectorXd velocity_cmds = velocity_fbk;
+  VectorXd effort_cmds = effort_fbk;
+
   ros::ServiceServer spin_rotary_service = nh.advertiseService<shipbot_ros::spin_rotary::Request, shipbot_ros::spin_rotary::Response>("spin_rotary", spin_rotary(planner, config_ptr));
   ros::ServiceServer spin_shuttlecock_service = nh.advertiseService<shipbot_ros::spin_shuttlecock::Request, shipbot_ros::spin_shuttlecock::Response>("spin_shuttlecock", spin_shuttlecock(planner, config_ptr));
   ros::ServiceServer switch_breaker_service = nh.advertiseService<shipbot_ros::switch_breaker::Request, shipbot_ros::switch_breaker::Response>("switch_breaker", switch_breaker(planner, config_ptr));
@@ -270,6 +271,7 @@ int main(int argc, char** argv) {
       VectorXd task_acc = planner->deriv2(t);
 
       kd.ik(position_cmds, task_config);
+
       kd.grav_comp(effort_cmds);
 
       // These don't seem to help

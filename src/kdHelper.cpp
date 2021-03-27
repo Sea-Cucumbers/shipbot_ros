@@ -78,7 +78,7 @@ bool KDHelper::ik(VectorXd &joint_positions, const VectorXd& task_config) {
   if (c > 1 || c < -1) {
     return false;
   }
-  double th3 = -acos(c);
+  double th3 = abs(c - 1) < 0.01 ? 0 : (abs(c + 1) < 0.01 ? M_PI : -acos(c));
   double th2 = atan2(zp, a) - atan2(l3*sin(th3), l2 + l3*cos(th3));
   double th4 = pitch - th3 - th2;
 
@@ -94,10 +94,10 @@ bool KDHelper::ik(VectorXd &joint_positions, const VectorXd& task_config) {
 void KDHelper::fk(Vector3d &position, Quaterniond &orientation, double &pitch, double &roll) {
   position = model_data->oMf[ee_fid].translation();
   orientation = Quaterniond(model_data->oMf[ee_fid].rotation());
-  pitch = -config(1) + config(2) + -config(3);
-  roll = config(4);
+  pitch = -atan2(config(3), config(2)) + atan2(config(5), config(4)) - atan2(config(7), config(6));
+  roll = -atan2(config(9), config(8));
 
-  cout << model_data->oMf[model.getFrameId("elbow_joint")].translation()/0.0254 << endl << endl;
+  //cout << model_data->oMf[model.getFrameId("elbow_joint")].translation()/0.0254 << endl << endl;
 }
 
 void KDHelper::grav_comp(VectorXd &joint_torques) {
