@@ -15,32 +15,6 @@
 using namespace std;
 using namespace cv;
 
-class toggle_publishing {
-  private:
-    shared_ptr<bool> do_publish;
-
-  public:
-    /*
-     * toggle_publishing: constructor
-     * ARGUMENTS
-     * _do_publish: pointer to publishing indicator
-     */
-    toggle_publishing(shared_ptr<bool> _do_publish) : do_publish(_do_publish) {}
-
-    /*
-     * operator (): toggle do_publish
-     * ARGUMENTS
-     * req: request
-     * res: response containing device state
-     */
-    bool operator () (std_srvs::SetBool::Request &req,
-                      std_srvs::SetBool::Response &res) {
-      *do_publish = req.data;
-      res.success = true;
-      return true;
-    }
-};
-
 class query_wheel {
   private:
     shared_ptr<DeviceFinder> finder;
@@ -207,9 +181,6 @@ int main(int argc, char** argv) {
   ros::ServiceServer query_shuttlecock_service = nh.advertiseService<shipbot_ros::QueryShuttlecock::Request, shipbot_ros::QueryShuttlecock::Response>("query_shuttlecock", query_shuttlecock(finder));
   ros::ServiceServer query_breaker_service = nh.advertiseService<shipbot_ros::QueryBreaker::Request, shipbot_ros::QueryBreaker::Response>("query_breaker", query_breaker(finder));
 
-  shared_ptr<bool> do_publish = make_shared<bool>(false);
-  ros::ServiceServer toggle_publishing_service = nh.advertiseService<std_srvs::SetBool::Request, std_srvs::SetBool::Response>("toggle_publishing", toggle_publishing(do_publish));
-
   // Messages we use for continuous publishing
   shipbot_ros::WheelState wheel_state;
   shipbot_ros::SpigotState spigot_state;
@@ -233,6 +204,9 @@ int main(int argc, char** argv) {
   cv_bridge::CvImagePtr rs_image_ptr = boost::make_shared<cv_bridge::CvImage>();
   rs_image_ptr->encoding = "rgb8";
 
+  bool continuous_publishing = false;
+  nh.getParam("continuous_publishing", continuous_publishing);
+
   ros::Rate r(10);
   while(ros::ok()) {
     // Wait for the next set of frames from RealSense
@@ -242,7 +216,7 @@ int main(int argc, char** argv) {
     rs2::frame color_frame = frames.get_color_frame();
     finder->newFrames(depth_frame, color_frame);
 
-    if (*do_publish) {
+    if (continuous_publishing) {
       DeviceType current_device = finder->getCurrentDevice();
       if (current_device == WHEEL) {
         finder->findWheel(wheel_state);

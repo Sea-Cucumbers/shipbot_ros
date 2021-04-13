@@ -2,5 +2,6 @@
   <rosparam file="$(find shipbot_ros)/config/realsense_thresholds.yaml" />
   <node name="realsense_node" pkg="shipbot_ros" type="realsense_node" output="screen">
     <param name="pub_image" value="true"/>
+    <param name="continuous_publishing" value="true"/>
   </node>
 </launch>
