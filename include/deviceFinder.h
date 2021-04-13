@@ -40,8 +40,8 @@ class DeviceFinder {
      * K, D: camera parameters
      */
     DeviceFinder(const vector<int> &wheel_thresh,
-                 const vector<int> &shuttlecock_thresh,
                  const vector<int> &spigot_thresh,
+                 const vector<int> &shuttlecock_thresh,
                  const vector<int> &switch_thresh,
                  const vector<int> &black_thresh,
                  const Mat &R_c_i,

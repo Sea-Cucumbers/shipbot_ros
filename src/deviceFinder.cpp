@@ -2,8 +2,8 @@
 #include <iostream>
 
 DeviceFinder::DeviceFinder(const vector<int> &wheel_thresh,
-                           const vector<int> &shuttlecock_thresh,
                            const vector<int> &spigot_thresh,
+                           const vector<int> &shuttlecock_thresh,
                            const vector<int> &switch_thresh,
                            const vector<int> &black_thresh,
                            const Mat &R_c_i,
@@ -104,6 +104,7 @@ void DeviceFinder::findShuttlecock(shipbot_ros::ShuttlecockState &state) {
   processFrames();
   int found = blobs.size();
   if (!found) {
+    cout << "not found" << endl;
     return;
   }
   state.position.x = blobs[0].point.x;
@@ -131,6 +132,7 @@ void DeviceFinder::findShuttlecock(shipbot_ros::ShuttlecockState &state) {
     // We count the #pixels
     state.open = blobs[0].keypoint.size > 30;
   }
+  state.visible = true;
 }
 
 void DeviceFinder::findSwitches(shipbot_ros::SwitchState &state1,
@@ -268,9 +270,9 @@ void DeviceFinder::findSwitches(shipbot_ros::SwitchState &state1,
   state1.up = breaker_state[0] == BREAKER_UP;
   state2.up = breaker_state[1] == BREAKER_UP;
   state3.up = breaker_state[2] == BREAKER_UP;
-  state1.visible = false;
-  state2.visible = false;
-  state3.visible = false;
+  state1.visible = true;
+  state2.visible = true;
+  state3.visible = true;
 }
 
 DeviceType DeviceFinder::getCurrentDevice() {
@@ -437,6 +439,7 @@ bool DeviceFinder::rethreshAndFitEllipse(cv::RotatedRect &ell, int r) {
   std::vector<std::vector<cv::Point>> contours;
   findContours(rsimage_rethreshed, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
   if (contours.size() == 0) {
+    cout << "no contours" << endl;
     return false;
   }
   double best_area = cv::contourArea(contours[0]);
@@ -449,8 +452,10 @@ bool DeviceFinder::rethreshAndFitEllipse(cv::RotatedRect &ell, int r) {
     }
   }
   if (contours[best_idx].size() < 5) {
+    cout << "best contour has too few points" << endl;
     return false;
   }
   ell = fitEllipse(contours[best_idx]);
   cv::ellipse(rsimagec_rgb, ell, cv::Scalar(0, 255, 0), 5);
+  return true;
 }
