@@ -1,0 +1,5 @@
+<launch>
+  <node name="mission_control_node" pkg="shipbot_ros" type="mission_control_node" output="screen">
+    <param name="mission_file" value="$(find shipbot_ros)/config/mission_file.txt"/>
+  </node>
+</launch>

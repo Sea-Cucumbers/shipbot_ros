@@ -158,6 +158,9 @@ endif()
 add_executable(realsense_node src/realsense_node.cpp $<TARGET_OBJECTS:vision>)
 target_link_libraries(realsense_node ${catkin_LIBRARIES} ${OpenCV_LIBS} ${REALSENSE2_FOUND})
 
+add_executable(mission_control_node src/mission_control_node.cpp)
+target_link_libraries(mission_control_node ${catkin_LIBRARIES})
+
 ## Declare a C++ library
 add_library(arm_control OBJECT
   ${CMAKE_CURRENT_SOURCE_DIR}/src/kdHelper.cpp
