@@ -219,12 +219,19 @@ int main(int argc, char** argv) {
   shipbot_ros::SwitchState switch3_state;
 
   // Continuous publishers
-  ros::Publisher wheel_pub = nh.advertise<shipbot_ros::WheelState>("shipbot/wheel_state", 1);
-  ros::Publisher spigot_pub = nh.advertise<shipbot_ros::SpigotState>("shipbot/spigot_state", 1);
-  ros::Publisher shuttlecock_pub = nh.advertise<shipbot_ros::ShuttlecockState>("shipbot/shuttlecock_state", 1);
-  ros::Publisher switch1_pub = nh.advertise<shipbot_ros::SwitchState>("shipbot/switch1_state", 1);
-  ros::Publisher switch2_pub = nh.advertise<shipbot_ros::SwitchState>("shipbot/switch2_state", 1);
-  ros::Publisher switch3_pub = nh.advertise<shipbot_ros::SwitchState>("shipbot/switch3_state", 1);
+  ros::Publisher wheel_pub = nh.advertise<shipbot_ros::WheelState>("/shipbot/wheel_state", 1);
+  ros::Publisher spigot_pub = nh.advertise<shipbot_ros::SpigotState>("/shipbot/spigot_state", 1);
+  ros::Publisher shuttlecock_pub = nh.advertise<shipbot_ros::ShuttlecockState>("/shipbot/shuttlecock_state", 1);
+  ros::Publisher switch1_pub = nh.advertise<shipbot_ros::SwitchState>("/shipbot/switch1_state", 1);
+  ros::Publisher switch2_pub = nh.advertise<shipbot_ros::SwitchState>("/shipbot/switch2_state", 1);
+  ros::Publisher switch3_pub = nh.advertise<shipbot_ros::SwitchState>("/shipbot/switch3_state", 1);
+
+  // Publish image if desired
+  bool pub_image = false;
+  nh.getParam("pub_image", pub_image);
+  ros::Publisher image_pub = nh.advertise<sensor_msgs::Image>("/shipbot/rs_image", 1);
+  cv_bridge::CvImagePtr rs_image_ptr = boost::make_shared<cv_bridge::CvImage>();
+  rs_image_ptr->encoding = "rgb8";
 
   ros::Rate r(10);
   while(ros::ok()) {
@@ -256,6 +263,13 @@ int main(int argc, char** argv) {
         switch1_pub.publish(switch1_state);
         switch2_pub.publish(switch2_state);
         switch3_pub.publish(switch3_state);
+      }
+
+      if (pub_image) {
+        bool image_exists = finder->getAnnotatedImage(rs_image_ptr->image);
+        if (image_exists) {
+          image_pub.publish(rs_image_ptr->toImageMsg());
+        }
       }
     }
 

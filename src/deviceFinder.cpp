@@ -67,7 +67,9 @@ void DeviceFinder::findWheel(shipbot_ros::WheelState &state) {
   state.position.x = blobs[0].point.x;
   state.position.y = blobs[0].point.y;
   state.position.z = blobs[0].point.z;
-  state.visible = true;
+
+  cv::RotatedRect ell;
+  state.visible = rethreshAndFitEllipse(ell, 170);
 }
 
 void DeviceFinder::findSpigot(shipbot_ros::SpigotState &state) {
@@ -83,37 +85,10 @@ void DeviceFinder::findSpigot(shipbot_ros::SpigotState &state) {
   state.position.z = blobs[0].point.z;
 
   // Determine orientation
-  Mat rethresh_mask = Mat::zeros(Size(w1, h1), CV_8UC1);
-  Mat rsimage_rethreshed;
-  int r = 90;
-
-  // Re-threshold the image, only keeping the valve of interest
-  int xc, yc;
-  xc = blobs[0].pixel.x;
-  yc = blobs[0].pixel.y;
-  cv::rectangle(rethresh_mask, Point(xc-r, yc-r), Point(xc+r, yc+r), 255, FILLED);
-  bitwise_and(rethresh_mask, rsimagec_segmented, rsimage_rethreshed);
-
-  // Find its contours and fit an ellipse
-  std::vector<std::vector<cv::Point>> contours;
-  findContours(rsimage_rethreshed, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
-  if (contours.size() == 0) {
+  cv::RotatedRect ell;
+  if (!rethreshAndFitEllipse(ell, 90)) {
     return;
   }
-  double best_area = cv::contourArea(contours[0]);
-  size_t best_idx = 0;
-  for (size_t i = 1; i < contours.size(); i++) {
-    double area = cv::contourArea(contours[i]);
-    if (area > best_area) {
-      best_idx = i;
-      best_area = area;
-    }
-  }
-  if (contours[best_idx].size() < 5) {
-    return;
-  }
-  cv::RotatedRect ell = fitEllipse(contours[best_idx]);
-  cv::ellipse(rsimagec_rgb, ell, cv::Scalar(0, 255, 0), 5);
 
   // Check the bounding box's shape
   float wid = ell.size.width;
@@ -139,37 +114,10 @@ void DeviceFinder::findShuttlecock(shipbot_ros::ShuttlecockState &state) {
   state.vertical = blobs[0].keypoint.size < 45;
   
   // Determine status
-  Mat rethresh_mask = Mat::zeros(Size(w1, h1), CV_8UC1);
-  Mat rsimage_rethreshed;
-  int r = 100;
-
-  // Re-threshold the image, only keeping the valve of interest
-  int xc, yc;
-  xc = blobs[0].pixel.x;
-  yc = blobs[0].pixel.y;
-  cv::rectangle(rethresh_mask, Point(xc-r, yc-r), Point(xc+r, yc+r), 255, FILLED);
-  bitwise_and(rethresh_mask, rsimagec_segmented, rsimage_rethreshed);
-
-  // Find its contours and fit an ellipse
-  std::vector<std::vector<cv::Point>> contours;
-  findContours(rsimage_rethreshed, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
-  if (contours.size() == 0) {
+  cv::RotatedRect ell;
+  if (!rethreshAndFitEllipse(ell, 100)) {
     return;
   }
-  double best_area = cv::contourArea(contours[0]);
-  size_t best_idx = 0;
-  for (size_t i = 1; i < contours.size(); i++) {
-    double area = cv::contourArea(contours[i]);
-    if (area > best_area) {
-      best_idx = i;
-      best_area = area;
-    }
-  }
-  if (contours[best_idx].size() < 5) {
-    return;
-  }
-  cv::RotatedRect ell = fitEllipse(contours[best_idx]);
-  cv::ellipse(rsimagec_rgb, ell, cv::Scalar(0, 255, 0), 5);
 
   // Check the bounding box's shape
   float wid = ell.size.width;
@@ -355,12 +303,22 @@ void DeviceFinder::setCurrentDevice(DeviceType device_type) {
   }
 }
 
+bool DeviceFinder::getAnnotatedImage(Mat &result) {
+  if (!rsimagec_rgb.total() || !im_with_keypoints.total() || !rsimagec_segmented_rgb.total()) {
+    return false;
+  }
+  cvtColor(rsimagec_segmented, rsimagec_segmented_rgb, COLOR_GRAY2RGB);
+  Mat imgarray[] = {rsimagec_rgb, im_with_keypoints, rsimagec_segmented_rgb};
+  hconcat(imgarray, 3, result);
+  return true;
+}
+
 void DeviceFinder::processFrames() {
   blobs.clear();
 
   // Query frame size (width and height)
-  const int w = depth_frame.as<rs2::video_frame>().get_width();
-  const int h = depth_frame.as<rs2::video_frame>().get_height();
+  int w = depth_frame.as<rs2::video_frame>().get_width();
+  int h = depth_frame.as<rs2::video_frame>().get_height();
   w1 = color_frame.as<rs2::video_frame>().get_width();
   h1 = color_frame.as<rs2::video_frame>().get_height();
 
@@ -378,7 +336,7 @@ void DeviceFinder::processFrames() {
   //gammaCorrection(rsimagec_rgb, rsimagec_rgb, 0.45); // adjust brightness
   cvtColor(rsimagec_rgb, rsimagec_hls, COLOR_BGR2HLS);
 
-  // actual valves and breakers
+  // Actual valves and breakers
   inRange(rsimagec_hls, thresh_min, thresh_max, rsimagec_segmented);
   if (current_device == SPIGOT) {
     inRange(rsimagec_hls, spigot_thresh_min, spigot_thresh_max, mask2);
@@ -392,7 +350,6 @@ void DeviceFinder::processFrames() {
 
   // Draw detected blobs as green circles.
   // DrawMatchesFlags::DRAW_RICH_KEYPOINTS flag ensures the size of the circle corresponds to the size of blob
-  Mat im_with_keypoints, rsimagec_segmented_rgb;
   cvtColor(rsimagec_segmented, rsimagec_segmented_rgb, COLOR_GRAY2RGB);
   drawKeypoints(rsimagec_segmented_rgb, keypoints, im_with_keypoints, Scalar(0,255,0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
   
@@ -463,4 +420,37 @@ void DeviceFinder::processFrames() {
     blobs.push_back(blob_pq.top());
     blob_pq.pop();
   }
+}
+
+bool DeviceFinder::rethreshAndFitEllipse(cv::RotatedRect &ell, int r) {
+  Mat rethresh_mask = Mat::zeros(Size(w1, h1), CV_8UC1);
+  Mat rsimage_rethreshed;
+
+  // Re-threshold the image, only keeping the valve of interest
+  int xc, yc;
+  xc = blobs[0].pixel.x;
+  yc = blobs[0].pixel.y;
+  cv::rectangle(rethresh_mask, Point(xc-r, yc-r), Point(xc+r, yc+r), 255, FILLED);
+  bitwise_and(rethresh_mask, rsimagec_segmented, rsimage_rethreshed);
+
+  // Find its contours and fit an ellipse
+  std::vector<std::vector<cv::Point>> contours;
+  findContours(rsimage_rethreshed, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
+  if (contours.size() == 0) {
+    return false;
+  }
+  double best_area = cv::contourArea(contours[0]);
+  size_t best_idx = 0;
+  for (size_t i = 1; i < contours.size(); i++) {
+    double area = cv::contourArea(contours[i]);
+    if (area > best_area) {
+      best_idx = i;
+      best_area = area;
+    }
+  }
+  if (contours[best_idx].size() < 5) {
+    return false;
+  }
+  ell = fitEllipse(contours[best_idx]);
+  cv::ellipse(rsimagec_rgb, ell, cv::Scalar(0, 255, 0), 5);
 }

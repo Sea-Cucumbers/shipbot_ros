@@ -96,6 +96,18 @@ class DeviceFinder {
      * RETURN: current device being trackd
      */
     DeviceType getCurrentDevice();
+
+    /*
+     * getAnnotatedImage: get image annotated with device info from the last call
+     * to any of the find functions. If we've never detected a device, this function
+     * does nothing
+     * ARGUMENTS
+     * result: populated with result, if there is one
+     * RETURN: true if we've ever detected a device, false if we haven't. If false,
+     * result is untouched
+     */
+    bool getAnnotatedImage(Mat &result);
+
   private:
     rs2::frame depth_frame;
     rs2::frame color_frame;
@@ -125,6 +137,7 @@ class DeviceFinder {
     Mat rsimagec_hls;
     Mat rsimagec_segmented;
     Mat im_with_keypoints;
+    Mat rsimagec_segmented_rgb;
     rs2::colorizer color_map;
 
     // For thresholding spigot
@@ -156,8 +169,21 @@ class DeviceFinder {
      * Find closest 3d point in each blob and sort by distance using a pq.
      * If we're finding a breaker, the switches are the three closest blobs.
      * Otherwise, the device is the closest blob. Clears the blobs vector and
-     * populates it with the necessary blobs. 
+     * populates it with the necessary blobs. Draws keypoints on the binary
+     * thresholded image, storing the result in im_with_keypoints.
      */
     void processFrames();
+
+    /*
+     * rethreshAndFitEllipse: should be called after processFrames. Rethresholds
+     * the color image and fits an ellipse to the largest contour. Draws the ellipse
+     * onto rsimagec_rgb
+     * ARGUMENTS
+     * ell: populated with fitted ellipse
+     * r: we only consider contours within the bounding box that surrounds a
+     * circle of radius r around the best blob
+     * RETURN: true if we were able to fit an ellipse, false if not
+     */
+     bool rethreshAndFitEllipse(cv::RotatedRect &ell, int r);
 };
 #endif
