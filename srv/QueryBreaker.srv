@@ -1,0 +1,5 @@
+bool typeA # If true, breaker is type A. If false, type B
+---
+shipbot_ros/SwitchState state1
+shipbot_ros/SwitchState state2
+shipbot_ros/SwitchState state3

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.1.0)
 project(shipbot_ros)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
@@ -55,16 +55,21 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  SwitchState.msg
+  WheelState.msg
+  SpigotState.msg
+  ShuttlecockState.msg
+)
 
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
-  find_device.srv
+  QueryBreaker.srv
+  QueryWheel.srv
+  QuerySpigot.srv
+  QueryShuttlecock.srv
   spin_rotary.srv
   spin_shuttlecock.srv
   switch_breaker.srv
@@ -83,6 +88,7 @@ generate_messages(
   DEPENDENCIES
   std_msgs
   geometry_msgs
+  shipbot_ros
 )
 
 ################################################
@@ -116,7 +122,7 @@ generate_messages(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS roscpp hebi_cpp_api
+  CATKIN_DEPENDS roscpp hebi_cpp_api message_runtime
 )
 
 ###########
@@ -143,11 +149,14 @@ target_link_libraries(arm_control_node ${catkin_LIBRARIES} pinocchio::pinocchio)
 add_executable(test_workspace src/test_workspace.cpp $<TARGET_OBJECTS:arm_control>)
 target_link_libraries(test_workspace ${catkin_LIBRARIES} pinocchio::pinocchio)
 
-add_executable(ee_cam_node src/ee_cam_node.cpp $<TARGET_OBJECTS:ee_camera>)
-target_link_libraries(ee_cam_node ${catkin_LIBRARIES} ${OpenCV_LIBS})
+find_library(REALSENSE2_FOUND realsense2 HINTS ${LIBRARY_DIR} REQUIRED)
+if(NOT REALSENSE2_FOUND)
+    SET(REALSENSE2_FOUND "realsense2")
+    message(WARN "Failed to find_library(realsense2)")
+endif()
 
-add_executable(ee_cam_server src/ee_cam_server.cpp $<TARGET_OBJECTS:ee_camera>)
-target_link_libraries(ee_cam_server ${catkin_LIBRARIES} ${OpenCV_LIBS})
+add_executable(realsense_node src/realsense_node.cpp $<TARGET_OBJECTS:vision>)
+target_link_libraries(realsense_node ${catkin_LIBRARIES} ${OpenCV_LIBS} ${REALSENSE2_FOUND})
 
 ## Declare a C++ library
 add_library(arm_control OBJECT
@@ -156,9 +165,11 @@ add_library(arm_control OBJECT
   ${CMAKE_CURRENT_SOURCE_DIR}/src/minJerkInterpolator.cpp
 )
 
-add_library(ee_camera OBJECT
+add_library(vision OBJECT
   ${CMAKE_CURRENT_SOURCE_DIR}/src/deviceFinder.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/util.cpp
 )
+add_dependencies(vision shipbot_ros_generate_messages_cpp)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries

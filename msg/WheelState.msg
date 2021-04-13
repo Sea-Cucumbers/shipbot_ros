@@ -1,0 +1,2 @@
+bool visible
+geometry_msgs/Vector3 position

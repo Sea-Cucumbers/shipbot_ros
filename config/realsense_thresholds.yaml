@@ -1,0 +1,5 @@
+wheel_thresh: [95, 21, 191, 110, 120, 255]
+shuttlecock_thresh: [98, 25, 160, 110, 178, 255]
+spigot_thresh: [40, 64, 25, 80, 204, 77]
+switch_thresh: [5, 77, 102, 15, 210, 255]
+black_thresh: [0, 0, 0, 40, 45, 60]
