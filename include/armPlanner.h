@@ -22,7 +22,7 @@ class ArmPlanner {
 
     const double shuttlecock_length = 0.08174;
 
-    const Vector3d reset_position;
+    VectorXd reset_config;
 
     vector<MinJerkInterpolator>::iterator current_segment;
 

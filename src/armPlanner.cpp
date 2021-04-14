@@ -5,8 +5,15 @@ using namespace std;
 
 ArmPlanner::ArmPlanner(double seconds_per_meter,
                        double seconds_per_degree) : seconds_per_meter(seconds_per_meter),
-                                                    seconds_per_degree(seconds_per_degree),
-                                                    reset_position(-0.4, 0.4, 0.4) {}
+                                                    seconds_per_degree(seconds_per_degree) {
+ reset_config = VectorXd::Zero(5);
+ reset_config(0) = -0.135214;
+ reset_config(1) = 0.18142;
+ reset_config(2) = 0.00839807;
+ reset_config(3) = -1.52432;
+ reset_config(4) = 2.67237;
+
+}
 
 void ArmPlanner::sample_points(vector<geometry_msgs::Point> &points) {
   points.clear();
@@ -30,8 +37,7 @@ void ArmPlanner::reset_arm(const VectorXd &start,
                            double start_time) {
   segments.clear();
   VectorXd seg_start = start;
-  VectorXd seg_end = VectorXd::Zero(5);
-  seg_end.head<3>() = reset_position;
+  VectorXd seg_end = reset_config;
   Vector3d diff = seg_end.head<3>() - seg_start.head<3>();
   double end_time = start_time + seconds_per_meter*diff.norm();
   segments.push_back(MinJerkInterpolator(seg_start,
