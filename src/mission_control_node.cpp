@@ -24,6 +24,7 @@ void string_split(vector<string> &ssplit, string s, string del) {
     start = end + del.size();
     end = s.find(del, start);
   }
+  ssplit.push_back(s.substr(start, end - start));
 }
 
 int main(int argc, char** argv) {
@@ -81,11 +82,21 @@ int main(int argc, char** argv) {
   shipbot_ros::switch_breaker switch_breaker_srv;
   shipbot_ros::reset_arm reset_arm_srv;
 
+  /*
+  if (reset_arm_client.call(reset_arm_srv)) {
+    ROS_INFO("Commanded arm to reset");
+  } else {
+    ROS_ERROR("Failed to command arm to reset");
+    return 1;
+  }
+  */
+
   // Just do first command for now
   char station = commands[cmd_idx][0];
   string rest = commands[cmd_idx].substr(1, commands[cmd_idx].size());
   vector<string> tokens;
   string_split(tokens, rest, " ");
+
   if (tokens[0] == "V1") {
     // Query device
     if (query_wheel_client.call(query_wheel_srv)) {

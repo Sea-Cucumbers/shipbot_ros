@@ -202,7 +202,7 @@ int main(int argc, char** argv) {
   nh.getParam("pub_image", pub_image);
   ros::Publisher image_pub = nh.advertise<sensor_msgs::Image>("/shipbot/rs_image", 1);
   cv_bridge::CvImagePtr rs_image_ptr = boost::make_shared<cv_bridge::CvImage>();
-  rs_image_ptr->encoding = "rgb8";
+  rs_image_ptr->encoding = "bgr8";
 
   bool continuous_publishing = false;
   nh.getParam("continuous_publishing", continuous_publishing);

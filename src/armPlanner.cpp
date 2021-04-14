@@ -6,7 +6,7 @@ using namespace std;
 ArmPlanner::ArmPlanner(double seconds_per_meter,
                        double seconds_per_degree) : seconds_per_meter(seconds_per_meter),
                                                     seconds_per_degree(seconds_per_degree),
-                                                    reset_position(0, 0.5, 0.4) {}
+                                                    reset_position(-0.4, 0.4, 0.4) {}
 
 void ArmPlanner::sample_points(vector<geometry_msgs::Point> &points) {
   points.clear();

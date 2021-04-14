@@ -272,6 +272,17 @@ int main(int argc, char** argv) {
 
       kd.ik(position_cmds, task_config);
 
+      /*
+      for (size_t i = 0; i < 5; ++i) {
+        while (position_fbk(i) - position_cmds(i) > 2*M_PI) {
+          position_cmds(i) += 2*M_PI;
+        }
+        while (position_fbk(i) - position_cmds(i) < -2*M_PI) {
+          position_cmds(i) -= 2*M_PI;
+        }
+      }
+      */
+
       kd.grav_comp(effort_cmds);
 
       // These don't seem to help

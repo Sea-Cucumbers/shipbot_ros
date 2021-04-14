@@ -15,6 +15,8 @@ KDHelper::KDHelper(const string &urdf_file) {
   model_data = make_unique<pin::Data>(model);
 
   config = pin::neutral(model);
+  config(0) = -1;
+  config(1) = 0;
   vel = VectorXd::Zero(model.nv);
   forwardKinematics(model, *model_data, config);
   pin::updateFramePlacements(model, *model_data);
@@ -82,7 +84,7 @@ bool KDHelper::ik(VectorXd &joint_positions, const VectorXd& task_config) {
   double th2 = atan2(zp, a) - atan2(l3*sin(th3), l2 + l3*cos(th3));
   double th4 = pitch - th3 - th2;
 
-  joint_positions(0) = th1 - M_PI/2;
+  joint_positions(0) = th1 - M_PI/2 - M_PI;
   joint_positions(1) = -th2;
   joint_positions(2) = th3;
   joint_positions(3) = -th4;
