@@ -12,8 +12,10 @@
 #include "shipbot_ros/QuerySpigot.h"
 #include "shipbot_ros/QueryShuttlecock.h"
 #include "shipbot_ros/QueryBreaker.h"
+#include <Eigen/Dense>
 
 using namespace std;
+using namespace Eigen;
 
 void string_split(vector<string> &ssplit, string s, string del) {
   ssplit.clear();
@@ -82,6 +84,18 @@ int main(int argc, char** argv) {
   shipbot_ros::switch_breaker switch_breaker_srv;
   shipbot_ros::reset_arm reset_arm_srv;
 
+  // Get extrinsics
+  vector<double> t_cam_armv;
+  vector<double> R_cam_armv;
+  nh.getParam("/t_cam_arm", t_cam_armv);
+  nh.getParam("/R_cam_arm", R_cam_armv);
+
+  Matrix3d R_cam_arm;
+  R_cam_arm << R_cam_armv[0], R_cam_armv[1], R_cam_armv[2],
+               R_cam_armv[3], R_cam_armv[4], R_cam_armv[5],
+               R_cam_armv[6], R_cam_armv[7], R_cam_armv[8];
+  Vector3d t_cam_arm(t_cam_armv[0], t_cam_armv[1], t_cam_armv[2]);
+
   /*
   if (reset_arm_client.call(reset_arm_srv)) {
     ROS_INFO("Commanded arm to reset");
@@ -111,8 +125,16 @@ int main(int argc, char** argv) {
       return 1; // TODO: don't return 
     }
 
+    // Transform position into arm frame
+    Vector3d dev_pos(query_wheel_srv.response.state.position.x,
+                     query_wheel_srv.response.state.position.y,
+                     query_wheel_srv.response.state.position.z);
+    dev_pos = R_cam_arm*dev_pos + t_cam_arm;
+
     // Command arm
-    spin_rotary_srv.request.position = query_wheel_srv.response.state.position;
+    spin_rotary_srv.request.position.x = dev_pos(0);
+    spin_rotary_srv.request.position.y = dev_pos(1);
+    spin_rotary_srv.request.position.z = dev_pos(2);
     spin_rotary_srv.request.vertical_spin_axis = false;
     spin_rotary_srv.request.degrees = stoi(tokens[1]);
     if (spin_rotary_client.call(spin_rotary_srv)) {
@@ -135,8 +157,16 @@ int main(int argc, char** argv) {
       return 1; // TODO: don't return 
     }
 
+    // Transform position into arm frame
+    Vector3d dev_pos(query_spigot_srv.response.state.position.x,
+                     query_spigot_srv.response.state.position.y,
+                     query_spigot_srv.response.state.position.z);
+    dev_pos = R_cam_arm*dev_pos + t_cam_arm;
+
     // Command arm
-    spin_rotary_srv.request.position = query_spigot_srv.response.state.position;
+    spin_rotary_srv.request.position.x = dev_pos(0);
+    spin_rotary_srv.request.position.y = dev_pos(1);
+    spin_rotary_srv.request.position.z = dev_pos(2);
     spin_rotary_srv.request.vertical_spin_axis = query_spigot_srv.response.state.vertical;
     spin_rotary_srv.request.degrees = stoi(tokens[1]);
     if (spin_rotary_client.call(spin_rotary_srv)) {
@@ -168,11 +198,19 @@ int main(int argc, char** argv) {
       return 0; // TODO: don't return 
     }
 
+    // Transform position into arm frame
+    Vector3d dev_pos(query_shuttlecock_srv.response.state.position.x,
+                     query_shuttlecock_srv.response.state.position.y,
+                     query_shuttlecock_srv.response.state.position.z);
+    dev_pos = R_cam_arm*dev_pos + t_cam_arm;
+
     cout << "Shuttlecock isn't fully implemented so we're returning" << endl;
     return 0; // TODO: don't return 
 
     // Command arm
-    spin_shuttlecock_srv.request.position = query_shuttlecock_srv.response.state.position;
+    spin_shuttlecock_srv.request.position.x = dev_pos(0);
+    spin_shuttlecock_srv.request.position.y = dev_pos(1);
+    spin_shuttlecock_srv.request.position.z = dev_pos(2);
     spin_shuttlecock_srv.request.vertical_spin_axis = query_shuttlecock_srv.response.state.vertical;
     // TODO: other shuttlecock stuff
 
@@ -222,7 +260,16 @@ int main(int argc, char** argv) {
       return 0; // TODO: don't return 
     }
 
-    switch_breaker_srv.request.position = state.position;
+    // Transform position into arm frame
+    Vector3d dev_pos(state.position.x,
+                     state.position.y,
+                     state.position.z);
+    dev_pos = R_cam_arm*dev_pos + t_cam_arm;
+
+    // Command arm
+    switch_breaker_srv.request.position.x = dev_pos(0);
+    switch_breaker_srv.request.position.y = dev_pos(1);
+    switch_breaker_srv.request.position.z = dev_pos(2);
     switch_breaker_srv.request.push_up = tokens[2] == "U";
 
     if (switch_breaker_client.call(switch_breaker_srv)) {
