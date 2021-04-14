@@ -215,6 +215,17 @@ int main(int argc, char** argv) {
   hebi::GroupCommand group_command(group->size());
   hebi::GroupFeedback group_feedback(group->size());
 
+  // Write gains
+  string gains_file;
+  string safety_file;
+  nh.getParam("gains_file", gains_file);
+  nh.getParam("safety_file", safety_file);
+  group_command.readGains(gains_file);
+  group_command.readSafetyParameters(safety_file);
+  bool success = group->sendCommandWithAcknowledgement(group_command);
+  if (!success) return 1;
+  cout << "wrote gains and safety parameters" << endl;
+
   VectorXd position_fbk = VectorXd::Zero(group->size());
   VectorXd velocity_fbk = VectorXd::Zero(group->size());
   VectorXd effort_fbk = VectorXd::Zero(group->size());

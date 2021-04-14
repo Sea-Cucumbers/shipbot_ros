@@ -6,5 +6,7 @@
     <param name="seconds_per_meter" value="10"/>
     <param name="seconds_per_degree" value="0.011"/>
     <param name="rate" value="100"/>
+    <param name="gains_file" value="$(find shipbot_ros)/config/hebi_gains.xml"/>
+    <param name="safety_file" value="$(find shipbot_ros)/config/hebi_safety.xml"/>
   </node>
 </launch>
