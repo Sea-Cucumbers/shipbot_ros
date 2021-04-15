@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.1.0)
 project(shipbot_ros)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++17)
+add_compile_options(-std=c++17 -Wno-psabi)
 
 find_package(pinocchio REQUIRED)
 find_package(OpenCV REQUIRED)
@@ -16,6 +16,8 @@ find_package(catkin REQUIRED COMPONENTS
   urdf
   rospy
   std_msgs
+  std_srvs
+  visualization_msgs
   tf2_ros
   message_generation
   hebi_cpp_api

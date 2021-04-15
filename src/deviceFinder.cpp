@@ -1,5 +1,6 @@
 #include "deviceFinder.h"
 #include <iostream>
+#include <opencv2/features2d.hpp>
 
 DeviceFinder::DeviceFinder(const vector<int> &wheel_thresh,
                            const vector<int> &spigot_thresh,
@@ -357,7 +358,7 @@ void DeviceFinder::processFrames() {
   // Draw detected blobs as green circles.
   // DrawMatchesFlags::DRAW_RICH_KEYPOINTS flag ensures the size of the circle corresponds to the size of blob
   cvtColor(rsimagec_segmented, rsimagec_segmented_rgb, COLOR_GRAY2RGB);
-  drawKeypoints(rsimagec_segmented_rgb, keypoints, im_with_keypoints, Scalar(0,255,0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+  //drawKeypoints(rsimagec_segmented_rgb, keypoints, im_with_keypoints, Scalar(0,255,0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
   
 
 
