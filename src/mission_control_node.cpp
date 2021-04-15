@@ -111,7 +111,7 @@ int main(int argc, char** argv) {
   vector<string> tokens;
   string_split(tokens, rest, " ");
 
-  if (tokens[0] == "V1") {
+  if (tokens[0] == "V2") {
     // Query device
     if (query_wheel_client.call(query_wheel_srv)) {
       ROS_INFO("Queried wheel");
@@ -143,7 +143,7 @@ int main(int argc, char** argv) {
       ROS_ERROR("Failed to command arm to spin wheel valve");
       return 1;
     }
-  } else if (tokens[0] == "V2") {
+  } else if (tokens[0] == "V1") {
     // Query device
     if (query_spigot_client.call(query_spigot_srv)) {
       ROS_INFO("Successfully queried spigot");

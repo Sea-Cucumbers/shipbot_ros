@@ -309,9 +309,13 @@ bool DeviceFinder::getAnnotatedImage(Mat &result) {
   if (!rsimagec_rgb.total() || !im_with_keypoints.total() || !rsimagec_segmented_rgb.total()) {
     return false;
   }
+  /*
   cvtColor(rsimagec_segmented, rsimagec_segmented_rgb, COLOR_GRAY2RGB);
   Mat imgarray[] = {rsimagec_rgb, im_with_keypoints, rsimagec_segmented_rgb};
   hconcat(imgarray, 3, result);
+  */
+  Mat imgarray[] = {rsimagec_rgb, im_with_keypoints};
+  hconcat(imgarray, 2, result);
   return true;
 }
 
