@@ -61,6 +61,7 @@ add_message_files(
   WheelState.msg
   SpigotState.msg
   ShuttlecockState.msg
+  ChassisFeedback.msg
 )
 
 ## Generate services in the 'srv' folder
