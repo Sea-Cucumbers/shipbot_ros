@@ -15,17 +15,18 @@ fbk_yaw = 0
 tofs = [0, 0, 0, 0]
 
 def chassis_callback(fbk_msg):
-  got_fbk = True
-
   global t
-  global xdot
-  global ydot
+  global vx
+  global vy
   global fbk_yaw
   global tofs
+  global got_fbk
 
-  t = fbk_msg.header.stamp.toSec() 
-  xdot = fbk_msg.xdot
-  ydot = fbk_msg.ydot
+  got_fbk = True
+
+  t = fbk_msg.header.stamp.secs 
+  vx = fbk_msg.vx
+  vy = fbk_msg.vy
   fbk_yaw = fbk_msg.yaw
   tofs = fbk_msg.tofs
 
@@ -59,11 +60,9 @@ while not rospy.is_shutdown():
         states[:, i], covs[i] = init_state_given_yaw(i*np.pi/4, tofs)
 
       initialized = True
-      prev_t = time.time()
+      prev_t = t
       prev_yaw = fbk_yaw
       continue
-
-    t = time.time()
 
     new_log_weights = np.zeros(nfilters)
     for i in range(nfilters):
@@ -85,7 +84,7 @@ while not rospy.is_shutdown():
 
     filter_data[:, :nfilters, fidx] = states[:3]
     if fidx == 300 and not saved:
-      np.save(str(int(rospy.Time().now().toSec)) + '.npy', filter_data[:, :, :fidx])
+      np.save(str(int(rospy.Time().now().secs)) + '.npy', filter_data[:, :, :fidx])
       print('saved file')
       saved = True
 

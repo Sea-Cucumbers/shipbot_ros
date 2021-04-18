@@ -18,7 +18,6 @@ rate = rospy.Rate(50) # 50 Hz
 while not rospy.is_shutdown():
   try:
     data = mcu.readline()
-    print(data)
     if data:
       data = data.decode('utf-8').split()
       if len(data) == 5:
