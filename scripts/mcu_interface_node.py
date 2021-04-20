@@ -49,7 +49,7 @@ while not rospy.is_shutdown():
     else:
       print('No data')
 
-    mcu.write(str(cmd_vx) + ' ' + str(cmd_vy) + ' ' + str(cmd_w) + '\n')
+    mcu.write('<' + str(cmd_vx) + ' ' + str(cmd_vy) + ' ' + str(cmd_w) + '>')
 
     rate.sleep()
 
