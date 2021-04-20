@@ -1,0 +1,4 @@
+<launch>
+  <node name="localization_node" pkg="shipbot_ros" type="localization_node.py" output="screen"/>
+  <node name="chassis_control_node" pkg="shipbot_ros" type="chassis_control_node" output="screen" />
+</launch>

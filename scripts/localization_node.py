@@ -3,6 +3,7 @@
 import numpy as np
 import rospy
 from shipbot_ros.msg import ChassisFeedback
+from shipbot_ros.msg import ChassisState
 from kf import *
 
 got_fbk = False 
@@ -25,6 +26,8 @@ def chassis_callback(fbk_msg):
 
 rospy.init_node('localization_node', anonymous=True)
 chassis_sub = rospy.Subscriber('/shipbot/chassis_feedback', ChassisFeedback, chassis_callback)
+state_pub = rospy.Publisher('/shipbot/chassis_state', ChassisState, 1)
+state_msg = ChassisState()
 
 maxx = 152.4
 maxy = 91.44
@@ -73,6 +76,16 @@ while not rospy.is_shutdown():
         nfilters = len(covs)
 
     state = np.matmul(states, np.exp(log_weights))
+
+    state_msg.x = state[0]/100
+    state_msg.y = state[1]/100
+    state_msg.yaw = state[2]
+    state_msg.xdot = state[3]/100
+    state_msg.ydot = state[4]/100
+    state_msg.w = (fbk_yaw - prev_yaw)/(t - prev_t) # TODO: add to estimator or something
+    state_msg.header.stamp = rospy.Time().now()
+    state_pub.publish(state_msg)
+
     state_to_print = np.copy(state)
     state_to_print[2] *= 180/np.pi
     state_to_print[:2] /= 2.54
