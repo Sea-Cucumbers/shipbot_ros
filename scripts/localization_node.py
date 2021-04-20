@@ -8,15 +8,11 @@ from kf import *
 got_fbk = False 
 prev_t = 0
 t = 0
-vx = 0
-vy = 0
 fbk_yaw = 0
 tofs = [0, 0, 0, 0]
 
 def chassis_callback(fbk_msg):
   global t
-  global vx
-  global vy
   global fbk_yaw
   global tofs
   global got_fbk
@@ -24,8 +20,6 @@ def chassis_callback(fbk_msg):
   got_fbk = True
 
   t = fbk_msg.header.stamp.secs 
-  vx = fbk_msg.vx
-  vy = fbk_msg.vy
   fbk_yaw = fbk_msg.yaw
   tofs = fbk_msg.tofs
 

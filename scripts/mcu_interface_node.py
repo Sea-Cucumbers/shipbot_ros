@@ -11,7 +11,7 @@ chassis_pub = rospy.Publisher('/shipbot/chassis_feedback', ChassisFeedback, queu
 chassis_msg = ChassisFeedback()
 chassis_msg.tofs = [200, 200, 200, 200]
 
-# Each line of data should be "xdot ydot yaw dist0 dist1 dist2 dist3\n"
+# Each line of data should be "yaw dist0 dist1 dist2 dist3\n"
 rospy.sleep(1)
 
 rate = rospy.Rate(50) # 50 Hz
