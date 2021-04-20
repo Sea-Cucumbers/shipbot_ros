@@ -1,6 +1,5 @@
 #!/usr/bin/env python2
 
-import matplotlib.pyplot as plt
 import numpy as np
 import rospy
 from shipbot_ros.msg import ChassisFeedback
@@ -46,10 +45,6 @@ log_weights = np.log(np.ones(nfilters)/nfilters)
 prev_t = 0
 prev_yaw = 0
 
-filter_data = np.zeros((3, nfilters, 1000))
-fidx = 0
-saved = False
-
 rate = rospy.Rate(10) # 10 Hz
 while not rospy.is_shutdown():
   if got_fbk:
@@ -77,19 +72,12 @@ while not rospy.is_shutdown():
 
       live_filters = np.logical_and(np.logical_and(log_weights > -10, states[0] > 0), states[1] > 0)
       live_filters = np.logical_and(live_filters, np.logical_and(states[0] < maxx, states[1] < maxy))
-      states = states[:, live_filters]
-      covs = covs[live_filters]
-      log_weights = normalize_log_weights(log_weights[live_filters])
-      nfilters = len(covs)
+      if np.any(live_filters):
+        states = states[:, live_filters]
+        covs = covs[live_filters]
+        log_weights = normalize_log_weights(log_weights[live_filters])
+        nfilters = len(covs)
 
-    filter_data[:, :nfilters, fidx] = states[:3]
-    if fidx == 300 and not saved:
-      np.save(str(int(rospy.Time().now().secs)) + '.npy', filter_data[:, :, :fidx])
-      print('saved file')
-      saved = True
-
-    fidx += 1
-      
     state = np.matmul(states, np.exp(log_weights))
     state_to_print = np.copy(state)
     state_to_print[2] *= 180/np.pi

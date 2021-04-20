@@ -64,7 +64,7 @@ def predict(state, cov, dyaw, dt):
 
 # Sensor 0 is on the same side as the ethernet cable. 1-3 go counterclockwise
 def correct(state, cov, obs, log_weight):
-  R = np.eye(4)
+  R = 0.25*np.eye(4)
   zhat = 200*np.ones(4)
   H_t = np.zeros((4, 5))
 
@@ -75,6 +75,8 @@ def correct(state, cov, obs, log_weight):
     ooc = 1/c
     zhat[3] = state[0]*ooc + loc3[0]
     zhat[0] = state[1]*ooc
+    R[1, 1] = 100
+    R[2, 2] = 100
 
     H_t[3, 0] = ooc
     H_t[0, 0] = ooc
@@ -90,6 +92,9 @@ def correct(state, cov, obs, log_weight):
     zhat[2] = state[0]*ooc - loc2[1]
     zhat[3] = state[1]*ooc + loc3[0]
 
+    R[0, 0] = 100
+    R[1, 1] = 100
+
     H_t[2, 0] = ooc
     H_t[3, 1] = ooc
     ddyaw = np.sin(theta)/(c*c)
@@ -104,6 +109,9 @@ def correct(state, cov, obs, log_weight):
     zhat[1] = state[0]*ooc - loc1[0]
     zhat[2] = state[1]*ooc - loc2[1]
 
+    R[0, 0] = 100
+    R[3, 3] = 100
+
     H_t[1, 0] = ooc
     H_t[2, 1] = ooc
     ddyaw = np.sin(theta)/(c*c)
@@ -117,6 +125,9 @@ def correct(state, cov, obs, log_weight):
     ooc = 1/c
     zhat[0] = state[0]*ooc
     zhat[1] = state[1]*ooc - loc1[0]
+
+    R[2, 2] = 100
+    R[3, 3] = 100
 
     H_t[0, 0] = ooc
     H_t[1, 1] = ooc
