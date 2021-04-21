@@ -5,7 +5,9 @@
 #include <thread>
 #include "shipbot_ros/ChassisState.h"
 #include "shipbot_ros/Travel.h"
+#include "shipbot_ros/InitialLocalization.h"
 #include "shipbot_ros/ChassisCommand.h"
+#include "shipbot_ros/StopChassis.h"
 #include "minJerkInterpolator.h"
 #include <Eigen/Dense>
 
@@ -15,10 +17,68 @@ using namespace Eigen;
 // TODO: shouldn't be static, got lazy
 static double start_time;
 
+class stop {
+  private:
+    shared_ptr<bool> stopped;
+
+  public:
+    /*
+     * localize: constructor
+     * ARGUMENTS
+     * _stopped: pointer to stop variable
+     */
+     stop(shared_ptr<bool> _stopped) : stopped(_stopped) {}
+
+    /*
+     * operator (): tell the chassis controller to stop
+     * ARGUMENTS
+     * req: request, not used
+     * res: technically supposed to be populated with the response, but
+     * the response isn't used
+     */
+    bool operator () (shipbot_ros::StopChassis::Request &req,
+                      shipbot_ros::StopChassis::Response &res) {
+      *stopped = true;
+      return true;
+    }
+};
+
+class localize {
+  private:
+    shared_ptr<bool> start_localization;
+    shared_ptr<bool> stopped;
+
+  public:
+    /*
+     * localize: constructor
+     * ARGUMENTS
+     * _start_localization: pointer to localization variable
+     * _stopped: pointer to stopped variable
+     */
+     localize(shared_ptr<bool> _start_localization,
+              shared_ptr<bool> _stopped) : start_localization(_start_localization),
+                                           stopped(_stopped) {}
+
+    /*
+     * operator (): tell the chassis controller to move to localize the chassis (or not) 
+     * ARGUMENTS
+     * req: request, not used
+     * res: technically supposed to be populated with the response, but
+     * the response isn't used
+     */
+    bool operator () (shipbot_ros::InitialLocalization::Request &req,
+                      shipbot_ros::InitialLocalization::Response &res) {
+      *start_localization = true;
+      *stopped = false;
+      return true;
+    }
+};
+
 class travel {
   private:
     shared_ptr<MinJerkInterpolator> planner;
     shared_ptr<VectorXd> cur_state;
+    shared_ptr<bool> stopped;
 
   public:
     /*
@@ -26,9 +86,13 @@ class travel {
      * ARGUMENTS
      * _planner: pointer to planner
      * _cur_state: pointer to current state
+     * _stoppe: pointer to stopped
      */
      travel(shared_ptr<MinJerkInterpolator> _planner,
-            shared_ptr<VectorXd> _cur_state) : planner(_planner) {}
+            shared_ptr<VectorXd> _cur_state,
+            shared_ptr<bool> _stopped) : planner(_planner),
+                                         cur_state(_cur_state),
+                                         stopped(_stopped) {}
 
     /*
      * operator (): plan trajectory to waypoint
@@ -47,6 +111,7 @@ class travel {
       double dist = disp.norm();
       double traj_start = ros::Time::now().toSec() - start_time;
       *planner = MinJerkInterpolator(*cur_state, end, traj_start, traj_start + dist/0.5);
+      *stopped = false;
       return true;
     }
 };
@@ -102,27 +167,69 @@ int main(int argc, char** argv) {
 
   shared_ptr<MinJerkInterpolator> planner = make_shared<MinJerkInterpolator>(*state_ptr, *state_ptr, 0, 0);
 
-  ros::ServiceServer travel_service = nh.advertiseService<shipbot_ros::Travel::Request, shipbot_ros::Travel::Response>("travel", travel(planner, state_ptr));
+  shared_ptr<bool> stopped = make_shared<bool>(true);
+
+  ros::ServiceServer travel_service = nh.advertiseService<shipbot_ros::Travel::Request, shipbot_ros::Travel::Response>("travel", travel(planner, state_ptr, stopped));
+
+  shared_ptr<bool> start_localization = make_shared<bool>(false);
+  ros::ServiceServer initial_localization_service = nh.advertiseService<shipbot_ros::InitialLocalization::Request, shipbot_ros::InitialLocalization::Response>("localize", localize(start_localization, stopped));
+
+  ros::ServiceServer stop_service = nh.advertiseService<shipbot_ros::StopChassis::Request, shipbot_ros::StopChassis::Response>("stop_chassis", stop(stopped));
 
   ros::Publisher cmd_pub = nh.advertise<shipbot_ros::ChassisCommand>("/shipbot/chassis_command", 1);
   shipbot_ros::ChassisCommand cmd_msg;
 
   VectorXd kp = VectorXd::Ones(3);
+
+  bool doing_localization = false;
+  double loc_start_time = 0;
+  double loc_w = 0;
+
   while (ros::ok())
   {
     double t = ros::Time::now().toSec() - start_time;
 
-    VectorXd des_state = planner->eval(t);
-    VectorXd des_vel = planner->deriv1(t);
+    if (*stopped) {
+      cmd_msg.vx = 0;
+      cmd_msg.vy = 0;
+      cmd_msg.w = 0;
+    } else if (*start_localization) {
+      *start_localization = false;
+      loc_start_time = t;
+      doing_localization = true;
+      cmd_msg.w = M_PI/4;
+    } else if (doing_localization) {
+      double delta_t = t - loc_start_time;
+      if (delta_t < 4) {
+        cmd_msg.w = M_PI/4;
+      } else if (delta_t < 8) {
+        cmd_msg.w = -M_PI/4;
+      } else if (delta_t < 12) {
+        cmd_msg.w = M_PI/4;
+      } else if (delta_t < 16) {
+        cmd_msg.w = -M_PI/4;
+      } else {
+        cmd_msg.w = 0;
+        doing_localization = false;
+        *stopped = true;
+      }
+      cmd_msg.vx = 0;
+      cmd_msg.vy = 0;
+    } else {
+      VectorXd des_state = planner->eval(t);
+      VectorXd des_vel = planner->deriv1(t);
 
-    VectorXd cmd_vel = des_vel + kp.cwiseProduct(des_state - *state_ptr);
-    double theta = (*state_ptr)(2);
-    double c = cos(theta);
-    double s = sin(theta);
-    cmd_msg.vx = c*cmd_vel(0) + s*cmd_vel(1);
-    cmd_msg.vy = -s*cmd_vel(0) + c*cmd_vel(1);
-    cmd_msg.w = cmd_vel(2);
+      VectorXd cmd_vel = des_vel + kp.cwiseProduct(des_state - *state_ptr);
+      double theta = (*state_ptr)(2);
+      double c = cos(theta);
+      double s = sin(theta);
+      cmd_msg.vx = c*cmd_vel(0) + s*cmd_vel(1);
+      cmd_msg.vy = -s*cmd_vel(0) + c*cmd_vel(1);
+      cmd_msg.w = cmd_vel(2);
+    }
     cmd_pub.publish(cmd_msg);
+    r.sleep();
+    ros::spinOnce();
   }
 }
 

@@ -80,6 +80,8 @@ add_service_files(
   switch_breaker.srv
   reset_arm.srv
   Travel.srv
+  InitialLocalization.srv
+  StopChassis.srv
 )
 
 ## Generate actions in the 'action' folder
