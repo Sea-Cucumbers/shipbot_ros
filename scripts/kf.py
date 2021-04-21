@@ -4,7 +4,7 @@ import numpy as np
 # Get distance along ray where intersection occurs, or -1
 # if it never intersects
 def ray_intersect_segment(r0, dr, s0, s1):
-  ds = d1 - s0
+  ds = s1 - s0
   LHS = np.zeros((2, 2))
   LHS[:, 0] = dr
   LHS[:, 1] = -ds
@@ -29,10 +29,10 @@ short_wall_end = np.array([0, 0.9144])
 
 # Coordinates [x, y] of sensors in chassis' local frame, where
 # chassis' local frame aligns with the world frame at yaw = 0
-t0 = np.array([-2.75, -6.375])*0.0254
-t1 = np.array([9.75 - 6.375, 10 - 3.75])*0.0254
-t2 = np.array([7.75 - 3.75, 12.5 - 6.375])*0.0254
-t3 = np.array([-2.5 - 3.75, 2.625 - 6.375])*0.0254
+t0 = np.array([-0.1, -0.155])
+t1 = np.array([0.15, 0.1])
+t2 = np.array([0.105, 0.16])
+t3 = np.array([-0.155, -0.105])
 
 dr0 = np.array([0, -1])
 dr1 = np.array([1, 0])
@@ -148,16 +148,16 @@ def sensor_model(state):
   R = 0.0016*np.eye(4)
   zhat = 0.2*np.ones(4)
 
-  c = cos(state[2])
-  s = sin(state[2])
-  rot = np.array([[c, -s], [s, c])
+  c = np.cos(state[2])
+  s = np.sin(state[2])
+  rot = np.array([[c, -s], [s, c]])
   for sensor, (t, dr) in enumerate(sensor_info):
     sensor_pos = state[:2] + np.matmul(rot, t)
     d = np.matmul(rot, dr)
     long_dist = ray_intersect_segment(sensor_pos, d, corner, long_wall_end)
     short_dist = ray_intersect_segment(sensor_pos, d, corner, short_wall_end)
 
-    if long_dist < 0 && short_dist < 0:
+    if long_dist < 0 and short_dist < 0:
       R[sensor, sensor] = 4
     elif long_dist < 0:
       zhat[sensor] = short_dist
