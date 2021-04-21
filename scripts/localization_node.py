@@ -6,9 +6,6 @@ from shipbot_ros.msg import ChassisFeedback
 from shipbot_ros.msg import ChassisState
 from kf import *
 
-chassis_x = 3.75*0.0254
-chassis_y = 6.375*0.0254
-
 got_fbk = False 
 prev_t = 0
 t = 0
@@ -32,8 +29,8 @@ chassis_sub = rospy.Subscriber('/shipbot/chassis_feedback', ChassisFeedback, cha
 state_pub = rospy.Publisher('/shipbot/chassis_state', ChassisState, 1)
 state_msg = ChassisState()
 
-maxx = 152.4
-maxy = 91.44
+maxx = 1.524
+maxy = 0.9144
 
 initialized = False
 yawsum = 0 
@@ -80,21 +77,21 @@ while not rospy.is_shutdown():
 
     state = np.matmul(states, np.exp(log_weights))
 
-    state_msg.x = state[0]/100 + chassis_x
-    state_msg.y = state[1]/100 + chassis_y
+    state_msg.x = state[0]
+    state_msg.y = state[1]
     state_msg.yaw = state[2]
     if t == prev_t:
       state_msg.w = 0
     else:
       state_msg.w = (fbk_yaw - prev_yaw)/(t - prev_t) # TODO: add to estimator or something
-    state_msg.xdot = state[3]/100 - state_msg.w*chassis_y
-    state_msg.ydot = state[4]/100 + state_msg.w*chassis_x
+    state_msg.xdot = state[3]
+    state_msg.ydot = state[4]
     state_msg.header.stamp = rospy.Time().now()
     state_pub.publish(state_msg)
 
     state_to_print = np.copy(state)
     state_to_print[2] *= 180/np.pi
-    state_to_print[:2] /= 2.54
+    state_to_print[:2] /= 0.0254
     print(np.trunc(state_to_print))
     prev_t = t
     prev_yaw = fbk_yaw

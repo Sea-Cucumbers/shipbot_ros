@@ -1,45 +1,127 @@
 from angle_mod import *
 import numpy as np
 
+# Get distance along ray where intersection occurs, or -1
+# if it never intersects
+def ray_intersect_segment(r0, dr, s0, s1):
+  ds = d1 - s0
+  LHS = np.zeros((2, 2))
+  LHS[:, 0] = dr
+  LHS[:, 1] = -ds
+  det = np.linalg.det(LHS)
+  if det == 0:
+    return -1
+  
+  soln = np.linalg.solve(LHS, s0 - r0)
+  if soln[0] < 0 or soln[1] < 0 or soln[1] > 1:
+    return -1
+
+  return soln[0]
+
 def normalize_log_weights(log_weights):
   weights = np.exp(log_weights - np.max(log_weights))
   weights /= np.sum(weights)
-  return np.log(weights);
+  return np.log(weights)
 
-# Coordinates [x, y] of sensors in sensor 0's local frame, where sensor
-# 0's local frame aligns with the world frame at yaw = 0
-loc1 = [9.75*2.54, 10*2.54]
-loc2 = [7.75*2.54, 12.5*2.54]
-loc3 = [-2.5*2.54, 2.625*2.54]
+corner = np.array([0, 0])
+long_wall_end = np.array([1.524, 0])
+short_wall_end = np.array([0, 0.9144])
 
+# Coordinates [x, y] of sensors in chassis' local frame, where
+# chassis' local frame aligns with the world frame at yaw = 0
+t0 = np.array([-2.75, -6.375])*0.0254
+t1 = np.array([9.75 - 6.375, 10 - 3.75])*0.0254
+t2 = np.array([7.75 - 3.75, 12.5 - 6.375])*0.0254
+t3 = np.array([-2.5 - 3.75, 2.625 - 6.375])*0.0254
+
+dr0 = np.array([0, -1])
+dr1 = np.array([1, 0])
+dr2 = np.array([0, 1])
+dr3 = np.array([-1, 0])
+
+ts = [t0, t1, t2, t3]
+drs = [dr0, dr1, dr2, dr3]
+
+sensor_info = zip(ts, drs)
+
+# What would the state be if we had a certain yaw and the sensors were reading
+# the values given by obs?
 def init_state_given_yaw(yaw, obs):
+  yaw = angle_mod(yaw)
   state = np.zeros(5)
   cov = np.eye(5)
   cov[2, 2] = 0.04
+  cov[3, 3] = 0.0001
+  cov[4, 4] = 0.0001
   state[2] = yaw
-  if yaw >= 7*np.pi/4 or yaw <= np.pi/4:
+  if yaw <= np.pi/4 or yaw > 7*np.pi/4:
     # Facing forward
     c = np.cos(yaw)
-    state[0] = obs[3]*c
-    state[1] = obs[0]*c
+    s = np.sin(yaw)
+    
+    # y position of sensor facing long wall
+    y0 = obs[0]*c
 
-  elif state[2] >= 3*np.pi/8 and state[2] <= 5*np.pi/8:
+    # Could be sensing one of two walls with right sensor. Assume
+    # short wall
+    x3 = obs[3]*c
+
+    c = np.cos(yaw)
+    s = np.sin(yaw)
+
+    state[0] = x3 + t3[0]*c - t3[1]*s
+    state[1] = x0 + t0[0]*s + t0[1]*c
+
+  elif state[2] > np/pi/4 and state[2] <= 3*np.pi/4:
     # Facing left
     c = np.cos(yaw - np.pi/2)
-    state[0] = obs[2]*c
-    state[1] = obs[3]*c
+    
+    # y position of sensor facing long wall
+    y3 = obs[3]*c
 
-  elif state[2] >= 7*np.pi/8 and state[2] <= 9*np.pi/8:
+    # Could be sensing one of two walls with right sensor. Assume
+    # short wall
+    x2 = obs[2]*c
+
+    c = np.cos(yaw)
+    s = np.sin(yaw)
+
+    state[0] = x2 + t2[0]*c - t2[1]*s
+    state[1] = y3 + t3[0]*s + t3[1]*c
+
+  elif state[2] > 3*np/pi/4 and state[2] <= 5*np.pi/4:
     # Facing backward
     c = np.cos(yaw - np.pi)
-    state[0] = obs[1]*c
-    state[1] = obs[2]*c
+
+    # y position of sensor facing long wall
+    y2 = obs[2]*c
+
+    # Could be sensing one of two walls with right sensor. Assume
+    # short wall
+    x1 = obs[1]*c
+
+    c = np.cos(yaw)
+    s = np.sin(yaw)
+
+    state[0] = x1 + t1[0]*c - t1[1]*s
+    state[1] = y2 + t2[0]*s + t2[1]*c
 
   elif state[2] >= 11*np.pi/8 and state[2] <= 13*np.pi/8:
     # Facing right
     c = np.cos(yaw - 3*np.pi/2)
-    state[0] = obs[0]*c
-    state[1] = obs[1]*c
+
+    # y position of sensor facing long wall
+    y1 = obs[1]*c
+
+    # Could be sensing one of two walls with right sensor. Assume
+    # short wall
+    x0 = obs[0]*c
+
+    c = np.cos(yaw)
+    s = np.sin(yaw)
+
+    state[0] = x0 + t0[0]*c - t0[1]*s
+    state[1] = y1 + t1[0]*s + t1[1]*c
 
   return state, cov
 
@@ -57,83 +139,50 @@ def predict(state, cov, dyaw, dt):
   state[2] += dyaw
   state[2] = angle_mod(state[2])
 
-  Q = np.eye(5)
+  Q = 0.01*np.eye(5)
   Q[2, 2] = 0.001
   cov = np.matmul(np.matmul(F_t, cov), F_t.transpose()) + Q
   return state, cov
 
+def sensor_model(state):
+  R = 0.0016*np.eye(4)
+  zhat = 0.2*np.ones(4)
+
+  c = cos(state[2])
+  s = sin(state[2])
+  rot = np.array([[c, -s], [s, c])
+  for sensor, (t, dr) in enumerate(sensor_info):
+    sensor_pos = state[:2] + np.matmul(rot, t)
+    d = np.matmul(rot, dr)
+    long_dist = ray_intersect_segment(sensor_pos, d, corner, long_wall_end)
+    short_dist = ray_intersect_segment(sensor_pos, d, corner, short_wall_end)
+
+    if long_dist < 0 && short_dist < 0:
+      R[sensor, sensor] = 4
+    elif long_dist < 0:
+      zhat[sensor] = short_dist
+    elif short_dist < 0:
+      zhat[sensor] = long_dist
+
+  return zhat, R
+
+def dh(state):
+  cpy = state.clone()
+  H_t = np.zeros((4, 5))
+  for i in range(len(state)):
+    cpy += 0.001   
+    zhat_plus, R = sensor_model(cpy)
+    cpy -= 0.002 
+    zhat_minus, R = sensor_model(cpy)
+
+    H_t[:, i] = (zhat_plus - zhat_minus)/0.002
+
+  return H_t
+
 # Sensor 0 is on the same side as the ethernet cable. 1-3 go counterclockwise
 def correct(state, cov, obs, log_weight):
-  R = 0.25*np.eye(4)
-  zhat = 200*np.ones(4)
-  H_t = np.zeros((4, 5))
-
-  if state[2] >= 7*np.pi/4 or state[2] <= np.pi/4:
-    # Facing forward
-    theta = state[2]
-    c = np.cos(theta)
-    ooc = 1/c
-    zhat[3] = state[0]*ooc + loc3[0]
-    zhat[0] = state[1]*ooc
-    R[1, 1] = 1000
-    R[2, 2] = 1000
-
-    H_t[3, 0] = ooc
-    H_t[0, 0] = ooc
-    ddyaw = np.sin(theta)/(c*c)
-    H_t[3, 2] = state[0]*ddyaw
-    H_t[0, 2] = state[1]*ddyaw
-
-  elif state[2] >= np.pi/4 and state[2] <= 3*np.pi/4:
-    # Facing left
-    theta = state[2] - np.pi/2
-    c = np.cos(theta)
-    ooc = 1/c
-    zhat[2] = state[0]*ooc - loc2[1]
-    zhat[3] = state[1]*ooc + loc3[0]
-
-    R[0, 0] = 1000
-    R[1, 1] = 1000
-
-    H_t[2, 0] = ooc
-    H_t[3, 1] = ooc
-    ddyaw = np.sin(theta)/(c*c)
-    H_t[2, 2] = state[0]*ddyaw
-    H_t[3, 2] = state[1]*ddyaw
-
-  elif state[2] >= 3*np.pi/4 and state[2] <= 5*np.pi/4:
-    # Facing backward
-    theta = state[2] - np.pi
-    c = np.cos(theta)
-    ooc = 1/c
-    zhat[1] = state[0]*ooc - loc1[0]
-    zhat[2] = state[1]*ooc - loc2[1]
-
-    R[0, 0] = 1000
-    R[3, 3] = 1000
-
-    H_t[1, 0] = ooc
-    H_t[2, 1] = ooc
-    ddyaw = np.sin(theta)/(c*c)
-    H_t[1, 2] = state[0]*ddyaw
-    H_t[2, 2] = state[1]*ddyaw
-
-  elif state[2] >= 5*np.pi/4 and state[2] <= 7*np.pi/4:
-    # Facing right
-    theta = state[2] - 3*np.pi/2
-    c = np.cos(theta)
-    ooc = 1/c
-    zhat[0] = state[0]*ooc
-    zhat[1] = state[1]*ooc - loc1[0]
-
-    R[2, 2] = 1000
-    R[3, 3] = 1000
-
-    H_t[0, 0] = ooc
-    H_t[1, 1] = ooc
-    ddyaw = np.sin(theta)/(c*c)
-    H_t[0, 2] = state[0]*ddyaw
-    H_t[1, 2] = state[1]*ddyaw
+  zhat, R = sensor_model(state)
+  H_t = dh(state)
 
   resid = obs - zhat
   inn_cov = np.matmul(np.matmul(H_t, cov), H_t.transpose()) + R
@@ -141,7 +190,7 @@ def correct(state, cov, obs, log_weight):
   # Check if any sensors are surprisingly off. If so, don't trust them
   for sensor in range(4):
     if resid[sensor]*resid[sensor]/inn_cov[sensor, sensor] > 9:
-      inn_cov[sensor, sensor] = 1000
+      inn_cov[sensor, sensor] = 4
 
   Ktmp = np.matmul(cov, H_t.transpose())
   state = state + np.matmul(Ktmp, np.linalg.solve(inn_cov, resid))
