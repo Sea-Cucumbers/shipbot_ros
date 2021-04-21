@@ -83,7 +83,10 @@ while not rospy.is_shutdown():
     state_msg.x = state[0]/100 + chassis_x
     state_msg.y = state[1]/100 + chassis_y
     state_msg.yaw = state[2]
-    state_msg.w = (fbk_yaw - prev_yaw)/(t - prev_t) # TODO: add to estimator or something
+    if t == prev_t:
+      state_msg.w = 0
+    else:
+      state_msg.w = (fbk_yaw - prev_yaw)/(t - prev_t) # TODO: add to estimator or something
     state_msg.xdot = state[3]/100 - state_msg.w*chassis_y
     state_msg.ydot = state[4]/100 + state_msg.w*chassis_x
     state_msg.header.stamp = rospy.Time().now()

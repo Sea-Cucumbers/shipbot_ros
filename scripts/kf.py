@@ -75,8 +75,8 @@ def correct(state, cov, obs, log_weight):
     ooc = 1/c
     zhat[3] = state[0]*ooc + loc3[0]
     zhat[0] = state[1]*ooc
-    R[1, 1] = 100
-    R[2, 2] = 100
+    R[1, 1] = 1000
+    R[2, 2] = 1000
 
     H_t[3, 0] = ooc
     H_t[0, 0] = ooc
@@ -92,8 +92,8 @@ def correct(state, cov, obs, log_weight):
     zhat[2] = state[0]*ooc - loc2[1]
     zhat[3] = state[1]*ooc + loc3[0]
 
-    R[0, 0] = 100
-    R[1, 1] = 100
+    R[0, 0] = 1000
+    R[1, 1] = 1000
 
     H_t[2, 0] = ooc
     H_t[3, 1] = ooc
@@ -109,8 +109,8 @@ def correct(state, cov, obs, log_weight):
     zhat[1] = state[0]*ooc - loc1[0]
     zhat[2] = state[1]*ooc - loc2[1]
 
-    R[0, 0] = 100
-    R[3, 3] = 100
+    R[0, 0] = 1000
+    R[3, 3] = 1000
 
     H_t[1, 0] = ooc
     H_t[2, 1] = ooc
@@ -126,8 +126,8 @@ def correct(state, cov, obs, log_weight):
     zhat[0] = state[0]*ooc
     zhat[1] = state[1]*ooc - loc1[0]
 
-    R[2, 2] = 100
-    R[3, 3] = 100
+    R[2, 2] = 1000
+    R[3, 3] = 1000
 
     H_t[0, 0] = ooc
     H_t[1, 1] = ooc
