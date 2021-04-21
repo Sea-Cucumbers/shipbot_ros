@@ -131,11 +131,15 @@ def init_state_given_yaw(yaw, obs):
 # theta is in radians, x and y are in cm, vx and vy are in meters per second.
 # Front of the robot is sensor 0. Positive yaw velocity
 # is about the vertical axis
-def predict(state, cov, dyaw, dt):
+def predict(state, cov, dyaw, vx, vy, dt):
   F_t = np.eye(5)
   F_t[0, 3] = dt
   F_t[1, 4] = dt
   state = np.matmul(F_t, state)
+  state[3] = vx*np.cos(state[2]) - vy*np.sin(state[2])
+  state[4] = vx*np.sin(state[2]) + vy*np.cos(state[2])
+  F_t[3, 2] = -vx*np.sin(state[2]) - vy*np.cos(state[2])
+  F_t[4, 2] = vx*np.cos(state[2]) - vy*np.sin(state[2])
   state[2] += dyaw
   state[2] = angle_mod(state[2])
 

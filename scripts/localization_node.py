@@ -11,6 +11,17 @@ prev_t = 0
 t = 0
 fbk_yaw = 0
 tofs = [0, 0, 0, 0]
+vx = 0
+vy = 0
+w = 0
+
+def commandcallback(command_msg):
+  global vx
+  global vy
+  global w
+  vx = command_msg.vx
+  vy = command_msg.vy
+  w = command_msg.w
 
 def chassis_callback(fbk_msg):
   global t
@@ -60,7 +71,7 @@ while not rospy.is_shutdown():
 
     new_log_weights = np.zeros(nfilters)
     for i in range(nfilters):
-      states[:, i], covs[i] = predict(states[:, i], covs[i], fbk_yaw - prev_yaw, t - prev_t)
+      states[:, i], covs[i] = predict(states[:, i], covs[i], fbk_yaw - prev_yaw, vx, vy, t - prev_t)
       states[:, i], covs[i], new_log_weights[i] = correct(states[:, i], covs[i], tofs, log_weights[i])
 
     
