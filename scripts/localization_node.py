@@ -20,8 +20,8 @@ def command_callback(command_msg):
   global vx
   global vy
   global w
-  vx = command_msg.vx
-  vy = command_msg.vy
+  vx = command_msg.vx*0.0254
+  vy = command_msg.vy*0.0254
   w = command_msg.w
 
 def chassis_callback(fbk_msg):
