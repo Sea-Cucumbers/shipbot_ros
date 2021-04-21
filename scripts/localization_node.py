@@ -22,13 +22,13 @@ def chassis_callback(fbk_msg):
 
   t = fbk_msg.header.stamp.secs 
   fbk_yaw = fbk_msg.yaw
-  tofs = fbk_msg.tofs
+  tofs = list(fbk_msg.tofs)
   for i in range(4):
     tofs[i] /= 100
 
 rospy.init_node('localization_node', anonymous=True)
 chassis_sub = rospy.Subscriber('/shipbot/chassis_feedback', ChassisFeedback, chassis_callback)
-state_pub = rospy.Publisher('/shipbot/chassis_state', ChassisState, 1)
+state_pub = rospy.Publisher('/shipbot/chassis_state', ChassisState, queue_size=1)
 state_msg = ChassisState()
 
 maxx = 1.524

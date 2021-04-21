@@ -69,10 +69,10 @@ def init_state_given_yaw(yaw, obs):
     c = np.cos(yaw)
     s = np.sin(yaw)
 
-    state[0] = x3 + t3[0]*c - t3[1]*s
-    state[1] = x0 + t0[0]*s + t0[1]*c
+    state[0] = x3 - (t3[0]*c - t3[1]*s)
+    state[1] = y0 - (t0[0]*s + t0[1]*c)
 
-  elif state[2] > np/pi/4 and state[2] <= 3*np.pi/4:
+  elif state[2] > np.pi/4 and state[2] <= 3*np.pi/4:
     # Facing left
     c = np.cos(yaw - np.pi/2)
     
@@ -86,10 +86,10 @@ def init_state_given_yaw(yaw, obs):
     c = np.cos(yaw)
     s = np.sin(yaw)
 
-    state[0] = x2 + t2[0]*c - t2[1]*s
-    state[1] = y3 + t3[0]*s + t3[1]*c
+    state[0] = x2 - (t2[0]*c - t2[1]*s)
+    state[1] = y3 - (t3[0]*s + t3[1]*c)
 
-  elif state[2] > 3*np/pi/4 and state[2] <= 5*np.pi/4:
+  elif state[2] > 3*np.pi/4 and state[2] <= 5*np.pi/4:
     # Facing backward
     c = np.cos(yaw - np.pi)
 
@@ -103,8 +103,8 @@ def init_state_given_yaw(yaw, obs):
     c = np.cos(yaw)
     s = np.sin(yaw)
 
-    state[0] = x1 + t1[0]*c - t1[1]*s
-    state[1] = y2 + t2[0]*s + t2[1]*c
+    state[0] = x1 - (t1[0]*c - t1[1]*s)
+    state[1] = y2 - (t2[0]*s + t2[1]*c)
 
   elif state[2] >= 11*np.pi/8 and state[2] <= 13*np.pi/8:
     # Facing right
@@ -120,8 +120,8 @@ def init_state_given_yaw(yaw, obs):
     c = np.cos(yaw)
     s = np.sin(yaw)
 
-    state[0] = x0 + t0[0]*c - t0[1]*s
-    state[1] = y1 + t1[0]*s + t1[1]*c
+    state[0] = x0 - (t0[0]*c - t0[1]*s)
+    state[1] = y1 - (t1[0]*s + t1[1]*c)
 
   return state, cov
 
@@ -167,12 +167,12 @@ def sensor_model(state):
   return zhat, R
 
 def dh(state):
-  cpy = state.clone()
+  cpy = state.copy()
   H_t = np.zeros((4, 5))
   for i in range(len(state)):
-    cpy += 0.001   
+    cpy[i] += 0.001   
     zhat_plus, R = sensor_model(cpy)
-    cpy -= 0.002 
+    cpy[i] -= 0.002 
     zhat_minus, R = sensor_model(cpy)
 
     H_t[:, i] = (zhat_plus - zhat_minus)/0.002
