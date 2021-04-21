@@ -4,6 +4,7 @@ import numpy as np
 import rospy
 from shipbot_ros.msg import ChassisFeedback
 from shipbot_ros.msg import ChassisState
+from shipbot_ros.msg import ChassisCommand
 from kf import *
 
 got_fbk = False 
@@ -15,7 +16,7 @@ vx = 0
 vy = 0
 w = 0
 
-def commandcallback(command_msg):
+def command_callback(command_msg):
   global vx
   global vy
   global w
@@ -39,6 +40,7 @@ def chassis_callback(fbk_msg):
 
 rospy.init_node('localization_node', anonymous=True)
 chassis_sub = rospy.Subscriber('/shipbot/chassis_feedback', ChassisFeedback, chassis_callback)
+command_sub = rospy.Subscriber('/shipbot/chassis_command', ChassisCommand, command_callback)
 state_pub = rospy.Publisher('/shipbot/chassis_state', ChassisState, queue_size=1)
 state_msg = ChassisState()
 
