@@ -8,13 +8,15 @@ from shipbot_ros.msg import ChassisCommand
 cmd_vx = 0
 cmd_vy = 0
 cmd_w = 0
+# vx and vy should be in inches per second
 def command_callback(msg):
   global cmd_vx
   global cmd_vy
   global cmd_w
 
-  cmd_vx = msg.vx
-  cmd_vy = msg.vy
+  # Convert commands from inches per second to m/s
+  cmd_vx = msg.vx/0.0254
+  cmd_vy = msg.vy/0.0254
   cmd_w = msg.w
 
 rospy.init_node('mcu_interface_node', anonymous=True)
@@ -22,7 +24,7 @@ mcu = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
 
 chassis_pub = rospy.Publisher('/shipbot/chassis_feedback', ChassisFeedback, queue_size=1)
 chassis_msg = ChassisFeedback()
-chassis_msg.tofs = [200, 200, 200, 200]
+chassis_msg.tofs = [-2, -2, -2, -2]
 
 cmd_sub = rospy.Subscriber('/shipbot/chassis_command', ChassisCommand, command_callback)
 
@@ -39,10 +41,12 @@ while not rospy.is_shutdown():
         data = [float(d) for d in data]
         chassis_msg.header.stamp = rospy.Time.now()
         chassis_msg.yaw = data[0]
-        chassis_msg.tofs[0] = data[1]
-        chassis_msg.tofs[1] = data[2]
-        chassis_msg.tofs[2] = data[3]
-        chassis_msg.tofs[3] = data[4]
+
+         # Convert tof values from cm to meters
+        chassis_msg.tofs[0] = data[1]/100
+        chassis_msg.tofs[1] = data[2]/100
+        chassis_msg.tofs[2] = data[3]/100
+        chassis_msg.tofs[3] = data[4]/100
         chassis_pub.publish(chassis_msg)
       else:
         print('Data line should contain 5 elements, and it does not')
