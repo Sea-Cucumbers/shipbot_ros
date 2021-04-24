@@ -11,22 +11,6 @@ got_fbk = False
 got_cmd = False 
 prev_t = 0
 t = 0
-<<<<<<< HEAD
-=======
-fbk_yaw = 0
-tofs = [0, 0, 0, 0]
-vx = 0
-vy = 0
-w = 0
-
-def command_callback(command_msg):
-  global vx
-  global vy
-  global w
-  vx = command_msg.vx*0.0254
-  vy = command_msg.vy*0.0254
-  w = command_msg.w
->>>>>>> 562592dcd355410e3d48e2be43a1f57e15076a77
 
 # This is probably a bit confusing. The Arduino is integrating
 # the z component of the gyro, and it's giving us its own current
@@ -54,7 +38,6 @@ def chassis_callback(fbk_msg):
   got_fbk = True
 
   t = fbk_msg.header.stamp.secs 
-<<<<<<< HEAD
   ardu_yaw = fbk_msg.yaw
   tofs = fbk_msg.tofs
 
@@ -72,12 +55,6 @@ def command_callback(cmd_msg):
   vx = cmd_msg.vx
   vy = cmd_msg.vy
   w = cmd_msg.w
-=======
-  fbk_yaw = fbk_msg.yaw
-  tofs = list(fbk_msg.tofs)
-  for i in range(4):
-    tofs[i] /= 100
->>>>>>> 562592dcd355410e3d48e2be43a1f57e15076a77
 
 rospy.init_node('localization_node', anonymous=True)
 chassis_sub = rospy.Subscriber('/shipbot/chassis_feedback', ChassisFeedback, chassis_callback)
@@ -114,11 +91,7 @@ while not rospy.is_shutdown():
 
     new_log_weights = np.zeros(nfilters)
     for i in range(nfilters):
-<<<<<<< HEAD
       states[:, i], covs[i] = predict(states[:, i], covs[i], ardu_yaw - prev_yaw, vx, vy, t - prev_t)
-=======
-      states[:, i], covs[i] = predict(states[:, i], covs[i], fbk_yaw - prev_yaw, vx, vy, t - prev_t)
->>>>>>> 562592dcd355410e3d48e2be43a1f57e15076a77
       states[:, i], covs[i], new_log_weights[i] = correct(states[:, i], covs[i], tofs, log_weights[i])
 
     

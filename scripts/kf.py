@@ -159,11 +159,10 @@ def init_state_given_yaw(yaw, obs):
 
   return state, cov
 
-<<<<<<< HEAD
 # predict: propagates state using motion model. New position
 # is the previous position plus the velocity control input.
-# New theta is the previous theta plus delta in the gyro
-# integration since the previous time step
+# New theta is the previous theta plus the integral of the gyro
+# values since the previous time step
 # ARGUMENTS
 # state: current state estimate
 # cov: covariance of current state estimate
@@ -184,23 +183,6 @@ def predict(state, cov, vx, vy, dyaw, dt):
   state[0] += vx*c - vy*s
   state[1] += vx*s + vy*c
 
-=======
-# state is [x, y, yaw, vx, vy]. (x, y) is the location of sensor 0.
-# If we're facing long side of guiderail, theta = 0. (x, y) = (0, 0)
-# is at the intersection of guiderails. +x is left, +y is backwards.
-# theta is in radians, x and y are in cm, vx and vy are in meters per second.
-# Front of the robot is sensor 0. Positive yaw velocity
-# is about the vertical axis
-def predict(state, cov, dyaw, vx, vy, dt):
-  F_t = np.eye(5)
-  F_t[0, 3] = dt
-  F_t[1, 4] = dt
-  state = np.matmul(F_t, state)
-  state[3] = vx*np.cos(state[2]) - vy*np.sin(state[2])
-  state[4] = vx*np.sin(state[2]) + vy*np.cos(state[2])
-  F_t[3, 2] = -vx*np.sin(state[2]) - vy*np.cos(state[2])
-  F_t[4, 2] = vx*np.cos(state[2]) - vy*np.sin(state[2])
->>>>>>> 562592dcd355410e3d48e2be43a1f57e15076a77
   state[2] += dyaw
   state[2] = angle_mod(state[2])
 
@@ -259,7 +241,6 @@ def sensor_model(state):
 # state: robot state
 # RETURN: sensor model Jacobian
 def dh(state):
-<<<<<<< HEAD
   cpy = state.clone()
   H_t = np.zeros((4, 3))
 
@@ -269,16 +250,6 @@ def dh(state):
     zhat_plus = sensor_model(cpy)
     cpy -= 0.002 
     zhat_minus = sensor_model(cpy)
-=======
-  cpy = state.copy()
-  H_t = np.zeros((4, 5))
-  for i in range(len(state)):
-    cpy[i] += 0.001   
-    zhat_plus, R = sensor_model(cpy)
-    cpy[i] -= 0.002 
-    zhat_minus, R = sensor_model(cpy)
->>>>>>> 562592dcd355410e3d48e2be43a1f57e15076a77
-
     H_t[:, i] = (zhat_plus - zhat_minus)/0.002
 
   return H_t
