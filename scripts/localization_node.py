@@ -84,8 +84,6 @@ while not rospy.is_shutdown():
       for i in range(nfilters):
         states[:, i], covs[i] = init_state_given_yaw(i*np.pi/4 + 0.01, tofs)
 
-      print(states)
-      quit()
       initialized = True
       prev_t = t
       prev_yaw = ardu_yaw
