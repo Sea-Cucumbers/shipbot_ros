@@ -200,13 +200,13 @@ int main(int argc, char** argv) {
       cmd_msg.w = M_PI/8;
     } else if (doing_localization) {
       double delta_t = t - loc_start_time;
-      if (delta_t < 4) {
-        cmd_msg.w = M_PI/8;
-      } else if (delta_t < 8) {
-        cmd_msg.w = -M_PI/8;
-      } else if (delta_t < 12) {
+      if (delta_t < 8) {
         cmd_msg.w = M_PI/8;
       } else if (delta_t < 16) {
+        cmd_msg.w = -M_PI/8;
+      } else if (delta_t < 24) {
+        cmd_msg.w = M_PI/8;
+      } else if (delta_t < 32) {
         cmd_msg.w = -M_PI/8;
       } else {
         cmd_msg.w = 0;

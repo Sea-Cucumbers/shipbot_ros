@@ -318,11 +318,12 @@ def dh(state):
 
   # Numerical Jacobian computation
   for i in range(3):
-    cpy += 0.001   
+    cpy[i] += 0.0001   
     zhat_plus = sensor_model(cpy)
-    cpy -= 0.002 
+    cpy[i] -= 0.0002 
     zhat_minus = sensor_model(cpy)
-    H_t[:, i] = (zhat_plus - zhat_minus)/0.002
+    cpy[i] += 0.0001
+    H_t[:, i] = (zhat_plus - zhat_minus)/0.0002
 
   return H_t
 
@@ -360,4 +361,5 @@ def correct(state, cov, obs, log_weight):
 
   dist = np.matmul(resid, np.linalg.solve(inn_cov, resid))
   log_weight -= 0.5*dist + 0.5*np.log(np.linalg.det(inn_cov))
+
   return state, cov, log_weight

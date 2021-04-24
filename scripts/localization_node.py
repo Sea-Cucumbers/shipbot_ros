@@ -68,7 +68,7 @@ maxy = 0.9144
 initialized = False
 yawsum = 0 
 
-nfilters = 1
+nfilters = 8
 states = np.zeros((3, nfilters))
 covs = np.array([np.eye(3) for i in range(nfilters)])
 log_weights = np.log(np.ones(nfilters)/nfilters)
