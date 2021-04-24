@@ -144,7 +144,7 @@ def init_state_given_yaw(yaw, obs):
       # Check if this makes sense
       zhat = sensor_model(state)
 
-      if zhat[2] < 0:
+      if zhat[2] > 1.5:
         # Case 2: Sensor 2 is facing the long wall (robot is far away
         # from the short wall). In this case, sensor 2 doesn't tell
         # us anything about the x coordinate, so just put it
@@ -198,7 +198,7 @@ def init_state_given_yaw(yaw, obs):
       # Check if this makes sense
       zhat = sensor_model(state)
 
-      if zhat[0] < 0:
+      if zhat[0] > 1.5:
         # Case 2: Sensor 0 is facing the long wall (robot is far away
         # from the short wall). In this case, sensor 0 doesn't tell
         # us anything about the x coordinate, so just put it
@@ -247,8 +247,8 @@ def init_state_given_yaw(yaw, obs):
 # dt: time since we've last predicted
 # RETURN: predicted state and its covariance
 def predict(state, cov, vx, vy, dyaw, dt):
-  c = cos(state[2])
-  s = sin(state[2])
+  c = np.cos(state[2])
+  s = np.sin(state[2])
 
   # Transform commanded body velocity into world frame and propagate
   # positino
@@ -258,10 +258,10 @@ def predict(state, cov, vx, vy, dyaw, dt):
   state[2] += dyaw
   state[2] = angle_mod(state[2])
 
-  # 10 cm standard deviation in new position estimate, sqrt(0.001)
+  # 1 cm standard deviation in new position estimate, 0.1
   # radians standard deviation in new theta estimate
-  Q = 0.01*np.eye(3)
-  Q[2, 2] = 0.001
+  Q = 0.0001*np.eye(3)
+  Q[2, 2] = 0.01
 
   # Derivative of each state element wrt its previous value is 1,
   # since we're simply adding something to the previous value
@@ -277,9 +277,9 @@ def predict(state, cov, vx, vy, dyaw, dt):
 # ARGUMENTS
 # state: robot state
 # RETURN: expected sensor readings in meters. If a sensor is expected
-# not to be facing a wall, the expected reading is returned as -2
+# not to be facing a wall, the expected reading is returned as 2
 def sensor_model(state):
-  zhat = -2*np.ones(4)
+  zhat = 2*np.ones(4)
 
   c = np.cos(state[2])
   s = np.sin(state[2])
@@ -339,7 +339,7 @@ def correct(state, cov, obs, log_weight):
   R = 0.0016*np.eye(4)
   zhat = sensor_model(state)
   for i in range(4):
-    if zhat[i] < 0:
+    if obs[i] > 1.5:
       # Sensor isn't looking at a wall, so don't trust it
       R[i, i] = 4
       
@@ -356,7 +356,7 @@ def correct(state, cov, obs, log_weight):
   Ktmp = np.matmul(cov, H_t.transpose())
   state = state + np.matmul(Ktmp, np.linalg.solve(inn_cov, resid))
   state[2] = angle_mod(state[2])
-  cov = np.matmul(np.eye(5) - np.matmul(Ktmp, np.linalg.solve(inn_cov, H_t)), cov)
+  cov = np.matmul(np.eye(3) - np.matmul(Ktmp, np.linalg.solve(inn_cov, H_t)), cov)
 
   dist = np.matmul(resid, np.linalg.solve(inn_cov, resid))
   log_weight -= 0.5*dist + 0.5*np.log(np.linalg.det(inn_cov))

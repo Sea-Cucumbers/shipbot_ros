@@ -68,7 +68,7 @@ maxy = 0.9144
 initialized = False
 yawsum = 0 
 
-nfilters = 8
+nfilters = 1
 states = np.zeros((3, nfilters))
 covs = np.array([np.eye(3) for i in range(nfilters)])
 log_weights = np.log(np.ones(nfilters)/nfilters)
@@ -91,9 +91,8 @@ while not rospy.is_shutdown():
 
     new_log_weights = np.zeros(nfilters)
     for i in range(nfilters):
-      states[:, i], covs[i] = predict(states[:, i], covs[i], ardu_yaw - prev_yaw, vx, vy, t - prev_t)
+      states[:, i], covs[i] = predict(states[:, i], covs[i], vx, vy, ardu_yaw - prev_yaw, t - prev_t)
       states[:, i], covs[i], new_log_weights[i] = correct(states[:, i], covs[i], tofs, log_weights[i])
-
     
     yawsum += abs(ardu_yaw - prev_yaw)
     if yawsum > 2*np.pi:
