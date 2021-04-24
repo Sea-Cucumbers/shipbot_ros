@@ -69,8 +69,8 @@ initialized = False
 yawsum = 0 
 
 nfilters = 8
-states = np.zeros((5, nfilters))
-covs = np.array([np.eye(5) for i in range(nfilters)])
+states = np.zeros((3, nfilters))
+covs = np.array([np.eye(3) for i in range(nfilters)])
 log_weights = np.log(np.ones(nfilters)/nfilters)
 prev_t = 0
 prev_yaw = 0
@@ -82,8 +82,10 @@ while not rospy.is_shutdown():
 
     if not initialized:
       for i in range(nfilters):
-        states[:, i], covs[i] = init_state_given_yaw(i*np.pi/4, tofs)
+        states[:, i], covs[i] = init_state_given_yaw(i*np.pi/4 + 0.01, tofs)
 
+      print(states)
+      quit()
       initialized = True
       prev_t = t
       prev_yaw = ardu_yaw

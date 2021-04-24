@@ -1,11 +1,33 @@
 from angle_mod import *
 import numpy as np
 
+robot_width = 0.1778
+
+minx = robot_width
+miny = robot_width
+
+maxx = 1.524 - robot_width
+maxy = 0.9144 - robot_width
+
+def clamp_state(state):
+  ret = state.copy()
+  if ret[0] < minx:
+    ret[0] = minx
+  if ret[0] > maxx:
+    ret[0] = maxx
+  if ret[1] < miny:
+    ret[1] = miny
+  if ret[1] > maxy:
+    ret[1] = maxy
+
+  return ret
+
 # STATE DEFINITION
 # state is [x, y, theta].
 # (x, y) is the location of the center of the chassis.
-# If the camera is facing the long side of guiderail, theta = 0. 
-# (x, y) = (0, 0) is at the intersection of guiderails. +x is left, +y is backwards.
+# If the camera is facing away from the short wall of the guiderail, theta = 0. 
+# (x, y) = (0, 0) is at the intersection of guiderails. +x is left (along the long wall),
+# +y is backwards (along the short wall).
 # theta is in radians, x and y are in meters
 # Front of the robot is sensor 0, and sensor numbers increase counterclockwise.
 # Positive theta velocity is about the vertical axis
@@ -60,16 +82,16 @@ short_wall_end = np.array([0, 0.9144])
 
 # Displacements [x, y] of sensors in chassis' local frame, where
 # chassis' local frame aligns with the world frame at theta = 0
-t0 = np.array([-0.1, -0.155])
-t1 = np.array([0.15, 0.1])
-t2 = np.array([0.105, 0.16])
-t3 = np.array([-0.155, -0.105])
+t0 = np.array([0.1651, -0.09525])
+t1 = np.array([-0.1016, 0.15875])
+t2 = np.array([-0.1651, 0.1143])
+t3 = np.array([0.1016, -0.15875])
 
 # Ray vectors for each sensor in the chassis' local frame
-dr0 = np.array([0, -1])
-dr1 = np.array([1, 0])
-dr2 = np.array([0, 1])
-dr3 = np.array([-1, 0])
+dr0 = np.array([1, 0])
+dr1 = np.array([0, 1])
+dr2 = np.array([-1, 0])
+dr3 = np.array([0, -1])
 
 ts = [t0, t1, t2, t3]
 drs = [dr0, dr1, dr2, dr3]
@@ -86,76 +108,126 @@ def init_state_given_yaw(yaw, obs):
   yaw = angle_mod(yaw)
   state = np.zeros(3)
   cov = np.eye(3)
-  cov[2, 2] = 0.04
+  cov[2, 2] = 0.09
   state[2] = yaw
+
+  # Rotation matrix of robot wrt world
+  R = np.zeros((2, 2))
+  c = np.cos(yaw)
+  s = np.sin(yaw)
+  R[0, 0] = c
+  R[0, 1] = -s
+  R[1, 0] = s
+  R[1, 1] = c
   if yaw <= np.pi/4 or yaw > 7*np.pi/4:
-    # Facing forward
-    c = np.cos(yaw)
-    s = np.sin(yaw)
-    
-    # y position of sensor facing long wall
-    y0 = obs[0]*c
+    # Camera facing away from the short wall
 
-    # Could be sensing one of two walls with right sensor. Assume
-    # short wall
-    x3 = obs[3]*c
+    # Sensor 3 is likely facing the long wall. If it's facing the
+    # short wall, we'll be a bit off
+    state[1] = obs[3]*c + np.dot(np.array([0, 1]), np.matmul(R, -t3))
 
-    c = np.cos(yaw)
-    s = np.sin(yaw)
+    if state[1] > maxy:
+      # If sensor 3 isn't facing any wall, put the robot toward the edge
+      # of the testbed and hope for the best
+      state[0] = maxx
+      state[1] = maxy/2
+    else:
+      # x displacement of chassis wrt sensor 2 in world frame
+      t2x = np.dot(np.array([1, 0]), np.matmul(R, -t2)) 
 
-    state[0] = x3 - (t3[0]*c - t3[1]*s)
-    state[1] = y0 - (t0[0]*s + t0[1]*c)
+      # We have two cases for the x position
+
+      # Case 1: Sensor 2 is facing the short wall (robot is close
+      # to the short wall)
+      state[0] = obs[2]*c + t2x
+
+      # Check if this makes sense
+      zhat = sensor_model(state)
+
+      if zhat[2] < 0:
+        # Case 2: Sensor 2 is facing the long wall (robot is far away
+        # from the short wall). In this case, sensor 2 doesn't tell
+        # us anything about the x coordinate, so just put it
+        # at the middle of the testbed and hope for the best
+        state[0] = maxx/2
 
   elif state[2] > np.pi/4 and state[2] <= 3*np.pi/4:
-    # Facing left
-    c = np.cos(yaw - np.pi/2)
+    # Camera facing away from the long wall
+
+    # We have two cases
     
-    # y position of sensor facing long wall
-    y3 = obs[3]*c
+    # Case 1: sensor 2 is facing the long wall
+    state[1] = obs[2]*s + np.dot(np.array([0, 1]), np.matmul(R, -t2))
 
-    # Could be sensing one of two walls with right sensor. Assume
-    # short wall
-    x2 = obs[2]*c
+    if state[1] >= miny:
+      # Assume sensor 1 is facing the short wall
+      state[0] = obs[1]*s + np.dot(np.array([1, 0]), np.matmul(R, -t1))
 
-    c = np.cos(yaw)
-    s = np.sin(yaw)
+      if state[0] > maxx:
+        state[0] = maxx
+    else:
+      # Case 2: sensor 2 is facing short wall
+      state[0] = obs[2]*c + np.dot(np.array([1, 0]), np.matmul(R, -t2))
 
-    state[0] = x2 - (t2[0]*c - t2[1]*s)
-    state[1] = y3 - (t3[0]*s + t3[1]*c)
+      # Assume sensor 3 is facing the long wall
+      state[1] = obs[3]*c + np.dot(np.array([0, 1]), np.matmul(R, -t3))
 
   elif state[2] > 3*np.pi/4 and state[2] <= 5*np.pi/4:
-    # Facing backward
-    c = np.cos(yaw - np.pi)
+    # Camera facing toward the short wall. This is the reverse
+    # of when it's facing away from the short wall
 
-    # y position of sensor facing long wall
-    y2 = obs[2]*c
+    # Sensor 1 is likely facing the long wall. If it's not, we'll be a bit
+    # off
+    state[1] = -obs[1]*c + np.dot(np.array([0, 1]), np.matmul(R, -t1))
 
-    # Could be sensing one of two walls with right sensor. Assume
-    # short wall
-    x1 = obs[1]*c
+    if state[1] > maxy:
+      # If sensor 1 isn't facing any wall, put the robot toward the edge
+      # of the testbed and hope for the best
+      state[0] = maxx
+      state[1] = maxy/2
+    else:
+      # x displacement of chassis wrt sensor 0 in world frame
+      t0x = np.dot(np.array([1, 0]), np.matmul(R, -t0)) 
 
-    c = np.cos(yaw)
-    s = np.sin(yaw)
+      # We have two cases for the x position
 
-    state[0] = x1 - (t1[0]*c - t1[1]*s)
-    state[1] = y2 - (t2[0]*s + t2[1]*c)
+      # Case 1: Sensor 0 is facing the short wall (robot is close
+      # to the short wall)
+      state[0] = -obs[0]*c + t0x
 
-  elif state[2] >= 11*np.pi/8 and state[2] <= 13*np.pi/8:
-    # Facing right
-    c = np.cos(yaw - 3*np.pi/2)
+      # Check if this makes sense
+      zhat = sensor_model(state)
 
-    # y position of sensor facing long wall
-    y1 = obs[1]*c
+      if zhat[0] < 0:
+        # Case 2: Sensor 0 is facing the long wall (robot is far away
+        # from the short wall). In this case, sensor 0 doesn't tell
+        # us anything about the x coordinate, so just put it
+        # at the middle of the testbed and hope for the best
+        state[0] = maxx/2
 
-    # Could be sensing one of two walls with right sensor. Assume
-    # short wall
-    x0 = obs[0]*c
+  elif state[2] > 5*np.pi/4 and state[2] <= 7*np.pi/4:
+    # Camera facing toward the long wall. This is the reverse
+    # of when it's facing away
 
-    c = np.cos(yaw)
-    s = np.sin(yaw)
+    # We have two cases
+    
+    # Case 1: sensor 0 is facing the long wall
+    state[1] = -obs[0]*s + np.dot(np.array([0, 1]), np.matmul(R, -t0))
 
-    state[0] = x0 - (t0[0]*c - t0[1]*s)
-    state[1] = y1 - (t1[0]*s + t1[1]*c)
+    if state[1] >= miny:
+      # Assume sensor 3 is facing the short wall
+      state[0] = -obs[3]*s + np.dot(np.array([1, 0]), np.matmul(R, -t3))
+
+      if state[0] > maxx:
+        state[0] = maxx
+    else:
+      # Case 2: sensor 0 is facing short wall
+      state[0] = -obs[0]*c + np.dot(np.array([1, 0]), np.matmul(R, -t0))
+
+      # Assume sensor 1 is facing the long wall
+      state[1] = -obs[1]*c + np.dot(np.array([0, 1]), np.matmul(R, -t1))
+
+  state = clamp_state(state)
 
   return state, cov
 
@@ -241,7 +313,7 @@ def sensor_model(state):
 # state: robot state
 # RETURN: sensor model Jacobian
 def dh(state):
-  cpy = state.clone()
+  cpy = state.copy()
   H_t = np.zeros((4, 3))
 
   # Numerical Jacobian computation
