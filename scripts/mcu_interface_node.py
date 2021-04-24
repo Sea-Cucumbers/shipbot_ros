@@ -14,7 +14,7 @@ def command_callback(msg):
   global cmd_vy
   global cmd_w
 
-  # Convert commands from inches per second to m/s
+  # Convert commands from m/s to inches per second
   cmd_vx = msg.vx/0.0254
   cmd_vy = msg.vy/0.0254
   cmd_w = msg.w
@@ -24,7 +24,7 @@ mcu = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
 
 chassis_pub = rospy.Publisher('/shipbot/chassis_feedback', ChassisFeedback, queue_size=1)
 chassis_msg = ChassisFeedback()
-chassis_msg.tofs = [-2, -2, -2, -2]
+chassis_msg.tofs = [2, 2, 2, 2]
 
 cmd_sub = rospy.Subscriber('/shipbot/chassis_command', ChassisCommand, command_callback)
 

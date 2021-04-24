@@ -17,6 +17,28 @@ using namespace Eigen;
 // TODO: shouldn't be static, got lazy
 static double start_time;
 
+double fmodp(double x, double y) {
+  double ret = fmod(x, y);
+  if (ret < 0) {
+    ret = y + ret;
+  }
+  return ret;
+}
+
+double angle_mod(double theta) {
+  return fmodp(theta, 2*M_PI);
+}
+
+double angdiff(double th1, double th2) {
+  th1 = angle_mod(th1);
+  th2 = angle_mod(th2);
+
+  if (abs(th2 - th1) > M_PI) {
+    th2 -= 2*M_PI;
+  }
+  return th2 - th1;
+}
+
 class stop {
   private:
     shared_ptr<bool> stopped;
@@ -107,10 +129,22 @@ class travel {
       end(0) = req.x;
       end(1) = req.y;
       end(2) = req.theta;
+
+      // Calculate trajectory time as maximum of times based on
+      // linear and angular distance to travel
       Vector2d disp = end.head<2>() - cur_state->head<2>();
-      double dist = disp.norm();
+      double linear_dist = disp.norm();
+
+      double th1 = (*cur_state)(2); // We assume this is already modded betweed 0 and 2*M_PI
+      double th2 = angle_mod(end(2));
+      double thdist = angdiff(th1, th2);
+      if (thdist != th2 - th1) {
+        th2 -= 2*M_PI;
+      }
+      end(2) = th2;
       double traj_start = ros::Time::now().toSec() - start_time;
-      *planner = MinJerkInterpolator(*cur_state, end, traj_start, traj_start + dist/0.5);
+      double traj_time = max(linear_dist*4, 8*abs(thdist)/M_PI);
+      *planner = MinJerkInterpolator(*cur_state, end, traj_start, traj_start + traj_time);
       *stopped = false;
       return true;
     }
@@ -218,6 +252,12 @@ int main(int argc, char** argv) {
     } else {
       VectorXd des_state = planner->eval(t);
       VectorXd des_vel = planner->deriv1(t);
+      cout << des_vel(2) << endl;
+
+      VectorXd err = des_state - *state_ptr;
+      if (t >= planner->get_end_time() && err.head<2>().norm() < 0.02 && err(2) < 0.1) {
+        *stopped = true;
+      }
 
       VectorXd cmd_vel = des_vel + kp.cwiseProduct(des_state - *state_ptr);
       double theta = (*state_ptr)(2);
