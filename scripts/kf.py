@@ -252,8 +252,8 @@ def predict(state, cov, vx, vy, dyaw, dt):
 
   # Transform commanded body velocity into world frame and propagate
   # positino
-  state[0] += vx*c - vy*s
-  state[1] += vx*s + vy*c
+  state[0] += (vx*c - vy*s)*dt
+  state[1] += (vx*s + vy*c)*dt
 
   state[2] += dyaw
   state[2] = angle_mod(state[2])
@@ -268,8 +268,8 @@ def predict(state, cov, vx, vy, dyaw, dt):
   F_t = np.eye(3)
 
   # Derivative of new position estimate wrt theta
-  F_t[0, 2] = -vx*s - vy*c
-  F_t[1, 2] = vx*c - vy*s
+  F_t[0, 2] = (-vx*s - vy*c)*dt
+  F_t[1, 2] = (vx*c - vy*s)*dt
   cov = np.matmul(np.matmul(F_t, cov), F_t.transpose()) + Q
   return state, cov
 
@@ -340,7 +340,7 @@ def correct(state, cov, obs, log_weight):
   R = 0.0016*np.eye(4)
   zhat = sensor_model(state)
   for i in range(4):
-    if obs[i] > 1.5:
+    if zhat[i] > 1.25 or obs[i] > 1.25:
       # Sensor isn't looking at a wall, so don't trust it
       R[i, i] = 4
       
@@ -361,5 +361,9 @@ def correct(state, cov, obs, log_weight):
 
   dist = np.matmul(resid, np.linalg.solve(inn_cov, resid))
   log_weight -= 0.5*dist + 0.5*np.log(np.linalg.det(inn_cov))
+  if dist > 9:
+    print(zhat)
+    print(obs)
+    print("outlier")
 
   return state, cov, log_weight

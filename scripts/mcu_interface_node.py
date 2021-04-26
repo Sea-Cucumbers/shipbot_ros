@@ -14,9 +14,11 @@ def command_callback(msg):
   global cmd_vy
   global cmd_w
 
-  # Convert commands from m/s to inches per second
-  cmd_vx = msg.vx/0.0254
-  cmd_vy = msg.vy/0.0254
+  # Convert commands from m/s to inches per second. We
+  # also need to switch around x and y because of 
+  # inconsistency in frame definitions lol
+  cmd_vx = msg.vy/0.0254
+  cmd_vy = -msg.vx/0.0254
   cmd_w = msg.w
 
 rospy.init_node('mcu_interface_node', anonymous=True)

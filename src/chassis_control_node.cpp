@@ -47,6 +47,7 @@ class localize {
   private:
     shared_ptr<bool> start_localization;
     shared_ptr<bool> stopped;
+    shared_ptr<int> safe_direction;
 
   public:
     /*
@@ -56,8 +57,10 @@ class localize {
      * _stopped: pointer to stopped variable
      */
      localize(shared_ptr<bool> _start_localization,
-              shared_ptr<bool> _stopped) : start_localization(_start_localization),
-                                           stopped(_stopped) {}
+              shared_ptr<bool> _stopped,
+              shared_ptr<int> _safe_direction) : start_localization(_start_localization),
+                                                 stopped(_stopped),
+                                                 safe_direction(_safe_direction) {}
 
     /*
      * operator (): tell the chassis controller to move to localize the chassis (or not) 
@@ -70,6 +73,7 @@ class localize {
                       shipbot_ros::InitialLocalization::Response &res) {
       *start_localization = true;
       *stopped = false;
+      *safe_direction = req.safe_direction;
       return true;
     }
 };
@@ -111,7 +115,8 @@ class travel {
       Vector3d err = planner->error(*cur_state, end);
 
       double traj_start = ros::Time::now().toSec() - start_time;
-      double traj_time = max(err.head<2>().norm()*4, 8*abs(err(2))/M_PI);
+      //double traj_time = max(err.head<2>().norm()*4, 8*abs(err(2))/M_PI);
+      double traj_time = 8*abs(err(2))/M_PI;
       *planner = SE2Interpolator(*cur_state, end, traj_start, traj_start + traj_time);
       *stopped = false;
       return true;
@@ -174,7 +179,8 @@ int main(int argc, char** argv) {
   ros::ServiceServer travel_service = nh.advertiseService<shipbot_ros::Travel::Request, shipbot_ros::Travel::Response>("travel", travel(planner, state_ptr, stopped));
 
   shared_ptr<bool> start_localization = make_shared<bool>(false);
-  ros::ServiceServer initial_localization_service = nh.advertiseService<shipbot_ros::InitialLocalization::Request, shipbot_ros::InitialLocalization::Response>("localize", localize(start_localization, stopped));
+  shared_ptr<int> safe_direction = make_shared<int>(0);
+  ros::ServiceServer initial_localization_service = nh.advertiseService<shipbot_ros::InitialLocalization::Request, shipbot_ros::InitialLocalization::Response>("localize", localize(start_localization, stopped, safe_direction));
 
   ros::ServiceServer stop_service = nh.advertiseService<shipbot_ros::StopChassis::Request, shipbot_ros::StopChassis::Response>("stop_chassis", stop(stopped));
 
@@ -199,24 +205,99 @@ int main(int argc, char** argv) {
       *start_localization = false;
       loc_start_time = t;
       doing_localization = true;
-      cmd_msg.w = M_PI/8;
     } else if (doing_localization) {
       double delta_t = t - loc_start_time;
-      if (delta_t < 8) {
-        cmd_msg.w = M_PI/8;
+      if (delta_t < 4) {
+        switch (*safe_direction) {
+          case shipbot_ros::InitialLocalization::Request::FORWARD:
+            cmd_msg.vx = 0.05;
+            cmd_msg.vy = 0;
+            break;
+          case shipbot_ros::InitialLocalization::Request::BACKWARD:
+            cmd_msg.vx = -0.05;
+            cmd_msg.vy = 0;
+            break;
+          case shipbot_ros::InitialLocalization::Request::LEFT:
+            cmd_msg.vx = 0;
+            cmd_msg.vy = 0.05;
+            break;
+          case shipbot_ros::InitialLocalization::Request::RIGHT:
+            cmd_msg.vx = 0;
+            cmd_msg.vy = -0.05;
+            break;
+        }
+      } else if (delta_t < 8) {
+        switch (*safe_direction) {
+          case shipbot_ros::InitialLocalization::Request::FORWARD:
+            cmd_msg.vx = -0.05;
+            cmd_msg.vy = 0;
+            break;
+          case shipbot_ros::InitialLocalization::Request::BACKWARD:
+            cmd_msg.vx = 0.05;
+            cmd_msg.vy = 0;
+            break;
+          case shipbot_ros::InitialLocalization::Request::LEFT:
+            cmd_msg.vx = 0;
+            cmd_msg.vy = -0.05;
+            break;
+          case shipbot_ros::InitialLocalization::Request::RIGHT:
+            cmd_msg.vx = 0;
+            cmd_msg.vy = 0.05;
+            break;
+        }
+      } else if (delta_t < 12) {
+        switch (*safe_direction) {
+          case shipbot_ros::InitialLocalization::Request::FORWARD:
+            cmd_msg.vx = 0.05;
+            cmd_msg.vy = 0;
+            break;
+          case shipbot_ros::InitialLocalization::Request::BACKWARD:
+            cmd_msg.vx = -0.05;
+            cmd_msg.vy = 0;
+            break;
+          case shipbot_ros::InitialLocalization::Request::LEFT:
+            cmd_msg.vx = 0;
+            cmd_msg.vy = 0.05;
+            break;
+          case shipbot_ros::InitialLocalization::Request::RIGHT:
+            cmd_msg.vx = 0;
+            cmd_msg.vy = -0.05;
+            break;
+        }
       } else if (delta_t < 16) {
-        cmd_msg.w = -M_PI/8;
+        switch (*safe_direction) {
+          case shipbot_ros::InitialLocalization::Request::FORWARD:
+            cmd_msg.vx = -0.05;
+            cmd_msg.vy = 0;
+            break;
+          case shipbot_ros::InitialLocalization::Request::BACKWARD:
+            cmd_msg.vx = 0.05;
+            cmd_msg.vy = 0;
+            break;
+          case shipbot_ros::InitialLocalization::Request::LEFT:
+            cmd_msg.vx = 0;
+            cmd_msg.vy = -0.05;
+            break;
+          case shipbot_ros::InitialLocalization::Request::RIGHT:
+            cmd_msg.vx = 0;
+            cmd_msg.vy = 0.05;
+            break;
+        }
       } else if (delta_t < 24) {
+        cmd_msg.vx = 0;
+        cmd_msg.vy = 0;
         cmd_msg.w = M_PI/8;
       } else if (delta_t < 32) {
+        cmd_msg.vx = 0;
+        cmd_msg.vy = 0;
         cmd_msg.w = -M_PI/8;
       } else {
+        cmd_msg.vx = 0;
+        cmd_msg.vy = 0;
         cmd_msg.w = 0;
         doing_localization = false;
         *stopped = true;
       }
-      cmd_msg.vx = 0;
-      cmd_msg.vy = 0;
     } else {
       VectorXd des_state = planner->eval(t);
       VectorXd des_vel = planner->deriv1(t);
@@ -226,13 +307,16 @@ int main(int argc, char** argv) {
         *stopped = true;
       }
 
-      VectorXd cmd_vel = des_vel + kp.cwiseProduct(err);
+      VectorXd cmd_vel = des_vel;// + kp.cwiseProduct(err);
       double theta = (*state_ptr)(2);
       double c = cos(theta);
       double s = sin(theta);
       cmd_msg.vx = c*cmd_vel(0) + s*cmd_vel(1);
       cmd_msg.vy = -s*cmd_vel(0) + c*cmd_vel(1);
       cmd_msg.w = cmd_vel(2);
+      cmd_msg.vx = 0;
+      cmd_msg.vy = 0;
+      cout << cmd_vel << endl << endl;
     }
     cmd_pub.publish(cmd_msg);
     r.sleep();

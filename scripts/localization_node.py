@@ -6,11 +6,13 @@ from shipbot_ros.msg import ChassisFeedback
 from shipbot_ros.msg import ChassisState
 from shipbot_ros.msg import ChassisCommand
 from kf import *
+import threading
 
 got_fbk = False 
 got_cmd = False 
-prev_t = 0
 t = 0
+
+lock = threading.Lock()
 
 # This is probably a bit confusing. The Arduino is integrating
 # the z component of the gyro, and it's giving us its own current
@@ -35,11 +37,13 @@ def chassis_callback(fbk_msg):
   global tofs
   global got_fbk
 
+  lock.acquire()
   got_fbk = True
 
-  t = fbk_msg.header.stamp.secs 
+  t = fbk_msg.header.stamp.secs + fbk_msg.header.stamp.nsecs/1000000000.0
   ardu_yaw = fbk_msg.yaw
   tofs = fbk_msg.tofs
+  lock.release()
 
 # command_callback: populates the commanded body velocity
 # ARGUMENTS
@@ -73,11 +77,13 @@ states = np.zeros((3, nfilters))
 covs = np.array([np.eye(3) for i in range(nfilters)])
 log_weights = np.log(np.ones(nfilters)/nfilters)
 prev_t = 0
+cull_t = 0
 prev_yaw = 0
 
 rate = rospy.Rate(10) # 10 Hz
 while not rospy.is_shutdown():
   if got_fbk:
+    lock.acquire()
     got_fbk = False
 
     if not initialized:
@@ -86,7 +92,9 @@ while not rospy.is_shutdown():
 
       initialized = True
       prev_t = t
+      cull_t = t
       prev_yaw = ardu_yaw
+      lock.release()
       continue
 
     new_log_weights = np.zeros(nfilters)
@@ -95,7 +103,8 @@ while not rospy.is_shutdown():
       states[:, i], covs[i], new_log_weights[i] = correct(states[:, i], covs[i], tofs, log_weights[i])
     
     yawsum += abs(ardu_yaw - prev_yaw)
-    if yawsum > 2*np.pi:
+    if t > 8 + cull_t:
+      cull_t = t
       log_weights = new_log_weights
       log_weights = normalize_log_weights(log_weights)
 
@@ -121,6 +130,7 @@ while not rospy.is_shutdown():
     print(np.trunc(state_to_print))
     prev_t = t
     prev_yaw = ardu_yaw
+    lock.release()
 
   rate.sleep()
 
