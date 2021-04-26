@@ -17,12 +17,14 @@
 #include "shipbot_ros/spin_shuttlecock.h"
 #include "shipbot_ros/switch_breaker.h"
 #include "shipbot_ros/reset_arm.h"
+#include "shipbot_ros/ArmDone.h"
 
 using namespace std;
 
 // TODO: shouldn't be static, got lazy
 static visualization_msgs::Marker marker;
 static double start_time;
+static bool called_done;
 
 class reset_arm {
   private:
@@ -52,6 +54,7 @@ class reset_arm {
       planner->reset_arm(*task_space_config,
                          ros::Time::now().toSec() - start_time);
       planner->sample_points(marker.points);
+      called_done = false;
       return true;
     }
 };
@@ -87,6 +90,7 @@ class spin_rotary {
                            (double)req.degrees,
                            ros::Time::now().toSec() - start_time);
       planner->sample_points(marker.points);
+      called_done = false;
       return true;
     }
 };
@@ -123,6 +127,7 @@ class spin_shuttlecock {
                                 req.clockwise,
                                 ros::Time::now().toSec() - start_time);
       planner->sample_points(marker.points);
+      called_done = false;
       return true;
     }
 };
@@ -157,6 +162,7 @@ class switch_breaker {
                               req.push_up,
                               ros::Time::now().toSec() - start_time);
       planner->sample_points(marker.points);
+      called_done = false;
       return true;
     }
 };
@@ -259,6 +265,10 @@ int main(int argc, char** argv) {
   ros::ServiceServer switch_breaker_service = nh.advertiseService<shipbot_ros::switch_breaker::Request, shipbot_ros::switch_breaker::Response>("switch_breaker", switch_breaker(planner, config_ptr));
   ros::ServiceServer reset_arm_service = nh.advertiseService<shipbot_ros::reset_arm::Request, shipbot_ros::reset_arm::Response>("reset_arm", reset_arm(planner, config_ptr));
 
+  ros::ServiceClient done_client = nh.serviceClient<shipbot_ros::ArmDone>("/mission_control_node/arm_done");
+  shipbot_ros::ArmDone done_srv;
+  called_done = true;
+
   start_time = ros::Time::now().toSec();
 
   ros::Rate r(rate);
@@ -307,6 +317,13 @@ int main(int argc, char** argv) {
       //group_command.setVelocity(velocity_cmds);
       group_command.setEffort(effort_cmds);
       group->sendCommand(group_command);
+
+      if (!called_done && t > planner->get_end_time()) {
+        VectorXd err = task_config - current_task_config;
+        if (err.norm() < 0.1) {
+          done_client.call(done_srv);
+        }
+      }
     }
 
     //cout << position/0.0254 << endl << endl << endl;

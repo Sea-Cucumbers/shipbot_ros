@@ -325,3 +325,7 @@ void ArmPlanner::retrieve_segment(double t) {
 bool ArmPlanner::planned() {
   return segments.size() > 0;
 }
+
+double ArmPlanner::get_end_time() {
+  return segments.back().get_end_time();
+}

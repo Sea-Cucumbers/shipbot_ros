@@ -138,4 +138,10 @@ class ArmPlanner {
      * RETURN: true if plan exists, false otherwise
      */
     bool planned();
+
+    /*
+     * get_end_time: return ending time of last trajectory segment
+     * RETURN: return ending time of last trajectory segment
+     */
+    double get_end_time();
 };

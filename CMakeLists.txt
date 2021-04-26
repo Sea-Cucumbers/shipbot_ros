@@ -82,6 +82,8 @@ add_service_files(
   Travel.srv
   InitialLocalization.srv
   StopChassis.srv
+  ChassisDone.srv
+  ArmDone.srv
 )
 
 ## Generate actions in the 'action' folder

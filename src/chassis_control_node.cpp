@@ -10,6 +10,7 @@
 #include "shipbot_ros/StopChassis.h"
 #include "se2Interpolator.h"
 #include <Eigen/Dense>
+#include "shipbot_ros/ChassisDone.h"
 
 using namespace std;
 using namespace Eigen;
@@ -23,7 +24,7 @@ class stop {
 
   public:
     /*
-     * localize: constructor
+     * stop: constructor
      * ARGUMENTS
      * _stopped: pointer to stop variable
      */
@@ -187,6 +188,9 @@ int main(int argc, char** argv) {
   ros::Publisher cmd_pub = nh.advertise<shipbot_ros::ChassisCommand>("/shipbot/chassis_command", 1);
   shipbot_ros::ChassisCommand cmd_msg;
 
+  ros::ServiceClient done_client = nh.serviceClient<shipbot_ros::ChassisDone>("/mission_control/chassis_done");
+  shipbot_ros::ChassisDone done_srv;
+
   Vector3d kp = Vector3d::Ones(3);
   vector<double> kpv;
   nh.getParam("kp", kpv);
@@ -302,6 +306,8 @@ int main(int argc, char** argv) {
         cmd_msg.w = 0;
         doing_localization = false;
         *stopped = true;
+
+        done_client.call(done_srv);
       }
     } else {
       VectorXd des_state = planner->eval(t);
@@ -310,6 +316,7 @@ int main(int argc, char** argv) {
       VectorXd err = planner->error(*state_ptr, des_state);
       if (t >= planner->get_end_time() && err.head<2>().norm() < 0.02 && abs(err(2)) < 0.1) {
         *stopped = true;
+        done_client.call(done_srv);
       }
 
       VectorXd cmd_vel = des_vel;// + kp.cwiseProduct(err);
