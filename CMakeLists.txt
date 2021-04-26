@@ -145,13 +145,13 @@ include_directories(
   /opt/openrobots/include
 )
 
-add_executable(gazebo_control_node src/gazebo_control_node.cpp $<TARGET_OBJECTS:arm_control> $<TARGET_OBJECTS:interpolation>)
+add_executable(gazebo_control_node src/gazebo_control_node.cpp $<TARGET_OBJECTS:arm_control>)
 target_link_libraries(gazebo_control_node ${catkin_LIBRARIES} pinocchio::pinocchio)
 
-add_executable(arm_control_node src/arm_control_node.cpp $<TARGET_OBJECTS:arm_control> $<TARGET_OBJECTS:interpolation>)
+add_executable(arm_control_node src/arm_control_node.cpp $<TARGET_OBJECTS:arm_control>)
 target_link_libraries(arm_control_node ${catkin_LIBRARIES} pinocchio::pinocchio)
 
-add_executable(chassis_control_node src/chassis_control_node.cpp $<TARGET_OBJECTS:interpolation>)
+add_executable(chassis_control_node src/chassis_control_node.cpp $<TARGET_OBJECTS:chassis_control>)
 target_link_libraries(chassis_control_node ${catkin_LIBRARIES})
 
 find_library(REALSENSE2_FOUND realsense2 HINTS ${LIBRARY_DIR} REQUIRED)
@@ -170,10 +170,11 @@ target_link_libraries(mission_control_node ${catkin_LIBRARIES})
 add_library(arm_control OBJECT
   ${CMAKE_CURRENT_SOURCE_DIR}/src/kdHelper.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/armPlanner.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/minJerkInterpolator.cpp
 )
 
-add_library(interpolation OBJECT
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/minJerkInterpolator.cpp
+add_library(chassis_control OBJECT
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/se2Interpolator.cpp
 )
 
 add_library(vision OBJECT

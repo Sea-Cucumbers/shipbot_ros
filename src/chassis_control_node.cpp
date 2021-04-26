@@ -8,7 +8,7 @@
 #include "shipbot_ros/InitialLocalization.h"
 #include "shipbot_ros/ChassisCommand.h"
 #include "shipbot_ros/StopChassis.h"
-#include "minJerkInterpolator.h"
+#include "se2Interpolator.h"
 #include <Eigen/Dense>
 
 using namespace std;
@@ -16,28 +16,6 @@ using namespace Eigen;
 
 // TODO: shouldn't be static, got lazy
 static double start_time;
-
-double fmodp(double x, double y) {
-  double ret = fmod(x, y);
-  if (ret < 0) {
-    ret = y + ret;
-  }
-  return ret;
-}
-
-double angle_mod(double theta) {
-  return fmodp(theta, 2*M_PI);
-}
-
-double angdiff(double th1, double th2) {
-  th1 = angle_mod(th1);
-  th2 = angle_mod(th2);
-
-  if (abs(th2 - th1) > M_PI) {
-    th2 -= 2*M_PI;
-  }
-  return th2 - th1;
-}
 
 class stop {
   private:
@@ -98,8 +76,8 @@ class localize {
 
 class travel {
   private:
-    shared_ptr<MinJerkInterpolator> planner;
-    shared_ptr<VectorXd> cur_state;
+    shared_ptr<SE2Interpolator> planner;
+    shared_ptr<Vector3d> cur_state;
     shared_ptr<bool> stopped;
 
   public:
@@ -108,10 +86,10 @@ class travel {
      * ARGUMENTS
      * _planner: pointer to planner
      * _cur_state: pointer to current state
-     * _stoppe: pointer to stopped
+     * _stopped: pointer to stopped
      */
-     travel(shared_ptr<MinJerkInterpolator> _planner,
-            shared_ptr<VectorXd> _cur_state,
+     travel(shared_ptr<SE2Interpolator> _planner,
+            shared_ptr<Vector3d> _cur_state,
             shared_ptr<bool> _stopped) : planner(_planner),
                                          cur_state(_cur_state),
                                          stopped(_stopped) {}
@@ -125,26 +103,16 @@ class travel {
      */
     bool operator () (shipbot_ros::Travel::Request &req,
                       shipbot_ros::Travel::Response &res) {
-      VectorXd end = VectorXd::Zero(3);
+      Vector3d end = VectorXd::Zero(3);
       end(0) = req.x;
       end(1) = req.y;
       end(2) = req.theta;
 
-      // Calculate trajectory time as maximum of times based on
-      // linear and angular distance to travel
-      Vector2d disp = end.head<2>() - cur_state->head<2>();
-      double linear_dist = disp.norm();
+      Vector3d err = planner->error(*cur_state, end);
 
-      double th1 = (*cur_state)(2); // We assume this is already modded betweed 0 and 2*M_PI
-      double th2 = angle_mod(end(2));
-      double thdist = angdiff(th1, th2);
-      if (thdist != th2 - th1) {
-        th2 -= 2*M_PI;
-      }
-      end(2) = th2;
       double traj_start = ros::Time::now().toSec() - start_time;
-      double traj_time = max(linear_dist*4, 8*abs(thdist)/M_PI);
-      *planner = MinJerkInterpolator(*cur_state, end, traj_start, traj_start + traj_time);
+      double traj_time = max(err.head<2>().norm()*4, 8*abs(err(2))/M_PI);
+      *planner = SE2Interpolator(*cur_state, end, traj_start, traj_start + traj_time);
       *stopped = false;
       return true;
     }
@@ -155,7 +123,7 @@ class travel {
  */
 class handle_state {
   private:
-    shared_ptr<VectorXd> state_ptr;
+    shared_ptr<Vector3d> state_ptr;
     shared_ptr<bool> got_state;
 
   public:
@@ -165,7 +133,7 @@ class handle_state {
      * _state_ptr: the pointer we should populate with the received message
      * _got_state: the pointer we should populate when we get a message
      */
-    handle_state(shared_ptr<VectorXd> _state_ptr,
+    handle_state(shared_ptr<Vector3d> _state_ptr,
                  shared_ptr<bool> _got_state) : state_ptr(_state_ptr), got_state(_got_state) {}
 
     /*
@@ -187,7 +155,7 @@ int main(int argc, char** argv) {
 
   double rate = 20;
 
-  shared_ptr<VectorXd> state_ptr = make_shared<VectorXd>(3);
+  shared_ptr<Vector3d> state_ptr = make_shared<Vector3d>();
   shared_ptr<bool> got_state = make_shared<bool>(false);
   ros::Subscriber state_sub = nh.subscribe<shipbot_ros::ChassisState>("/shipbot/chassis_state", 1, handle_state(state_ptr, got_state));
 
@@ -199,7 +167,7 @@ int main(int argc, char** argv) {
   
   start_time = ros::Time::now().toSec();
 
-  shared_ptr<MinJerkInterpolator> planner = make_shared<MinJerkInterpolator>(*state_ptr, *state_ptr, 0, 0);
+  shared_ptr<SE2Interpolator> planner = make_shared<SE2Interpolator>(*state_ptr, *state_ptr, 0, 0);
 
   shared_ptr<bool> stopped = make_shared<bool>(true);
 
@@ -252,14 +220,13 @@ int main(int argc, char** argv) {
     } else {
       VectorXd des_state = planner->eval(t);
       VectorXd des_vel = planner->deriv1(t);
-      cout << des_vel(2) << endl;
 
-      VectorXd err = des_state - *state_ptr;
-      if (t >= planner->get_end_time() && err.head<2>().norm() < 0.02 && err(2) < 0.1) {
+      VectorXd err = planner->error(*state_ptr, des_state);
+      if (t >= planner->get_end_time() && err.head<2>().norm() < 0.02 && abs(err(2)) < 0.1) {
         *stopped = true;
       }
 
-      VectorXd cmd_vel = des_vel + kp.cwiseProduct(des_state - *state_ptr);
+      VectorXd cmd_vel = des_vel + kp.cwiseProduct(err);
       double theta = (*state_ptr)(2);
       double c = cos(theta);
       double s = sin(theta);
