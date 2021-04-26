@@ -187,7 +187,12 @@ int main(int argc, char** argv) {
   ros::Publisher cmd_pub = nh.advertise<shipbot_ros::ChassisCommand>("/shipbot/chassis_command", 1);
   shipbot_ros::ChassisCommand cmd_msg;
 
-  VectorXd kp = VectorXd::Ones(3);
+  Vector3d kp = Vector3d::Ones(3);
+  vector<double> kpv;
+  nh.getParam("kp", kpv);
+  kp(0) = kp[0];
+  kp(1) = kp[1];
+  kp(2) = kp[2];
 
   bool doing_localization = false;
   double loc_start_time = 0;
