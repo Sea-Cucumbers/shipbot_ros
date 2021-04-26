@@ -60,5 +60,6 @@ while not rospy.is_shutdown():
   except Exception as e:
     print(e)
     mcu.close()
-    break
+    mcu = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
+    rospy.sleep(1)
 

@@ -39,7 +39,7 @@ Vector3d SE2Interpolator::eval(double t) {
     t = start_time;
   }
 
-  return start + (start - end)*t/delta_t;
+  return start + vel*(t - start_time);
 }
 
 Vector3d SE2Interpolator::deriv1(double t) {
@@ -54,6 +54,7 @@ Vector3d SE2Interpolator::error(const Vector3d &state1, const Vector3d &state2) 
   Vector3d ret;
   ret.head<2>() = state2.head<2>() - state1.head<2>();
   ret(2) = angdiff(state1(2), state2(2));
+  return ret;
 }
 
 double SE2Interpolator::get_start_time() {
