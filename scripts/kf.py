@@ -352,12 +352,14 @@ def correct(state, cov, obs, log_weight):
   # Check if any sensors are surprisingly off. If so, don't trust them
   for sensor in range(4):
     if resid[sensor]*resid[sensor]/inn_cov[sensor, sensor] > 9:
-      inn_cov[sensor, sensor] = 4
+      inn_cov[sensor, sensor] -= R[sensor, sensor]
+      R[sensor, sensor] = 4
+      inn_cov[sensor, sensor] += R[sensor, sensor]
 
-  Ktmp = np.matmul(cov, H_t.transpose())
-  state = state + np.matmul(Ktmp, np.linalg.solve(inn_cov, resid))
+  K = np.linalg.solve(inn_cov, np.matmul(H_t, cov)).transpose()
+  state = state + np.matmul(K, resid)
   state[2] = angle_mod(state[2])
-  cov = np.matmul(np.eye(3) - np.matmul(Ktmp, np.linalg.solve(inn_cov, H_t)), cov)
+  cov = np.matmul(np.eye(3) - np.matmul(K, H_t), cov)
 
   dist = np.matmul(resid, np.linalg.solve(inn_cov, resid))
   log_weight -= 0.5*dist + 0.5*np.log(np.linalg.det(inn_cov))
