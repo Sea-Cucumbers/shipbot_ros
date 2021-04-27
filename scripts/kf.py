@@ -104,132 +104,26 @@ sensor_info = zip(ts, drs)
 # yaw: robot's yaw
 # obs: sensor readings, going from sensor 0 to sensor 3
 # RETURN: robot state. theta is modded to be in the range [0, 2*pi]
-def init_state_given_yaw(yaw, obs):
+def init_state_given_yaw(yaw, obs, valid_sensors):
   yaw = angle_mod(yaw)
   state = np.zeros(3)
   cov = np.eye(3)
   cov[2, 2] = 0.09
   state[2] = yaw
 
-  # Rotation matrix of robot wrt world
-  R = np.zeros((2, 2))
-  c = np.cos(yaw)
-  s = np.sin(yaw)
-  R[0, 0] = c
-  R[0, 1] = -s
-  R[1, 0] = s
-  R[1, 1] = c
-  if yaw <= np.pi/4 or yaw > 7*np.pi/4:
-    # Camera facing away from the short wall
-
-    # Sensor 3 is likely facing the long wall. If it's facing the
-    # short wall, we'll be a bit off
-    state[1] = obs[3]*c + np.dot(np.array([0, 1]), np.matmul(R, -t3))
-
-    if state[1] > maxy:
-      # If sensor 3 isn't facing any wall, put the robot toward the edge
-      # of the testbed and hope for the best
-      state[0] = maxx
-      state[1] = maxy/2
-    else:
-      # x displacement of chassis wrt sensor 2 in world frame
-      t2x = np.dot(np.array([1, 0]), np.matmul(R, -t2)) 
-
-      # We have two cases for the x position
-
-      # Case 1: Sensor 2 is facing the short wall (robot is close
-      # to the short wall)
-      state[0] = obs[2]*c + t2x
-
-      # Check if this makes sense
+  min_resid_norm = 1000
+  best_state = np.array([maxx/2, maxy/2, 0])
+  for xidx in range(50):
+    for yidx in range(25):
+      state[0] = xidx*maxx/50
+      state[1] = yidx*maxy/50
       zhat = sensor_model(state)
+      resid_norm = np.linalg.norm(obs[valid_sensors] - zhat[valid_sensors])
+      if resid_norm < min_resid_norm:
+        best_state = state.copy()
+        min_resid_norm = resid_norm
 
-      if zhat[2] > 1.5:
-        # Case 2: Sensor 2 is facing the long wall (robot is far away
-        # from the short wall). In this case, sensor 2 doesn't tell
-        # us anything about the x coordinate, so just put it
-        # at the middle of the testbed and hope for the best
-        state[0] = maxx/2
-
-  elif state[2] > np.pi/4 and state[2] <= 3*np.pi/4:
-    # Camera facing away from the long wall
-
-    # We have two cases
-    
-    # Case 1: sensor 2 is facing the long wall
-    state[1] = obs[2]*s + np.dot(np.array([0, 1]), np.matmul(R, -t2))
-
-    if state[1] >= miny:
-      # Assume sensor 1 is facing the short wall
-      state[0] = obs[1]*s + np.dot(np.array([1, 0]), np.matmul(R, -t1))
-
-      if state[0] > maxx:
-        state[0] = maxx
-    else:
-      # Case 2: sensor 2 is facing short wall
-      state[0] = obs[2]*c + np.dot(np.array([1, 0]), np.matmul(R, -t2))
-
-      # Assume sensor 3 is facing the long wall
-      state[1] = obs[3]*c + np.dot(np.array([0, 1]), np.matmul(R, -t3))
-
-  elif state[2] > 3*np.pi/4 and state[2] <= 5*np.pi/4:
-    # Camera facing toward the short wall. This is the reverse
-    # of when it's facing away from the short wall
-
-    # Sensor 1 is likely facing the long wall. If it's not, we'll be a bit
-    # off
-    state[1] = -obs[1]*c + np.dot(np.array([0, 1]), np.matmul(R, -t1))
-
-    if state[1] > maxy:
-      # If sensor 1 isn't facing any wall, put the robot toward the edge
-      # of the testbed and hope for the best
-      state[0] = maxx
-      state[1] = maxy/2
-    else:
-      # x displacement of chassis wrt sensor 0 in world frame
-      t0x = np.dot(np.array([1, 0]), np.matmul(R, -t0)) 
-
-      # We have two cases for the x position
-
-      # Case 1: Sensor 0 is facing the short wall (robot is close
-      # to the short wall)
-      state[0] = -obs[0]*c + t0x
-
-      # Check if this makes sense
-      zhat = sensor_model(state)
-
-      if zhat[0] > 1.5:
-        # Case 2: Sensor 0 is facing the long wall (robot is far away
-        # from the short wall). In this case, sensor 0 doesn't tell
-        # us anything about the x coordinate, so just put it
-        # at the middle of the testbed and hope for the best
-        state[0] = maxx/2
-
-  elif state[2] > 5*np.pi/4 and state[2] <= 7*np.pi/4:
-    # Camera facing toward the long wall. This is the reverse
-    # of when it's facing away
-
-    # We have two cases
-    
-    # Case 1: sensor 0 is facing the long wall
-    state[1] = -obs[0]*s + np.dot(np.array([0, 1]), np.matmul(R, -t0))
-
-    if state[1] >= miny:
-      # Assume sensor 3 is facing the short wall
-      state[0] = -obs[3]*s + np.dot(np.array([1, 0]), np.matmul(R, -t3))
-
-      if state[0] > maxx:
-        state[0] = maxx
-    else:
-      # Case 2: sensor 0 is facing short wall
-      state[0] = -obs[0]*c + np.dot(np.array([1, 0]), np.matmul(R, -t0))
-
-      # Assume sensor 1 is facing the long wall
-      state[1] = -obs[1]*c + np.dot(np.array([0, 1]), np.matmul(R, -t1))
-
-  state = clamp_state(state)
-
-  return state, cov
+  return best_state, cov
 
 # predict: propagates state using motion model. New position
 # is the previous position plus the velocity control input.
@@ -343,6 +237,9 @@ def correct(state, cov, obs, log_weight):
     if zhat[i] > 1.25 or obs[i] > 1.25:
       # Sensor isn't looking at a wall, so don't trust it
       R[i, i] = 4
+  sort_idx = np.argsort(obs)
+  R[sort_idx[2], sort_idx[2]] = 4
+  R[sort_idx[3], sort_idx[3]] = 4
       
   H_t = dh(state)
 
@@ -364,6 +261,7 @@ def correct(state, cov, obs, log_weight):
   dist = np.matmul(resid, np.linalg.solve(inn_cov, resid))
   log_weight -= 0.5*dist + 0.5*np.log(np.linalg.det(inn_cov))
   if dist > 9:
+    print(state)
     print(zhat)
     print(obs)
     print("outlier")

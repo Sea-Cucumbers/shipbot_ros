@@ -20,9 +20,9 @@ def command_callback(msg):
   # also need to switch around x and y because of 
   # inconsistency in frame definitions lol
   lock.acquire()
-  cmd_vx = msg.vy/0.0254
-  cmd_vy = -msg.vx/0.0254
-  cmd_w = msg.w
+  cmd_vx = round(msg.vy/0.0254, 1)
+  cmd_vy = round(-msg.vx/0.0254, 1)
+  cmd_w = round(msg.w, 2)
   lock.release()
 
 rospy.init_node('mcu_interface_node', anonymous=True)

@@ -7,6 +7,7 @@ from shipbot_ros.msg import ChassisState
 from shipbot_ros.msg import ChassisCommand
 from kf import *
 import threading
+import time
 
 got_fbk = False 
 got_cmd = False 
@@ -69,6 +70,11 @@ state_msg = ChassisState()
 maxx = 1.524
 maxy = 0.9144
 
+collect_idx = 0
+ncollect = 50
+collected = False
+collection = np.zeros((4, ncollect))
+valid_sensors = np.zeros(4, dtype=np.bool)
 initialized = False
 yawsum = 0 
 
@@ -80,15 +86,29 @@ prev_t = 0
 cull_t = 0
 prev_yaw = 0
 
+filter_data = np.zeros((3, nfilters, 1000))
+fidx = 0
+saved = False
+
 rate = rospy.Rate(10) # 10 Hz
 while not rospy.is_shutdown():
   if got_fbk:
     lock.acquire()
     got_fbk = False
 
-    if not initialized:
+    if not collected:
+      collection[:, collect_idx] = np.array(tofs)
+      collect_idx += 1
+      if collect_idx >= ncollect:
+        var = np.var(collection, axis=1)
+        sort_idx = np.argsort(var)
+        valid_sensors[sort_idx[0]] = True
+        valid_sensors[sort_idx[1]] = True
+        collected = True
+
+    if not initialized and collected:
       for i in range(nfilters):
-        states[:, i], covs[i] = init_state_given_yaw(i*np.pi/4 + 0.01, tofs)
+        states[:, i], covs[i] = init_state_given_yaw(i*np.pi/4 + 0.01, np.array(tofs), valid_sensors)
 
       initialized = True
       prev_t = t
@@ -97,39 +117,48 @@ while not rospy.is_shutdown():
       lock.release()
       continue
 
-    new_log_weights = np.zeros(nfilters)
-    for i in range(nfilters):
-      states[:, i], covs[i] = predict(states[:, i], covs[i], vx, vy, ardu_yaw - prev_yaw, t - prev_t)
-      states[:, i], covs[i], new_log_weights[i] = correct(states[:, i], covs[i], tofs, log_weights[i])
-    
-    yawsum += abs(ardu_yaw - prev_yaw)
-    if t > 8 + cull_t:
-      cull_t = t
-      log_weights = new_log_weights
-      log_weights = normalize_log_weights(log_weights)
+    if initialized:
+      new_log_weights = np.zeros(nfilters)
+      for i in range(nfilters):
+        states[:, i], covs[i] = predict(states[:, i], covs[i], vx, vy, ardu_yaw - prev_yaw, t - prev_t)
+        states[:, i], covs[i], new_log_weights[i] = correct(states[:, i], covs[i], tofs, log_weights[i])
+      
+      yawsum += abs(ardu_yaw - prev_yaw)
+      if t > 2 + cull_t:
+        cull_t = t
+        log_weights = new_log_weights
+        log_weights = normalize_log_weights(log_weights)
 
-      live_filters = np.logical_and(np.logical_and(log_weights > -10, states[0] > 0), states[1] > 0)
-      live_filters = np.logical_and(live_filters, np.logical_and(states[0] < maxx, states[1] < maxy))
-      if np.any(live_filters):
-        states = states[:, live_filters]
-        covs = covs[live_filters]
-        log_weights = normalize_log_weights(log_weights[live_filters])
-        nfilters = len(covs)
+        live_filters = np.logical_and(np.logical_and(log_weights > -10, states[0] > 0), states[1] > 0)
+        live_filters = np.logical_and(live_filters, np.logical_and(states[0] < maxx, states[1] < maxy))
+        if np.any(live_filters):
+          states = states[:, live_filters]
+          covs = covs[live_filters]
+          log_weights = normalize_log_weights(log_weights[live_filters])
+          nfilters = len(covs)
 
-    state = np.matmul(states, np.exp(log_weights))
+      state = np.matmul(states, np.exp(log_weights))
 
-    state_msg.x = state[0]
-    state_msg.y = state[1]
-    state_msg.yaw = state[2]
-    state_msg.header.stamp = rospy.Time().now()
-    state_pub.publish(state_msg)
+      filter_data[:, :nfilters, fidx] = states[:3]
+      if fidx == 500 and not saved:
+        np.save('/home/pi/ros_catkin_ws/src/shipbot_ros/scripts/' + str(int(time.time())) + '.npy', filter_data[:, :, :fidx])
+        print('saved file')
+        saved = True
 
-    state_to_print = np.copy(state)
-    state_to_print[2] *= 180/np.pi
-    state_to_print[:2] /= 0.0254
-    print(np.trunc(state_to_print))
-    prev_t = t
-    prev_yaw = ardu_yaw
+      fidx += 1
+
+      state_msg.x = state[0]
+      state_msg.y = state[1]
+      state_msg.yaw = state[2]
+      state_msg.header.stamp = rospy.Time().now()
+      state_pub.publish(state_msg)
+
+      state_to_print = np.copy(state)
+      state_to_print[2] *= 180/np.pi
+      state_to_print[:2] /= 0.0254
+      print(np.trunc(state_to_print))
+      prev_t = t
+      prev_yaw = ardu_yaw
     lock.release()
 
   rate.sleep()
