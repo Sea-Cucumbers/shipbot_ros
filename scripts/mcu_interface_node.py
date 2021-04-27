@@ -4,7 +4,9 @@ import serial
 import rospy
 from shipbot_ros.msg import ChassisFeedback
 from shipbot_ros.msg import ChassisCommand
+import threading
 
+lock = threading.Lock()
 cmd_vx = 0
 cmd_vy = 0
 cmd_w = 0
@@ -17,9 +19,11 @@ def command_callback(msg):
   # Convert commands from m/s to inches per second. We
   # also need to switch around x and y because of 
   # inconsistency in frame definitions lol
+  lock.acquire()
   cmd_vx = msg.vy/0.0254
   cmd_vy = -msg.vx/0.0254
   cmd_w = msg.w
+  lock.release()
 
 rospy.init_node('mcu_interface_node', anonymous=True)
 mcu = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
@@ -55,7 +59,9 @@ while not rospy.is_shutdown():
     else:
       print('No data')
 
+    lock.acquire()
     mcu.write('<' + str(cmd_vx) + ' ' + str(cmd_vy) + ' ' + str(cmd_w) + '>')
+    lock.release()
 
     rate.sleep()
 
