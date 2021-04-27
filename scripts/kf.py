@@ -207,17 +207,16 @@ def sensor_model(state):
 # state: robot state
 # RETURN: sensor model Jacobian
 def dh(state):
-  cpy = state.copy()
   H_t = np.zeros((4, 3))
+
+  zhat = sensor_model(state)
 
   # Numerical Jacobian computation
   for i in range(3):
+    cpy = state.copy()
     cpy[i] += 0.0001   
     zhat_plus = sensor_model(cpy)
-    cpy[i] -= 0.0002 
-    zhat_minus = sensor_model(cpy)
-    cpy[i] += 0.0001
-    H_t[:, i] = (zhat_plus - zhat_minus)/0.0002
+    H_t[:, i] = (zhat_plus - zhat)/0.0001
 
   return H_t
 
@@ -260,10 +259,5 @@ def correct(state, cov, obs, log_weight):
 
   dist = np.matmul(resid, np.linalg.solve(inn_cov, resid))
   log_weight -= 0.5*dist + 0.5*np.log(np.linalg.det(inn_cov))
-  if dist > 9:
-    print(state)
-    print(zhat)
-    print(obs)
-    print("outlier")
 
   return state, cov, log_weight
