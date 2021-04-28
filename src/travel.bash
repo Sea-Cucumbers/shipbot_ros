@@ -1,2 +1,2 @@
 #!/bin/bash
-rosservice call /chassis_control_node/travel "{x: 0.762, y: 0.4572, theta: 1.57}"
+rosservice call /chassis_control_node/travel "{x: 1.3716, y: 0.254, theta: 4.71}"
