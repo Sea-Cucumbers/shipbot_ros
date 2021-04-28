@@ -86,10 +86,6 @@ prev_t = 0
 cull_t = 0
 prev_yaw = 0
 
-filter_data = np.zeros((3, nfilters, 1000))
-fidx = 0
-saved = False
-
 rate = rospy.Rate(10) # 10 Hz
 while not rospy.is_shutdown():
   if got_fbk:
@@ -137,15 +133,32 @@ while not rospy.is_shutdown():
           log_weights = normalize_log_weights(log_weights[live_filters])
           nfilters = len(covs)
 
+          if nfilters < 8:
+            nnew = 2*nfilters
+            new_states = np.zeros((3, nnew))
+            new_covs = np.array([np.eye(3) for i in range(nnew)])
+            new_log_weights = np.zeros(nnew)
+
+            for i in range(nfilters):
+              new_idx = 2*i
+              new_states[:, new_idx] = states[:, i].copy()
+              new_states[2, new_idx] += np.pi/8
+              new_covs[new_idx] = covs[i].copy()
+              new_log_weights[new_idx] = log_weights[i]
+
+              new_idx += 1
+              new_states[:, new_idx] = states[:, i].copy()
+              new_states[2, new_idx] -= np.pi/8
+              new_covs[new_idx] = covs[i].copy()
+              new_log_weights[new_idx] = log_weights[i]
+
+            states = np.concatenate((states, new_states), axis=1)
+            covs = np.concatenate((covs, new_covs), axis=0)
+            log_weights = np.concatenate((log_weights, new_log_weights), axis=0)
+            log_weights = normalize_log_weights(log_weights)
+            nfilters = len(covs)
+
       state = np.matmul(states, np.exp(log_weights))
-
-      filter_data[:, :nfilters, fidx] = states[:3]
-      if fidx == 500 and not saved:
-        np.save('/home/pi/ros_catkin_ws/src/shipbot_ros/scripts/' + str(int(time.time())) + '.npy', filter_data[:, :, :fidx])
-        print('saved file')
-        saved = True
-
-      fidx += 1
 
       state_msg.x = state[0]
       state_msg.y = state[1]
