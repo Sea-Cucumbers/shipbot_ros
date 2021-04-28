@@ -163,13 +163,15 @@ def sensor_model(state):
 
 def get_new_log_weights(particles, log_weights, obs):
   new_log_weights = np.zeros(log_weights.shape)
+  sort_idx = np.argsort(obs)
+  good_idx = sort_idx[:2]
   for p in range(particles.shape[1]):
     zhat = sensor_model(particles[:, p])
-    good_idx = np.logical_and(obs < 1.2, zhat < 1.2)
     resid = zhat - obs
     new_log_weights[p] = log_weights[p] - 0.5*np.dot(resid[good_idx], resid[good_idx])*100
 
   new_log_weights = normalize_log_weights(new_log_weights)
+  best_idx = np.argmax(new_log_weights)
   return new_log_weights
 
 def resample(particles, log_weights, nparticles):
@@ -187,7 +189,7 @@ def resample(particles, log_weights, nparticles):
       i += 1
 
     new_particles[:, p] = particles[:, i]
-    new_log_weights[p] = 1/nparticles
+    new_log_weights[p] = 1.0/nparticles
 
   log_weights = np.log(new_log_weights)
   return new_particles, log_weights

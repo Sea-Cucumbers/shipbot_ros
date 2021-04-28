@@ -5,9 +5,19 @@ import rospy
 from shipbot_ros.msg import ChassisFeedback
 from shipbot_ros.msg import ChassisState
 from shipbot_ros.msg import ChassisCommand
+from visualization_msgs.msg import Marker
+from geometry_msgs.msg import Point
 from pf import *
 import threading, Queue
 import time
+
+robot_width = 0.1778
+
+minx = robot_width
+miny = robot_width
+
+maxx = 1.524 - robot_width
+maxy = 0.9144 - robot_width
 
 got_fbk = False 
 got_cmd = False 
@@ -93,6 +103,45 @@ prev_yaw = 0
 queue = Queue.Queue()
 pf_thread = threading.Thread(target=dummy)
 
+particle_marker = Marker()
+particle_marker.header.frame_id = 'world'
+particle_marker.type = Marker.POINTS
+particle_marker.action = Marker.ADD
+particle_marker.pose.position.x = 0
+particle_marker.pose.position.y = 0
+particle_marker.pose.position.z = 0
+particle_marker.pose.orientation.w = 1
+particle_marker.pose.orientation.x = 0
+particle_marker.pose.orientation.y = 0
+particle_marker.pose.orientation.z = 0
+particle_marker.scale.x = 0.01
+particle_marker.scale.y = 0.01
+particle_marker.scale.z = 0.01
+particle_marker.color.r = 1
+particle_marker.color.g = 0
+particle_marker.color.b = 0
+particle_marker.color.a = 1
+particle_marker_pub = rospy.Publisher('/shipbot/particles', Marker, queue_size=1)
+
+guiderail_marker = Marker()
+guiderail_marker.header.frame_id = 'world'
+guiderail_marker.type = Marker.LINE_LIST
+guiderail_marker.action = Marker.ADD
+guiderail_marker.pose.position.x = 0
+guiderail_marker.pose.position.y = 0
+guiderail_marker.pose.position.z = 0
+guiderail_marker.pose.orientation.w = 1
+guiderail_marker.pose.orientation.x = 0
+guiderail_marker.pose.orientation.y = 0
+guiderail_marker.pose.orientation.z = 0
+guiderail_marker.scale.x = 0.01
+guiderail_marker.color.r = 0
+guiderail_marker.color.g = 1
+guiderail_marker.color.b = 0
+guiderail_marker.color.a = 1
+guiderail_pub = rospy.Publisher('/shipbot/guiderail', Marker, queue_size=1)
+guiderail_marker.points = [Point(1.524, 0, 0), Point(0, 0, 0), Point(0, 0, 0), Point(0, 0.9144, 0)]
+
 rate = rospy.Rate(10) # 10 Hz
 while not rospy.is_shutdown():
   if got_fbk:
@@ -115,6 +164,10 @@ while not rospy.is_shutdown():
         states[:, i] = init_state_given_yaw(i*np.pi/4 + 0.01, np.array(tofs), valid_sensors)
 
       particles = np.tile(states, (1, 50)) + np.random.normal(scale=0.1, size=(3, nyaws*50))
+      particles[0, particles[0] < minx] = minx
+      particles[0, particles[0] > maxx] = maxx
+      particles[1, particles[1] < miny] = miny
+      particles[1, particles[1] > maxy] = maxy
 
       initialized = True
       prev_t = t
@@ -131,7 +184,6 @@ while not rospy.is_shutdown():
           particles, log_weights = resample(particles, log_weights, nparticles)
         pf_thread = threading.Thread(target=update_weights, args=(queue, particles.copy(), log_weights, np.array(tofs)))
         pf_thread.start()
-        print('started sensor update')
 
       state = np.matmul(particles, np.exp(log_weights))
 
@@ -147,6 +199,11 @@ while not rospy.is_shutdown():
       print(np.trunc(state_to_print))
       prev_t = t
       prev_yaw = ardu_yaw
+
+      particle_marker.points = [Point(particles[0, p], particles[1, p], 0) for p in range(particles.shape[1])]
+      particle_marker.header.stamp = rospy.Time().now()
+      particle_marker_pub.publish(particle_marker)
+      guiderail_pub.publish(guiderail_marker)
     lock.release()
 
   rate.sleep()
