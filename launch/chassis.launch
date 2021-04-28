@@ -1,6 +1,6 @@
 <launch>
   <node name="mcu_interface_node" pkg="shipbot_ros" type="mcu_interface_node.py" output="screen"/>
-  <node name="localization_node" pkg="shipbot_ros" type="localization_node.py" output="screen"/>
+  <node name="localization_node" pkg="shipbot_ros" type="kf_node.py" output="screen"/>
   <node name="chassis_control_node" pkg="shipbot_ros" type="chassis_control_node" output="screen">
     <param name="kp" value="[1, 1, 1]"/>
   </node>
