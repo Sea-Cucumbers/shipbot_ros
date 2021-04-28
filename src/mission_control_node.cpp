@@ -40,6 +40,7 @@ void wait_for_completion(ros::Rate &r, shared_ptr<bool> done_ptr) {
     r.sleep();
     ros::spinOnce();
   }
+  *done_ptr = false;
 }
 
 class chassis_done {
