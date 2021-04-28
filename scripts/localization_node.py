@@ -5,8 +5,8 @@ import rospy
 from shipbot_ros.msg import ChassisFeedback
 from shipbot_ros.msg import ChassisState
 from shipbot_ros.msg import ChassisCommand
-from kf import *
-import threading
+from pf import *
+import threading, Queue
 import time
 
 got_fbk = False 
@@ -14,6 +14,12 @@ got_cmd = False
 t = 0
 
 lock = threading.Lock()
+
+def dummy():
+  pass
+
+def update_weights(queue, particles, log_weights, tofs):
+  queue.put(get_new_log_weights(particles, log_weights, tofs))
 
 # This is probably a bit confusing. The Arduino is integrating
 # the z component of the gyro, and it's giving us its own current
@@ -76,15 +82,16 @@ collected = False
 collection = np.zeros((4, ncollect))
 valid_sensors = np.zeros(4, dtype=np.bool)
 initialized = False
-yawsum = 0 
 
-nfilters = 8
-states = np.zeros((3, nfilters))
-covs = np.array([np.eye(3) for i in range(nfilters)])
-log_weights = np.log(np.ones(nfilters)/nfilters)
+nparticles = 500
+particles = np.zeros((3, nparticles))
+nyaws = 8
+log_weights = np.log(np.ones(nyaws*50)/(nyaws*50))
 prev_t = 0
-cull_t = 0
 prev_yaw = 0
+
+queue = Queue.Queue()
+pf_thread = threading.Thread(target=dummy)
 
 rate = rospy.Rate(10) # 10 Hz
 while not rospy.is_shutdown():
@@ -103,62 +110,30 @@ while not rospy.is_shutdown():
         collected = True
 
     if not initialized and collected:
-      for i in range(nfilters):
-        states[:, i], covs[i] = init_state_given_yaw(i*np.pi/4 + 0.01, np.array(tofs), valid_sensors)
+      states = np.zeros((3, nyaws))
+      for i in range(nyaws):
+        states[:, i] = init_state_given_yaw(i*np.pi/4 + 0.01, np.array(tofs), valid_sensors)
+
+      particles = np.tile(states, (1, 50)) + np.random.normal(scale=0.1, size=(3, nyaws*50))
 
       initialized = True
       prev_t = t
-      cull_t = t
       prev_yaw = ardu_yaw
       lock.release()
       continue
 
     if initialized:
-      new_log_weights = np.zeros(nfilters)
-      for i in range(nfilters):
-        states[:, i], covs[i] = predict(states[:, i], covs[i], vx, vy, ardu_yaw - prev_yaw, t - prev_t)
-        states[:, i], covs[i], new_log_weights[i] = correct(states[:, i], covs[i], np.array(tofs), log_weights[i])
-      
-      yawsum += abs(ardu_yaw - prev_yaw)
-      if t > 2 + cull_t:
-        cull_t = t
-        log_weights = new_log_weights
-        log_weights = normalize_log_weights(log_weights)
+      particles = motion_model(particles, vx, vy, ardu_yaw - prev_yaw, t - prev_t)
 
-        live_filters = np.logical_and(np.logical_and(log_weights > -10, states[0] > 0), states[1] > 0)
-        live_filters = np.logical_and(live_filters, np.logical_and(states[0] < maxx, states[1] < maxy))
-        if np.any(live_filters):
-          states = states[:, live_filters]
-          covs = covs[live_filters]
-          log_weights = normalize_log_weights(log_weights[live_filters])
-          nfilters = len(covs)
+      if not pf_thread.is_alive():
+        if not queue.empty():
+          log_weights = queue.get()
+          particles, log_weights = resample(particles, log_weights, nparticles)
+        pf_thread = threading.Thread(target=update_weights, args=(queue, particles.copy(), log_weights, np.array(tofs)))
+        pf_thread.start()
+        print('started sensor update')
 
-          if nfilters < 8:
-            nnew = 2*nfilters
-            new_states = np.zeros((3, nnew))
-            new_covs = np.array([np.eye(3) for i in range(nnew)])
-            new_log_weights = np.zeros(nnew)
-
-            for i in range(nfilters):
-              new_idx = 2*i
-              new_states[:, new_idx] = states[:, i].copy()
-              new_states[2, new_idx] += np.pi/8
-              new_covs[new_idx] = covs[i].copy()
-              new_log_weights[new_idx] = log_weights[i]
-
-              new_idx += 1
-              new_states[:, new_idx] = states[:, i].copy()
-              new_states[2, new_idx] -= np.pi/8
-              new_covs[new_idx] = covs[i].copy()
-              new_log_weights[new_idx] = log_weights[i]
-
-            states = np.concatenate((states, new_states), axis=1)
-            covs = np.concatenate((covs, new_covs), axis=0)
-            log_weights = np.concatenate((log_weights, new_log_weights), axis=0)
-            log_weights = normalize_log_weights(log_weights)
-            nfilters = len(covs)
-
-      state = np.matmul(states, np.exp(log_weights))
+      state = np.matmul(particles, np.exp(log_weights))
 
       state_msg.x = state[0]
       state_msg.y = state[1]
