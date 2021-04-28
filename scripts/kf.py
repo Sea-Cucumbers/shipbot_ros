@@ -230,15 +230,20 @@ def dh(state):
 # Gaussian sum
 # RETURN: corrected state and covariance
 def correct(state, cov, obs, log_weight):
-  R = 0.0016*np.eye(4)
+  R = 0.01*np.eye(4)
   zhat = sensor_model(state)
   for i in range(4):
-    if zhat[i] > 1.25 or obs[i] > 1.25:
+    if zhat[i] > 1.25:
       # Sensor isn't looking at a wall, so don't trust it
-      R[i, i] = 4
+      R[i, i] = 16
+    if obs[i] > 1.25:
+      R[i, i] = 16
+      obs[i] = 2
   sort_idx = np.argsort(obs)
-  R[sort_idx[2], sort_idx[2]] = 4
-  R[sort_idx[3], sort_idx[3]] = 4
+  R[sort_idx[2], sort_idx[2]] = 16
+  R[sort_idx[3], sort_idx[3]] = 16
+  obs[sort_idx[2]] = 2
+  obs[sort_idx[3]] = 2
       
   H_t = dh(state)
 
@@ -249,8 +254,9 @@ def correct(state, cov, obs, log_weight):
   for sensor in range(4):
     if resid[sensor]*resid[sensor]/inn_cov[sensor, sensor] > 9:
       inn_cov[sensor, sensor] -= R[sensor, sensor]
-      R[sensor, sensor] = 4
+      R[sensor, sensor] = 16
       inn_cov[sensor, sensor] += R[sensor, sensor]
+      obs[sensor] = 2
 
   K = np.linalg.solve(inn_cov, np.matmul(H_t, cov)).transpose()
   state = state + np.matmul(K, resid)

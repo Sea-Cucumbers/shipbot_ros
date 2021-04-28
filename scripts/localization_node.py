@@ -121,7 +121,7 @@ while not rospy.is_shutdown():
       new_log_weights = np.zeros(nfilters)
       for i in range(nfilters):
         states[:, i], covs[i] = predict(states[:, i], covs[i], vx, vy, ardu_yaw - prev_yaw, t - prev_t)
-        states[:, i], covs[i], new_log_weights[i] = correct(states[:, i], covs[i], tofs, log_weights[i])
+        states[:, i], covs[i], new_log_weights[i] = correct(states[:, i], covs[i], np.array(tofs), log_weights[i])
       
       yawsum += abs(ardu_yaw - prev_yaw)
       if t > 2 + cull_t:
