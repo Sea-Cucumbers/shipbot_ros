@@ -7,9 +7,11 @@ from shipbot_ros.msg import ChassisState
 from shipbot_ros.msg import ChassisCommand
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
+from geometry_msgs.msg import TransformStamped
 from pf import *
 import threading, Queue
 import time
+import tf2_ros
 
 robot_width = 0.1778
 
@@ -82,6 +84,21 @@ chassis_sub = rospy.Subscriber('/shipbot/chassis_feedback', ChassisFeedback, cha
 command_sub = rospy.Subscriber('/shipbot/chassis_command', ChassisCommand, command_callback)
 state_pub = rospy.Publisher('/shipbot/chassis_state', ChassisState, queue_size=1)
 state_msg = ChassisState()
+
+br = tf2_ros.TransformBroadcaster()
+robot_tf = TransformStamped()
+
+robot_tf.header.stamp = rospy.Time.now()
+robot_tf.header.frame_id = 'world'
+robot_tf.child_frame_id = 'shipbot'
+robot_tf.transform.translation.x = 0
+robot_tf.transform.translation.y = 0
+robot_tf.transform.translation.z = 0
+robot_tf.transform.rotation.x = 0
+robot_tf.transform.rotation.y = 0
+robot_tf.transform.rotation.z = 0
+robot_tf.transform.rotation.w = 1
+br.sendTransform(robot_tf)
 
 maxx = 1.524
 maxy = 0.9144
@@ -181,7 +198,9 @@ while not rospy.is_shutdown():
       if not pf_thread.is_alive():
         if not queue.empty():
           log_weights = queue.get()
-          particles, log_weights = resample(particles, log_weights, nparticles)
+          Neff = 1.0/np.exp(2*log_weights).sum()
+          if Neff < nparticles/2.0:
+            particles, log_weights = resample(particles, log_weights, nparticles)
         pf_thread = threading.Thread(target=update_weights, args=(queue, particles.copy(), log_weights, np.array(tofs)))
         pf_thread.start()
 
@@ -204,6 +223,14 @@ while not rospy.is_shutdown():
       particle_marker.header.stamp = rospy.Time().now()
       particle_marker_pub.publish(particle_marker)
       guiderail_pub.publish(guiderail_marker)
+
+      robot_tf.transform.translation.x = state[0]
+      robot_tf.transform.translation.y = state[1]
+      robot_tf.transform.rotation.z = np.sin(state[2]/2)
+      robot_tf.transform.rotation.w = np.cos(state[2]/2)
+      robot_tf.header.stamp = rospy.Time.now()
+      br.sendTransform(robot_tf)
+
     lock.release()
 
   rate.sleep()

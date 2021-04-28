@@ -122,8 +122,7 @@ def motion_model(particles, vx, vy, dyaw, dt):
   particles[2] += dyaw
   particles[2] = np.mod(particles[2], 2*np.pi)
 
-  particles[:2] += np.random.normal(scale=0.01, size=(2, particles.shape[1]))
-  particles[2] += np.random.normal(scale=0.1, size=particles.shape[1])
+  particles += np.random.normal(scale=0.01, size=particles.shape)
 
   return particles
 
