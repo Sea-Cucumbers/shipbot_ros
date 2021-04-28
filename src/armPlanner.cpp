@@ -9,7 +9,7 @@ ArmPlanner::ArmPlanner(double seconds_per_meter,
  reset_config = VectorXd::Zero(5);
  reset_config(0) = -0.135214;
  reset_config(1) = 0.18142;
- reset_config(2) = 0.00839807;
+ reset_config(2) = 0.05839807;
  reset_config(3) = -1.52432;
  reset_config(4) = 2.67237;
 
@@ -76,10 +76,10 @@ void ArmPlanner::spin_rotary(const VectorXd &start,
   seg_start = seg_end;
   if (vertical_spin_axis) {
     // If vertical axis, move 10 cm down
-    seg_end(2) -= pause_dist;
+    seg_end(2) -= pause_dist + 0.07;
   } else {
     // If horizontal axis, move 10 cm forward
-    seg_end(1) += pause_dist;
+    seg_end(1) += pause_dist + 0.07;
   }
   start_time = end_time;
   diff = seg_end.head<3>() - seg_start.head<3>();

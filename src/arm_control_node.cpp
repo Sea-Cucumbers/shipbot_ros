@@ -320,8 +320,9 @@ int main(int argc, char** argv) {
 
       if (!called_done && t > planner->get_end_time()) {
         VectorXd err = task_config - current_task_config;
-        if (err.norm() < 0.1) {
+        if (err.head<3>().norm() < 0.1) {
           done_client.call(done_srv);
+          called_done = true;
         }
       }
     }

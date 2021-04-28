@@ -1,2 +1,2 @@
-t_cam_arm: [0.08, 0.105, 0.2545] # Translation of camera frame wrt bottom of center of arm shoulder 1
+t_cam_arm: [0.1145, 0.105, 0.3429] # Translation of camera frame wrt bottom of center of arm shoulder 1
 R_cam_arm: [1, 0, 0, 0, 0, 1, 0, -1, 0]
