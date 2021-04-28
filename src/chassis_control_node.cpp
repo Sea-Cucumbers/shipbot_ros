@@ -116,8 +116,7 @@ class travel {
       Vector3d err = planner->error(*cur_state, end);
 
       double traj_start = ros::Time::now().toSec() - start_time;
-      //double traj_time = max(err.head<2>().norm()*4, 8*abs(err(2))/M_PI);
-      double traj_time = 8*abs(err(2))/M_PI;
+      double traj_time = max(err.head<2>().norm()*8, 8*abs(err(2))/M_PI);
       *planner = SE2Interpolator(*cur_state, end, traj_start, traj_start + traj_time);
       *stopped = false;
       return true;
@@ -307,7 +306,7 @@ int main(int argc, char** argv) {
         doing_localization = false;
         *stopped = true;
 
-        done_client.call(done_srv);
+        //done_client.call(done_srv);
       }
     } else {
       VectorXd des_state = planner->eval(t);
@@ -316,19 +315,16 @@ int main(int argc, char** argv) {
       VectorXd err = planner->error(*state_ptr, des_state);
       if (t >= planner->get_end_time() && err.head<2>().norm() < 0.02 && abs(err(2)) < 0.1) {
         *stopped = true;
-        done_client.call(done_srv);
+        //done_client.call(done_srv);
       }
 
-      VectorXd cmd_vel = des_vel;// + kp.cwiseProduct(err);
+      VectorXd cmd_vel = des_vel + kp.cwiseProduct(err);
       double theta = (*state_ptr)(2);
       double c = cos(theta);
       double s = sin(theta);
       cmd_msg.vx = c*cmd_vel(0) + s*cmd_vel(1);
       cmd_msg.vy = -s*cmd_vel(0) + c*cmd_vel(1);
       cmd_msg.w = cmd_vel(2);
-      cmd_msg.vx = 0;
-      cmd_msg.vy = 0;
-      cout << cmd_vel << endl << endl;
     }
     cmd_pub.publish(cmd_msg);
     r.sleep();
