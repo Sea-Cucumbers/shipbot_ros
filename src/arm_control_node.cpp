@@ -13,10 +13,10 @@
 #include "hebi_cpp_api/group_command.hpp"
 #include "hebi_cpp_api/group_feedback.hpp"
 #include "armPlanner.h"
-#include "shipbot_ros/spin_rotary.h"
-#include "shipbot_ros/spin_shuttlecock.h"
-#include "shipbot_ros/switch_breaker.h"
-#include "shipbot_ros/reset_arm.h"
+#include "shipbot_ros/SpinRotary.h"
+#include "shipbot_ros/SpinShuttlecock.h"
+#include "shipbot_ros/SwitchBreaker.h"
+#include "shipbot_ros/ResetArm.h"
 #include "shipbot_ros/ArmDone.h"
 
 using namespace std;
@@ -49,8 +49,8 @@ class reset_arm {
      * res: technically supposed to be populated with the response, but
      * the response isn't used
      */
-    bool operator () (shipbot_ros::reset_arm::Request &req,
-                      shipbot_ros::reset_arm::Response &res) {
+    bool operator () (shipbot_ros::ResetArm::Request &req,
+                      shipbot_ros::ResetArm::Response &res) {
       planner->reset_arm(*task_space_config,
                          ros::Time::now().toSec() - start_time);
       planner->sample_points(marker.points);
@@ -82,8 +82,8 @@ class spin_rotary {
      * res: technically supposed to be populated with the response, but
      * the response isn't used
      */
-    bool operator () (shipbot_ros::spin_rotary::Request &req,
-                      shipbot_ros::spin_rotary::Response &res) {
+    bool operator () (shipbot_ros::SpinRotary::Request &req,
+                      shipbot_ros::SpinRotary::Response &res) {
       planner->spin_rotary(*task_space_config,
                            Vector3d(req.position.x, req.position.y, req.position.z),
                            req.vertical_spin_axis,
@@ -118,8 +118,8 @@ class spin_shuttlecock {
      * res: technically supposed to be populated with the response, but
      * the response isn't used
      */
-    bool operator () (shipbot_ros::spin_shuttlecock::Request &req,
-                      shipbot_ros::spin_shuttlecock::Response &res) {
+    bool operator () (shipbot_ros::SpinShuttlecock::Request &req,
+                      shipbot_ros::SpinShuttlecock::Response &res) {
       planner->spin_shuttlecock(*task_space_config,
                                 Vector3d(req.position.x, req.position.y, req.position.z),
                                 Vector3d(req.handle_end.x, req.handle_end.y, req.handle_end.z),
@@ -155,8 +155,8 @@ class switch_breaker {
      * res: technically supposed to be populated with the response, but
      * the response isn't used
      */
-    bool operator () (shipbot_ros::switch_breaker::Request &req,
-                      shipbot_ros::switch_breaker::Response &res) {
+    bool operator () (shipbot_ros::SwitchBreaker::Request &req,
+                      shipbot_ros::SwitchBreaker::Response &res) {
       planner->switch_breaker(*task_space_config,
                               Vector3d(req.position.x, req.position.y, req.position.z),
                               req.push_up,
@@ -260,10 +260,10 @@ int main(int argc, char** argv) {
   VectorXd velocity_cmds = velocity_fbk;
   VectorXd effort_cmds = effort_fbk;
 
-  ros::ServiceServer spin_rotary_service = nh.advertiseService<shipbot_ros::spin_rotary::Request, shipbot_ros::spin_rotary::Response>("spin_rotary", spin_rotary(planner, config_ptr));
-  ros::ServiceServer spin_shuttlecock_service = nh.advertiseService<shipbot_ros::spin_shuttlecock::Request, shipbot_ros::spin_shuttlecock::Response>("spin_shuttlecock", spin_shuttlecock(planner, config_ptr));
-  ros::ServiceServer switch_breaker_service = nh.advertiseService<shipbot_ros::switch_breaker::Request, shipbot_ros::switch_breaker::Response>("switch_breaker", switch_breaker(planner, config_ptr));
-  ros::ServiceServer reset_arm_service = nh.advertiseService<shipbot_ros::reset_arm::Request, shipbot_ros::reset_arm::Response>("reset_arm", reset_arm(planner, config_ptr));
+  ros::ServiceServer spin_rotary_service = nh.advertiseService<shipbot_ros::SpinRotary::Request, shipbot_ros::SpinRotary::Response>("spin_rotary", spin_rotary(planner, config_ptr));
+  ros::ServiceServer spin_shuttlecock_service = nh.advertiseService<shipbot_ros::SpinShuttlecock::Request, shipbot_ros::SpinShuttlecock::Response>("spin_shuttlecock", spin_shuttlecock(planner, config_ptr));
+  ros::ServiceServer switch_breaker_service = nh.advertiseService<shipbot_ros::SwitchBreaker::Request, shipbot_ros::SwitchBreaker::Response>("switch_breaker", switch_breaker(planner, config_ptr));
+  ros::ServiceServer reset_arm_service = nh.advertiseService<shipbot_ros::ResetArm::Request, shipbot_ros::ResetArm::Response>("reset_arm", reset_arm(planner, config_ptr));
 
   ros::ServiceClient done_client = nh.serviceClient<shipbot_ros::ArmDone>("/mission_control_node/arm_done");
   shipbot_ros::ArmDone done_srv;

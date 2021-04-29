@@ -1,9 +1,0 @@
-int8 WHEEL = 0
-int8 SPIGOT = 1
-int8 SHUTTLECOCK = 2
-int8 SWITCH = 3
-int8 NONE = 3
-
-int8 deviceType
----
-geometry_msgs/Vector3 position

@@ -75,10 +75,10 @@ add_service_files(
   QueryWheel.srv
   QuerySpigot.srv
   QueryShuttlecock.srv
-  spin_rotary.srv
-  spin_shuttlecock.srv
-  switch_breaker.srv
-  reset_arm.srv
+  SpinRotary.srv
+  SpinShuttlecock.srv
+  SwitchBreaker.srv
+  ResetArm.srv
   Travel.srv
   InitialLocalization.srv
   StopChassis.srv

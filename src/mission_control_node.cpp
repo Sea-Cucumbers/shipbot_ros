@@ -4,10 +4,10 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include "shipbot_ros/spin_rotary.h"
-#include "shipbot_ros/spin_shuttlecock.h"
-#include "shipbot_ros/switch_breaker.h"
-#include "shipbot_ros/reset_arm.h"
+#include "shipbot_ros/SpinRotary.h"
+#include "shipbot_ros/SpinShuttlecock.h"
+#include "shipbot_ros/SwitchBreaker.h"
+#include "shipbot_ros/ResetArm.h"
 #include "shipbot_ros/QueryWheel.h"
 #include "shipbot_ros/QuerySpigot.h"
 #include "shipbot_ros/QueryShuttlecock.h"
@@ -187,14 +187,14 @@ int main(int argc, char** argv) {
   shipbot_ros::QueryBreaker query_breaker_srv;
 
   // Initialize arm service clients and srvs
-  ros::ServiceClient spin_rotary_client = nh.serviceClient<shipbot_ros::spin_rotary>("/arm_control_node/spin_rotary");
-  ros::ServiceClient spin_shuttlecock_client = nh.serviceClient<shipbot_ros::spin_shuttlecock>("/arm_control_node/spin_shuttlecock");
-  ros::ServiceClient switch_breaker_client = nh.serviceClient<shipbot_ros::switch_breaker>("/arm_control_node/switch_breaker");
-  ros::ServiceClient reset_arm_client = nh.serviceClient<shipbot_ros::reset_arm>("/arm_control_node/reset_arm");
-  shipbot_ros::spin_rotary spin_rotary_srv;
-  shipbot_ros::spin_shuttlecock spin_shuttlecock_srv;
-  shipbot_ros::switch_breaker switch_breaker_srv;
-  shipbot_ros::reset_arm reset_arm_srv;
+  ros::ServiceClient spin_rotary_client = nh.serviceClient<shipbot_ros::SpinRotary>("/arm_control_node/spin_rotary");
+  ros::ServiceClient spin_shuttlecock_client = nh.serviceClient<shipbot_ros::SpinShuttlecock>("/arm_control_node/spin_shuttlecock");
+  ros::ServiceClient switch_breaker_client = nh.serviceClient<shipbot_ros::SwitchBreaker>("/arm_control_node/switch_breaker");
+  ros::ServiceClient reset_arm_client = nh.serviceClient<shipbot_ros::ResetArm>("/arm_control_node/reset_arm");
+  shipbot_ros::SpinRotary spin_rotary_srv;
+  shipbot_ros::SpinShuttlecock spin_shuttlecock_srv;
+  shipbot_ros::SwitchBreaker switch_breaker_srv;
+  shipbot_ros::ResetArm reset_arm_srv;
 
   // Initialize chassis service clients and srvs
   ros::ServiceClient stop_chassis_client = nh.serviceClient<shipbot_ros::StopChassis>("/chassis_control_node/stop_chassis");
