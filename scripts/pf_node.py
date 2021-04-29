@@ -110,7 +110,7 @@ collection = np.zeros((4, ncollect))
 valid_sensors = np.zeros(4, dtype=np.bool)
 initialized = False
 
-nparticles = 500
+nparticles = 100
 particles = np.zeros((3, nparticles))
 nyaws = 8
 log_weights = np.log(np.ones(nyaws*50)/(nyaws*50))
