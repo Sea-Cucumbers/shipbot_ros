@@ -79,7 +79,8 @@ add_service_files(
   SpinShuttlecock.srv
   SwitchBreaker.srv
   ResetArm.srv
-  Travel.srv
+  TravelCL.srv
+  TravelOL.srv
   InitialLocalization.srv
   StopChassis.srv
   ChassisDone.srv
