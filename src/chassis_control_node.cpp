@@ -150,9 +150,12 @@ class travel_ol {
     bool operator () (shipbot_ros::TravelOL::Request &req,
                       shipbot_ros::TravelOL::Response &res) {
       Vector3d end = VectorXd::Zero(3);
-      end(0) = (*cur_state)(0) + req.delta_x;
-      end(1) = (*cur_state)(1) + req.delta_y;
-      end(2) = (*cur_state)(2) + req.delta_theta;
+      double theta = (*cur_state)(2);
+      double c = cos(theta);
+      double s = sin(theta);
+      end(0) = (*cur_state)(0) + req.delta_x*c - req.delta_y*s;
+      end(1) = (*cur_state)(1) + req.delta_x*s + req.delta_y*c;
+      end(2) = theta + req.delta_theta;
 
       Vector3d err = planner->error(*cur_state, end);
 

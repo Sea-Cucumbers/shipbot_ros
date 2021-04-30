@@ -24,6 +24,14 @@
 using namespace std;
 using namespace Eigen;
 
+/*
+ * string_split: splits the string s into a vector of substrings separated
+ * by delimiter del
+ * ARGUMENTS
+ * ssplit: populated with substrings
+ * s: string to split
+ * del: delimiter
+ */
 void string_split(vector<string> &ssplit, string s, string del) {
   ssplit.clear();
   int start = 0;
@@ -36,12 +44,41 @@ void string_split(vector<string> &ssplit, string s, string del) {
   ssplit.push_back(s.substr(start, end - start));
 }
 
-void wait_for_completion(ros::Rate &r, shared_ptr<bool> done_ptr) {
+/*
+ * spin_until_completion: spin until done_ptr points to true
+ * ARGUMENTS
+ * r: rate we use to sleep while spinning
+ * done_ptr: spin until this points to true
+ */
+void spin_until_completion(ros::Rate &r, shared_ptr<bool> done_ptr) {
   while (ros::ok() && !(*done_ptr)) {
     r.sleep();
     ros::spinOnce();
   }
   *done_ptr = false;
+}
+
+/*
+ * minor_strafe: open-loop translate the robot left or right, from the perspective of the camera,
+ * and spin until the chassis is done
+ * ARGUMENTS
+ * delta: how much to translate
+ * travel_ol_client: open-loop control client
+ * r: rate we use to sleep while spinning
+ * chassis_done_ptr: pointer we check to see if the chassis is done
+ */
+void minor_strafe(double delta, ros::ServiceClient &travel_ol_client, ros::Rate &r, shared_ptr<bool> chassis_done_ptr) {
+  shipbot_ros::TravelOL travel_ol_srv;
+  travel_ol_srv.request.delta_x = 0;
+  travel_ol_srv.request.delta_y = delta;
+  travel_ol_srv.request.delta_theta = 0;
+
+  if (travel_ol_client.call(travel_ol_srv)) {
+    ROS_INFO("Commanded chassis to center arm with device");
+  } else {
+    ROS_ERROR("Failed to command chassis to center arm with device");
+  }
+  spin_until_completion(r, chassis_done_ptr);
 }
 
 class chassis_done {
@@ -230,23 +267,21 @@ int main(int argc, char** argv) {
       ROS_INFO("Commanded arm to reset");
     } else {
       ROS_ERROR("Failed to command arm to reset");
-      return 1;
     }
-    wait_for_completion(r, arm_done_ptr);
+    spin_until_completion(r, arm_done_ptr);
   }
   
   if (do_locomotion) {
     // Wait for localization to initialize
-    wait_for_completion(r, chassis_done_ptr);
+    spin_until_completion(r, chassis_done_ptr);
 
     // Localize
     if (localize_client.call(localize_srv)) {
       ROS_INFO("Commanded chassis to perform localization routine");
     } else {
       ROS_ERROR("Failed to command chassis to perform localization routine");
-      return 1;
     }
-    wait_for_completion(r, chassis_done_ptr);
+    spin_until_completion(r, chassis_done_ptr);
   }
 
   for (int cmd = 0; cmd < commands.size(); ++cmd) {
@@ -299,9 +334,8 @@ int main(int argc, char** argv) {
         ROS_INFO("Commanded chassis to travel to station");
       } else {
         ROS_ERROR("Failed to command chassis to travel to station");
-        return 1;
       }
-      wait_for_completion(r, chassis_done_ptr);
+      spin_until_completion(r, chassis_done_ptr);
     }
 
     // MANIPULATION PHASE
@@ -316,12 +350,22 @@ int main(int argc, char** argv) {
           ROS_INFO("Successfully queried spigot");
         } else {
           ROS_ERROR("Failed to query spigot");
-          return 1;
         }
 
-        if (!query_spigot_srv.response.state.visible) {
+        double strafe_disp = -0.2;
+        while (!query_spigot_srv.response.state.visible) {
           cout << "Couldn't find spigot valve" << endl;
-          return 1; // TODO: don't return 
+          // Keep strafing back and forth until we find it
+          if (do_locomotion) {
+            minor_strafe(strafe_disp, travel_ol_client, r, chassis_done_ptr);
+            strafe_disp = -strafe_disp;
+          }
+
+          if (query_spigot_client.call(query_spigot_srv)) {
+            ROS_INFO("Successfully queried spigot");
+          } else {
+            ROS_ERROR("Failed to query spigot");
+          }
         }
 
         // Transform position into arm frame
@@ -331,18 +375,7 @@ int main(int argc, char** argv) {
         dev_pos = R_cam_arm*dev_pos + t_cam_arm;
 
         if (do_locomotion) {
-          // Move chassis so that the arm is in front of the device
-          travel_ol_srv.request.delta_x = dev_pos(0);
-          travel_ol_srv.request.delta_y = 0;
-          travel_ol_srv.request.delta_theta = 0;
-
-          if (travel_ol_client.call(travel_ol_srv)) {
-            ROS_INFO("Commanded chassis to center arm with device");
-          } else {
-            ROS_ERROR("Failed to command chassis to center arm with device");
-            return 1;
-          }
-          wait_for_completion(r, chassis_done_ptr);
+          minor_strafe(dev_pos(0), travel_ol_client, r, chassis_done_ptr);
           dev_pos(0) = 0; // TODO: this is a very strong assumption!
         }
 
@@ -356,21 +389,30 @@ int main(int argc, char** argv) {
           ROS_INFO("Commanded arm to spin spigot valve");
         } else {
           ROS_ERROR("Failed to command arm to spin spigot valve");
-          return 1;
         }
-        wait_for_completion(r, arm_done_ptr);
+        spin_until_completion(r, arm_done_ptr);
       } else if (tokens[0] == "V2") {
         // Query device
         if (query_wheel_client.call(query_wheel_srv)) {
           ROS_INFO("Queried wheel");
         } else {
           ROS_ERROR("Failed to query wheel");
-          return 1;
         }
 
-        if (!query_wheel_srv.response.state.visible) {
+        double strafe_disp = -0.2;
+        while (!query_wheel_srv.response.state.visible) {
           cout << "Couldn't find wheel valve" << endl;
-          return 1; // TODO: don't return 
+          // Keep strafing back and forth until we find it
+          if (do_locomotion) {
+            minor_strafe(strafe_disp, travel_ol_client, r, chassis_done_ptr);
+            strafe_disp = -strafe_disp;
+          }
+
+          if (query_wheel_client.call(query_wheel_srv)) {
+            ROS_INFO("Successfully queried wheel");
+          } else {
+            ROS_ERROR("Failed to query wheel");
+          }
         }
 
         // Transform position into arm frame
@@ -380,18 +422,7 @@ int main(int argc, char** argv) {
         dev_pos = R_cam_arm*dev_pos + t_cam_arm;
 
         if (do_locomotion) {
-          // Move chassis so that the arm is in front of the device
-          travel_ol_srv.request.delta_x = dev_pos(0);
-          travel_ol_srv.request.delta_y = 0;
-          travel_ol_srv.request.delta_theta = 0;
-
-          if (travel_ol_client.call(travel_ol_srv)) {
-            ROS_INFO("Commanded chassis to center arm with device");
-          } else {
-            ROS_ERROR("Failed to command chassis to center arm with device");
-            return 1;
-          }
-          wait_for_completion(r, chassis_done_ptr);
+          minor_strafe(dev_pos(0), travel_ol_client, r, chassis_done_ptr);
           dev_pos(0) = 0; // TODO: this is a very strong assumption!
         }
 
@@ -405,21 +436,31 @@ int main(int argc, char** argv) {
           ROS_INFO("Commanded arm to spin wheel valve");
         } else {
           ROS_ERROR("Failed to command arm to spin wheel valve");
-          return 1;
         }
-        wait_for_completion(r, arm_done_ptr);
+        spin_until_completion(r, arm_done_ptr);
       } else if (tokens[0] == "V3") {
         // Query device
         if (query_shuttlecock_client.call(query_shuttlecock_srv)) {
           ROS_INFO("Successfully queried shuttlecock");
         } else {
           ROS_ERROR("Failed to query shuttlecock");
-          return 1;
         }
 
-        if (!query_shuttlecock_srv.response.state.visible) {
+        double strafe_disp = -0.2;
+        while (!query_shuttlecock_srv.response.state.visible) {
           cout << "Couldn't find shuttlecock valve" << endl;
-          return 1; // TODO: don't return 
+
+          // Keep strafing back and forth until we find it
+          if (do_locomotion) {
+            minor_strafe(strafe_disp, travel_ol_client, r, chassis_done_ptr);
+            strafe_disp = -strafe_disp;
+          }
+
+          if (query_shuttlecock_client.call(query_shuttlecock_srv)) {
+            ROS_INFO("Successfully queried shuttlecock");
+          } else {
+            ROS_ERROR("Failed to query shuttlecock");
+          }
         }
 
         if (tokens[1] == "0" && query_shuttlecock_srv.response.state.open) {
@@ -434,18 +475,7 @@ int main(int argc, char** argv) {
           dev_pos = R_cam_arm*dev_pos + t_cam_arm;
 
           if (do_locomotion) {
-            // Move chassis so that the arm is in front of the device
-            travel_ol_srv.request.delta_x = dev_pos(0);
-            travel_ol_srv.request.delta_y = 0;
-            travel_ol_srv.request.delta_theta = 0;
-
-            if (travel_ol_client.call(travel_ol_srv)) {
-              ROS_INFO("Commanded chassis to center arm with device");
-            } else {
-              ROS_ERROR("Failed to command chassis to center arm with device");
-              return 1;
-            }
-            wait_for_completion(r, chassis_done_ptr);
+            minor_strafe(dev_pos(0), travel_ol_client, r, chassis_done_ptr);
             dev_pos(0) = 0; // TODO: this is a very strong assumption!
           }
 
@@ -460,9 +490,8 @@ int main(int argc, char** argv) {
             ROS_INFO("Commanded arm to spin shuttlecock valve");
           } else {
             ROS_ERROR("Failed to command arm to spin shuttlecock valve");
-            return 1;
           }
-          wait_for_completion(r, arm_done_ptr);
+          spin_until_completion(r, arm_done_ptr);
         }
       } else if (tokens[0] == "A" || tokens[0] == "B") {
         // Query device
@@ -470,20 +499,34 @@ int main(int argc, char** argv) {
           ROS_INFO("Successfully queried breaker");
         } else {
           ROS_ERROR("Failed to query breaker");
-          return 1;
         }
 
-        if (!query_breaker_srv.response.state1.visible) {
-          cout << "Couldn't find middle breaker switch" << endl;
-          return 1; // TODO: don't return 
-        }
-        if (!query_breaker_srv.response.state2.visible) {
-          cout << "Couldn't find middle breaker switch" << endl;
-          return 1; // TODO: don't return 
-        }
-        if (!query_breaker_srv.response.state3.visible) {
-          cout << "Couldn't find rightmost breaker switch" << endl;
-          return 1; // TODO: don't return 
+        double strafe_disp = -0.2;
+        while (!query_breaker_srv.response.state1.visible ||
+               !query_breaker_srv.response.state2.visible ||
+               !query_breaker_srv.response.state3.visible) {
+
+          if (!query_breaker_srv.response.state1.visible) {
+            cout << "Couldn't find leftmost breaker switch" << endl;
+          }
+          if (!query_breaker_srv.response.state2.visible) {
+            cout << "Couldn't find middle breaker switch" << endl;
+          }
+          if (!query_breaker_srv.response.state3.visible) {
+            cout << "Couldn't find rightmost breaker switch" << endl;
+          }
+
+          // Keep strafing back and forth until we find it
+          if (do_locomotion) {
+            minor_strafe(strafe_disp, travel_ol_client, r, chassis_done_ptr);
+            strafe_disp = -strafe_disp;
+          }
+
+          if (query_breaker_client.call(query_breaker_srv)) {
+            ROS_INFO("Successfully queried breaker");
+          } else {
+            ROS_ERROR("Failed to query breaker");
+          }
         }
 
         shipbot_ros::SwitchState state;
@@ -507,18 +550,7 @@ int main(int argc, char** argv) {
           dev_pos = R_cam_arm*dev_pos + t_cam_arm;
 
           if (do_locomotion) {
-            // Move chassis so that the arm is in front of the device
-            travel_ol_srv.request.delta_x = dev_pos(0);
-            travel_ol_srv.request.delta_y = 0;
-            travel_ol_srv.request.delta_theta = 0;
-
-            if (travel_ol_client.call(travel_ol_srv)) {
-              ROS_INFO("Commanded chassis to center arm with device");
-            } else {
-              ROS_ERROR("Failed to command chassis to center arm with device");
-              return 1;
-            }
-            wait_for_completion(r, chassis_done_ptr);
+            minor_strafe(dev_pos(0), travel_ol_client, r, chassis_done_ptr);
             dev_pos(0) = 0; // TODO: this is a very strong assumption!
           }
 
@@ -532,9 +564,8 @@ int main(int argc, char** argv) {
             ROS_INFO("Commanded arm to switch a breaker switch");
           } else {
             ROS_ERROR("Failed to command arm to switch a breaker switch");
-            return 1;
           }
-          wait_for_completion(r, arm_done_ptr);
+          spin_until_completion(r, arm_done_ptr);
         }
       }
 
@@ -543,9 +574,8 @@ int main(int argc, char** argv) {
         ROS_INFO("Commanded arm to reset");
       } else {
         ROS_ERROR("Failed to command arm to reset");
-        return 1;
       }
-      wait_for_completion(r, arm_done_ptr);
+      spin_until_completion(r, arm_done_ptr);
     }
   }  
 }
