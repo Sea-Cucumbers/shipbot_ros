@@ -403,7 +403,7 @@ int main(int argc, char** argv) {
           spin_shuttlecock_srv.request.position.y = dev_pos(1);
           spin_shuttlecock_srv.request.position.z = dev_pos(2);
           spin_shuttlecock_srv.request.vertical_spin_axis = query_shuttlecock_srv.response.state.vertical;
-          // TODO: other shuttlecock stuff
+          spin_shuttlecock_srv.request.do_open = tokens[1] == "0";
 
           if (spin_shuttlecock_client.call(spin_shuttlecock_srv)) {
             ROS_INFO("Commanded arm to spin shuttlecock valve");
