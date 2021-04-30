@@ -4,12 +4,14 @@ import serial
 import rospy
 from shipbot_ros.msg import ChassisFeedback
 from shipbot_ros.msg import ChassisCommand
+from std_msgs.msg import Bool
 import threading
 
 lock = threading.Lock()
 cmd_vx = 0
 cmd_vy = 0
 cmd_w = 0
+grip = 0
 # vx and vy should be in inches per second
 def command_callback(msg):
   global cmd_vx
@@ -25,6 +27,13 @@ def command_callback(msg):
   cmd_w = round(msg.w, 2)
   lock.release()
 
+def grip_callback(msg):
+  global grip
+
+  lock.acquire()
+  grip = int(msg.data)
+  lock.release()
+
 rospy.init_node('mcu_interface_node', anonymous=True)
 mcu = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
 
@@ -33,6 +42,7 @@ chassis_msg = ChassisFeedback()
 chassis_msg.tofs = [2, 2, 2, 2]
 
 cmd_sub = rospy.Subscriber('/shipbot/chassis_command', ChassisCommand, command_callback)
+grip_sub = rospy.Subscriber('/shipbot/grip', Bool, grip_callback)
 
 # Each line of data should be "yaw dist0 dist1 dist2 dist3\n"
 rospy.sleep(1)
@@ -60,7 +70,7 @@ while not rospy.is_shutdown():
       print('No data')
 
     lock.acquire()
-    mcu.write('<' + str(cmd_vx) + ' ' + str(cmd_vy) + ' ' + str(cmd_w) + '>')
+    mcu.write('<' + str(cmd_vx) + ' ' + str(cmd_vy) + ' ' + str(cmd_w) + ' ' + str(grip) + '>')
     lock.release()
 
     rate.sleep()
