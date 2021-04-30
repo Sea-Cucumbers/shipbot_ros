@@ -218,7 +218,7 @@ int main(int argc, char** argv) {
   shared_ptr<ControlStatus> status = make_shared<ControlStatus>(STOP);
 
   ros::ServiceServer travel_cl_service = nh.advertiseService<shipbot_ros::TravelCL::Request, shipbot_ros::TravelCL::Response>("travel_cl", travel_cl(planner, state_ptr, status));
-  ros::ServiceServer travel_ol_service = nh.advertiseService<shipbot_ros::TravelOL::Request, shipbot_ros::TravelOL::Response>("travel_cl", travel_ol(planner, state_ptr, status));
+  ros::ServiceServer travel_ol_service = nh.advertiseService<shipbot_ros::TravelOL::Request, shipbot_ros::TravelOL::Response>("travel_ol", travel_ol(planner, state_ptr, status));
 
   shared_ptr<bool> start_localization = make_shared<bool>(false);
   shared_ptr<int> safe_direction = make_shared<int>(0);
@@ -229,7 +229,7 @@ int main(int argc, char** argv) {
   ros::Publisher cmd_pub = nh.advertise<shipbot_ros::ChassisCommand>("/shipbot/chassis_command", 1);
   shipbot_ros::ChassisCommand cmd_msg;
 
-  ros::ServiceClient done_client = nh.serviceClient<shipbot_ros::ChassisDone>("/mission_control/chassis_done");
+  ros::ServiceClient done_client = nh.serviceClient<shipbot_ros::ChassisDone>("/mission_control_node/chassis_done");
   shipbot_ros::ChassisDone done_srv;
 
   Vector3d kp = Vector3d::Ones(3);
@@ -288,27 +288,11 @@ int main(int argc, char** argv) {
         doing_localization = true;
       } else {
         double delta_t = t - loc_start_time;
-        if (delta_t < 4) {
-          cmd_msg.vx = loc_vx1;
-          cmd_msg.vy = loc_vy1;
-          cmd_msg.w = 0;
-        } else if (delta_t < 8) {
-          cmd_msg.vx = loc_vx2;
-          cmd_msg.vy = loc_vy2;
-          cmd_msg.w = 0;
-        } else if (delta_t < 12) {
-          cmd_msg.vx = loc_vx1;
-          cmd_msg.vy = loc_vy1;
-          cmd_msg.w = 0;
-        } else if (delta_t < 16) {
-          cmd_msg.vx = loc_vx2;
-          cmd_msg.vy = loc_vy2;
-          cmd_msg.w = 0;
-        } else if (delta_t < 24) {
+        if (delta_t < 8) {
           cmd_msg.vx = 0;
           cmd_msg.vy = 0;
           cmd_msg.w = M_PI/8;
-        } else if (delta_t < 32) {
+        } else if (delta_t < 16) {
           cmd_msg.vx = 0;
           cmd_msg.vy = 0;
           cmd_msg.w = -M_PI/8;
@@ -319,7 +303,7 @@ int main(int argc, char** argv) {
           doing_localization = false;
           *status = STOP;
 
-          //done_client.call(done_srv);
+          done_client.call(done_srv);
         }
       }
     } else if (*status == CL) {
@@ -329,7 +313,7 @@ int main(int argc, char** argv) {
       VectorXd err = planner->error(*state_ptr, des_state);
       if (t >= planner->get_end_time() && err.head<2>().norm() < 0.02 && abs(err(2)) < 0.1) {
         *status = STOP;
-        //done_client.call(done_srv);
+        done_client.call(done_srv);
       }
 
       VectorXd cmd_vel = des_vel + kp.cwiseProduct(err);
@@ -351,7 +335,7 @@ int main(int argc, char** argv) {
 
       if (t >= planner->get_end_time()) {
         *status = STOP;
-        //done_client.call(done_srv);
+        done_client.call(done_srv);
       }
     }
     cmd_pub.publish(cmd_msg);

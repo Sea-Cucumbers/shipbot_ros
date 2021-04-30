@@ -13,7 +13,8 @@
 #include "shipbot_ros/QueryShuttlecock.h"
 #include "shipbot_ros/QueryBreaker.h"
 #include "shipbot_ros/InitialLocalization.h"
-#include "shipbot_ros/Travel.h"
+#include "shipbot_ros/TravelCL.h"
+#include "shipbot_ros/TravelOL.h"
 #include "shipbot_ros/StopChassis.h"
 #include "shipbot_ros/ChassisDone.h"
 #include "shipbot_ros/ArmDone.h"
@@ -172,7 +173,8 @@ int main(int argc, char** argv) {
   if (do_locomotion) {
     // Wait for chassis services
     ros::service::waitForService("/chassis_control_node/stop_chassis", -1);
-    ros::service::waitForService("/chassis_control_node/travel", -1);
+    ros::service::waitForService("/chassis_control_node/travel_cl", -1);
+    ros::service::waitForService("/chassis_control_node/travel_ol", -1);
     ros::service::waitForService("/chassis_control_node/localize", -1);
   }
 
@@ -198,11 +200,13 @@ int main(int argc, char** argv) {
 
   // Initialize chassis service clients and srvs
   ros::ServiceClient stop_chassis_client = nh.serviceClient<shipbot_ros::StopChassis>("/chassis_control_node/stop_chassis");
-  ros::ServiceClient travel_client = nh.serviceClient<shipbot_ros::Travel>("/chassis_control_node/travel");
+  ros::ServiceClient travel_cl_client = nh.serviceClient<shipbot_ros::TravelCL>("/chassis_control_node/travel_cl");
+  ros::ServiceClient travel_ol_client = nh.serviceClient<shipbot_ros::TravelOL>("/chassis_control_node/travel_ol");
   ros::ServiceClient localize_client = nh.serviceClient<shipbot_ros::InitialLocalization>("/chassis_control_node/localize");
 
   shipbot_ros::StopChassis stop_chassis_srv;
-  shipbot_ros::Travel travel_srv;
+  shipbot_ros::TravelCL travel_cl_srv;
+  shipbot_ros::TravelOL travel_ol_srv;
   shipbot_ros::InitialLocalization localize_srv;
 
   // Advertise services for the chassis and arm to call when they're done whatever they're doing
@@ -229,6 +233,9 @@ int main(int argc, char** argv) {
   }
   
   if (do_locomotion) {
+    // Wait for localization to initialize
+    wait_for_completion(r, chassis_done_ptr);
+
     // Localize
     if (localize_client.call(localize_srv)) {
       ROS_INFO("Commanded chassis to perform localization routine");
@@ -282,10 +289,10 @@ int main(int argc, char** argv) {
           break;
       }
 
-      travel_srv.request.x = station_loc[0];
-      travel_srv.request.y = station_loc[1];
-      travel_srv.request.theta = station_theta;
-      if (travel_client.call(travel_srv)) {
+      travel_cl_srv.request.x = station_loc[0];
+      travel_cl_srv.request.y = station_loc[1];
+      travel_cl_srv.request.theta = station_theta;
+      if (travel_cl_client.call(travel_cl_srv)) {
         ROS_INFO("Commanded chassis to travel to station");
       } else {
         ROS_ERROR("Failed to command chassis to travel to station");

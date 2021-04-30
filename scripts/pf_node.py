@@ -5,6 +5,7 @@ import rospy
 from shipbot_ros.msg import ChassisFeedback
 from shipbot_ros.msg import ChassisState
 from shipbot_ros.msg import ChassisCommand
+from shipbot_ros.srv import ChassisDone
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
 from geometry_msgs.msg import TransformStamped
@@ -85,21 +86,6 @@ command_sub = rospy.Subscriber('/shipbot/chassis_command', ChassisCommand, comma
 state_pub = rospy.Publisher('/shipbot/chassis_state', ChassisState, queue_size=1)
 state_msg = ChassisState()
 
-br = tf2_ros.TransformBroadcaster()
-robot_tf = TransformStamped()
-
-robot_tf.header.stamp = rospy.Time.now()
-robot_tf.header.frame_id = 'world'
-robot_tf.child_frame_id = 'shipbot'
-robot_tf.transform.translation.x = 0
-robot_tf.transform.translation.y = 0
-robot_tf.transform.translation.z = 0
-robot_tf.transform.rotation.x = 0
-robot_tf.transform.rotation.y = 0
-robot_tf.transform.rotation.z = 0
-robot_tf.transform.rotation.w = 1
-br.sendTransform(robot_tf)
-
 maxx = 1.524
 maxy = 0.9144
 
@@ -119,6 +105,23 @@ prev_yaw = 0
 
 queue = Queue.Queue()
 pf_thread = threading.Thread(target=dummy)
+
+# Only needed for rviz
+'''
+br = tf2_ros.TransformBroadcaster()
+robot_tf = TransformStamped()
+
+robot_tf.header.stamp = rospy.Time.now()
+robot_tf.header.frame_id = 'world'
+robot_tf.child_frame_id = 'shipbot'
+robot_tf.transform.translation.x = 0
+robot_tf.transform.translation.y = 0
+robot_tf.transform.translation.z = 0
+robot_tf.transform.rotation.x = 0
+robot_tf.transform.rotation.y = 0
+robot_tf.transform.rotation.z = 0
+robot_tf.transform.rotation.w = 1
+br.sendTransform(robot_tf)
 
 particle_marker = Marker()
 particle_marker.header.frame_id = 'world'
@@ -158,6 +161,11 @@ guiderail_marker.color.b = 0
 guiderail_marker.color.a = 1
 guiderail_pub = rospy.Publisher('/shipbot/guiderail', Marker, queue_size=1)
 guiderail_marker.points = [Point(1.524, 0, 0), Point(0, 0, 0), Point(0, 0, 0), Point(0, 0.9144, 0)]
+'''
+
+print('Waiting for mission control node')
+rospy.wait_for_service('/mission_control_node/chassis_done')
+chassis_done_client = rospy.ServiceProxy('/mission_control_node/chassis_done', ChassisDone)
 
 rate = rospy.Rate(10) # 10 Hz
 while not rospy.is_shutdown():
@@ -189,6 +197,7 @@ while not rospy.is_shutdown():
       initialized = True
       prev_t = t
       prev_yaw = ardu_yaw
+      chassis_done_client()
       lock.release()
       continue
 
@@ -219,6 +228,8 @@ while not rospy.is_shutdown():
       prev_t = t
       prev_yaw = ardu_yaw
 
+      # Only needed for rviz
+      '''
       particle_marker.points = [Point(particles[0, p], particles[1, p], 0) for p in range(particles.shape[1])]
       particle_marker.header.stamp = rospy.Time().now()
       particle_marker_pub.publish(particle_marker)
@@ -230,6 +241,7 @@ while not rospy.is_shutdown():
       robot_tf.transform.rotation.w = np.cos(state[2]/2)
       robot_tf.header.stamp = rospy.Time.now()
       br.sendTransform(robot_tf)
+      '''
 
     lock.release()
 
