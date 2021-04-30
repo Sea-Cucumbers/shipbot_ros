@@ -15,6 +15,7 @@ KDHelper::KDHelper(const string &urdf_file) {
   model_data = make_unique<pin::Data>(model);
 
   config = pin::neutral(model);
+  // This is to account for the fact that joint 0 = PI at neutral
   config(0) = -1;
   config(1) = 0;
   vel = VectorXd::Zero(model.nv);
