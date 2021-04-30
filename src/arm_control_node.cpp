@@ -1,6 +1,7 @@
 #include "kdHelper.h"
 #include <ros/ros.h>
 #include <std_msgs/Float64.h>
+#include <std_msgs/Bool.h>
 #include <sensor_msgs/JointState.h>
 #include <iostream>
 #include <vector>
@@ -122,9 +123,8 @@ class spin_shuttlecock {
                       shipbot_ros::SpinShuttlecock::Response &res) {
       planner->spin_shuttlecock(*task_space_config,
                                 Vector3d(req.position.x, req.position.y, req.position.z),
-                                Vector3d(req.handle_end.x, req.handle_end.y, req.handle_end.z),
                                 req.vertical_spin_axis,
-                                req.clockwise,
+                                req.do_open,
                                 ros::Time::now().toSec() - start_time);
       planner->sample_points(marker.points);
       called_done = false;
@@ -269,6 +269,10 @@ int main(int argc, char** argv) {
   shipbot_ros::ArmDone done_srv;
   called_done = true;
 
+  ros::Publisher grip_pub = nh.advertise<std_msgs::Bool>("/shipbot/grip", 1);
+  std_msgs::Bool grip_msg;
+  grip_msg.data = false;
+
   start_time = ros::Time::now().toSec();
 
   ros::Rate r(rate);
@@ -289,7 +293,9 @@ int main(int argc, char** argv) {
     double t = ros::Time::now().toSec() - start_time;
 
     if (planner->planned()) {
-      VectorXd task_config = planner->eval(t);
+      bool grip = false;
+      VectorXd task_config = planner->eval(t, grip);
+      grip_msg.data = grip;
       VectorXd task_vel = planner->deriv1(t);
       VectorXd task_acc = planner->deriv2(t);
 
@@ -326,6 +332,8 @@ int main(int argc, char** argv) {
         }
       }
     }
+
+    grip_pub.publish(grip_msg);
 
     //cout << position/0.0254 << endl << endl << endl;
     pose.transform.translation.x = position(0);

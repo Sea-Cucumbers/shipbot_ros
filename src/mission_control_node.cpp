@@ -307,40 +307,7 @@ int main(int argc, char** argv) {
     string_split(tokens, rest, " ");
 
     if (do_manipulation) {
-      if (tokens[0] == "V2") {
-        // Query device
-        if (query_wheel_client.call(query_wheel_srv)) {
-          ROS_INFO("Queried wheel");
-        } else {
-          ROS_ERROR("Failed to query wheel");
-          return 1;
-        }
-
-        if (!query_wheel_srv.response.state.visible) {
-          cout << "Couldn't find wheel valve" << endl;
-          return 1; // TODO: don't return 
-        }
-
-        // Transform position into arm frame
-        Vector3d dev_pos(query_wheel_srv.response.state.position.x,
-                         query_wheel_srv.response.state.position.y,
-                         query_wheel_srv.response.state.position.z);
-        dev_pos = R_cam_arm*dev_pos + t_cam_arm;
-
-        // Command arm
-        spin_rotary_srv.request.position.x = dev_pos(0);
-        spin_rotary_srv.request.position.y = dev_pos(1);
-        spin_rotary_srv.request.position.z = dev_pos(2);
-        spin_rotary_srv.request.vertical_spin_axis = false;
-        spin_rotary_srv.request.degrees = stoi(tokens[1]);
-        if (spin_rotary_client.call(spin_rotary_srv)) {
-          ROS_INFO("Commanded arm to spin wheel valve");
-        } else {
-          ROS_ERROR("Failed to command arm to spin wheel valve");
-          return 1;
-        }
-        wait_for_completion(r, arm_done_ptr);
-      } else if (tokens[0] == "V1") {
+      if (tokens[0] == "V1") {
         // Query device
         if (query_spigot_client.call(query_spigot_srv)) {
           ROS_INFO("Successfully queried spigot");
@@ -373,6 +340,39 @@ int main(int argc, char** argv) {
           return 1;
         }
         wait_for_completion(r, arm_done_ptr);
+      } else if (tokens[0] == "V2") {
+        // Query device
+        if (query_wheel_client.call(query_wheel_srv)) {
+          ROS_INFO("Queried wheel");
+        } else {
+          ROS_ERROR("Failed to query wheel");
+          return 1;
+        }
+
+        if (!query_wheel_srv.response.state.visible) {
+          cout << "Couldn't find wheel valve" << endl;
+          return 1; // TODO: don't return 
+        }
+
+        // Transform position into arm frame
+        Vector3d dev_pos(query_wheel_srv.response.state.position.x,
+                         query_wheel_srv.response.state.position.y,
+                         query_wheel_srv.response.state.position.z);
+        dev_pos = R_cam_arm*dev_pos + t_cam_arm;
+
+        // Command arm
+        spin_rotary_srv.request.position.x = dev_pos(0);
+        spin_rotary_srv.request.position.y = dev_pos(1);
+        spin_rotary_srv.request.position.z = dev_pos(2);
+        spin_rotary_srv.request.vertical_spin_axis = false;
+        spin_rotary_srv.request.degrees = stoi(tokens[1]);
+        if (spin_rotary_client.call(spin_rotary_srv)) {
+          ROS_INFO("Commanded arm to spin wheel valve");
+        } else {
+          ROS_ERROR("Failed to command arm to spin wheel valve");
+          return 1;
+        }
+        wait_for_completion(r, arm_done_ptr);
       } else if (tokens[0] == "V3") {
         // Query device
         if (query_shuttlecock_client.call(query_shuttlecock_srv)) {
@@ -389,36 +389,30 @@ int main(int argc, char** argv) {
 
         if (tokens[1] == "0" && query_shuttlecock_srv.response.state.open) {
           cout << "Shuttlecock already open, doing nothing" << endl;
-          return 0; // TODO: don't return 
-        }
-        if (tokens[1] == "1" && !query_shuttlecock_srv.response.state.open) {
+        } else if (tokens[1] == "1" && !query_shuttlecock_srv.response.state.open) {
           cout << "Shuttlecock already closed, doing nothing" << endl;
-          return 0; // TODO: don't return 
-        }
-
-        // Transform position into arm frame
-        Vector3d dev_pos(query_shuttlecock_srv.response.state.position.x,
-                         query_shuttlecock_srv.response.state.position.y,
-                         query_shuttlecock_srv.response.state.position.z);
-        dev_pos = R_cam_arm*dev_pos + t_cam_arm;
-
-        cout << "Shuttlecock isn't fully implemented so we're returning" << endl;
-        return 0; // TODO: don't return 
-
-        // Command arm
-        spin_shuttlecock_srv.request.position.x = dev_pos(0);
-        spin_shuttlecock_srv.request.position.y = dev_pos(1);
-        spin_shuttlecock_srv.request.position.z = dev_pos(2);
-        spin_shuttlecock_srv.request.vertical_spin_axis = query_shuttlecock_srv.response.state.vertical;
-        // TODO: other shuttlecock stuff
-
-        if (spin_shuttlecock_client.call(spin_shuttlecock_srv)) {
-          ROS_INFO("Commanded arm to spin shuttlecock valve");
         } else {
-          ROS_ERROR("Failed to command arm to spin shuttlecock valve");
-          return 1;
+          // Transform position into arm frame
+          Vector3d dev_pos(query_shuttlecock_srv.response.state.position.x,
+                           query_shuttlecock_srv.response.state.position.y,
+                           query_shuttlecock_srv.response.state.position.z);
+          dev_pos = R_cam_arm*dev_pos + t_cam_arm;
+
+          // Command arm
+          spin_shuttlecock_srv.request.position.x = dev_pos(0);
+          spin_shuttlecock_srv.request.position.y = dev_pos(1);
+          spin_shuttlecock_srv.request.position.z = dev_pos(2);
+          spin_shuttlecock_srv.request.vertical_spin_axis = query_shuttlecock_srv.response.state.vertical;
+          // TODO: other shuttlecock stuff
+
+          if (spin_shuttlecock_client.call(spin_shuttlecock_srv)) {
+            ROS_INFO("Commanded arm to spin shuttlecock valve");
+          } else {
+            ROS_ERROR("Failed to command arm to spin shuttlecock valve");
+            return 1;
+          }
+          wait_for_completion(r, arm_done_ptr);
         }
-        wait_for_completion(r, arm_done_ptr);
       } else if (tokens[0] == "A" || tokens[0] == "B") {
         // Query device
         if (query_breaker_client.call(query_breaker_srv)) {
@@ -452,32 +446,29 @@ int main(int argc, char** argv) {
 
         if (tokens[2] == "U" && state.up) {
           cout << "Switch already up, doing nothing" << endl;
-          return 0; // TODO: don't return 
-        }
-        if (tokens[2] == "D" && !state.up) {
+        } else if (tokens[2] == "D" && !state.up) {
           cout << "Switch already down, doing nothing" << endl;
-          return 0; // TODO: don't return 
-        }
-
-        // Transform position into arm frame
-        Vector3d dev_pos(state.position.x,
-                         state.position.y,
-                         state.position.z);
-        dev_pos = R_cam_arm*dev_pos + t_cam_arm;
-
-        // Command arm
-        switch_breaker_srv.request.position.x = dev_pos(0);
-        switch_breaker_srv.request.position.y = dev_pos(1);
-        switch_breaker_srv.request.position.z = dev_pos(2);
-        switch_breaker_srv.request.push_up = tokens[2] == "U";
-
-        if (switch_breaker_client.call(switch_breaker_srv)) {
-          ROS_INFO("Commanded arm to switch a breaker switch");
         } else {
-          ROS_ERROR("Failed to command arm to switch a breaker switch");
-          return 1;
+          // Transform position into arm frame
+          Vector3d dev_pos(state.position.x,
+                           state.position.y,
+                           state.position.z);
+          dev_pos = R_cam_arm*dev_pos + t_cam_arm;
+
+          // Command arm
+          switch_breaker_srv.request.position.x = dev_pos(0);
+          switch_breaker_srv.request.position.y = dev_pos(1);
+          switch_breaker_srv.request.position.z = dev_pos(2);
+          switch_breaker_srv.request.push_up = tokens[2] == "U";
+
+          if (switch_breaker_client.call(switch_breaker_srv)) {
+            ROS_INFO("Commanded arm to switch a breaker switch");
+          } else {
+            ROS_ERROR("Failed to command arm to switch a breaker switch");
+            return 1;
+          }
+          wait_for_completion(r, arm_done_ptr);
         }
-        wait_for_completion(r, arm_done_ptr);
       }
 
       // Reset the arm

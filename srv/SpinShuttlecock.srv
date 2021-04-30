@@ -1,6 +1,5 @@
 geometry_msgs/Vector3 position # Position of center
-geometry_msgs/Vector3 handle_end # Position of end of handle
 bool vertical_spin_axis # If not, we assume the spin axis is horizontal
-bool clockwise # If not, we assume we're spinning it counterclockwise
+bool do_open # If not, we assume we're closing it
 ---
 int8 no_response

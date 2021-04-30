@@ -11,7 +11,7 @@ using namespace std;
  */
 class ArmPlanner {
   private:
-    vector<MinJerkInterpolator> segments;
+    vector<pair<bool, MinJerkInterpolator>> segments;
     const double seconds_per_meter;
     const double seconds_per_degree;
 
@@ -20,11 +20,14 @@ class ArmPlanner {
     // before pushing a breaker switch?
     const double pause_dist = 0.1; 
 
+    // How long do we wait for the jammer to grip/ungrip
+    const double grip_wait = 3;
+
     const double shuttlecock_length = 0.08174;
 
     VectorXd reset_config;
 
-    vector<MinJerkInterpolator>::iterator current_segment;
+    vector<pair<bool, MinJerkInterpolator>>::iterator current_segment;
 
     /*
      * retrieve_segment: populated current_segment with the segment
@@ -82,16 +85,14 @@ class ArmPlanner {
      * spin_shuttlecock: generate task-space motion plan to manipulate a shuttlecock valve
      * start: starting task-space configuration
      * position: position of valve center
-     * handle_end: postition of end of handle
      * vertical_spin_axis: if true, valve spin axis points up. Otherwise forward
-     * clockwise: if true, spin the valve 90 deg clockwise, otherwise counterclockwise
+     * do_open: if true, spin the valve 90 deg counterclockwise, otherwise clockwise
      * start_time: start time for trajectory
      */
     void spin_shuttlecock(const VectorXd &start,
                           const Vector3d &position, 
-                          const Vector3d &handle_end,
                           bool vertical_spin_axis,
-                          bool clockwise,
+                          bool do_open,
                           double start_time);
 
     /*
@@ -111,9 +112,10 @@ class ArmPlanner {
      * time bounds, this returns the configuration evaluated at the nearest time bound
      * ARGUMENTS
      * t: time to evaluate
+     * grip: populated with true if we're supposed to be gripping, false otherwise
      * RETURN: task state at time t
      */
-    VectorXd eval(double t);
+    VectorXd eval(double t, bool &grip);
 
     /*
      * deriv1: returns the desired task velocity at time t. If t is outside the
