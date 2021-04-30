@@ -155,6 +155,9 @@ int main(int argc, char** argv) {
     cout << *it << endl;
   }
 
+  double target_time = stod(commands.back());
+  commands.pop_back();
+
   if (do_manipulation) {
     // Wait for vision services
     ros::service::waitForService("/realsense_node/query_wheel", -1);
@@ -327,6 +330,22 @@ int main(int argc, char** argv) {
                          query_spigot_srv.response.state.position.z);
         dev_pos = R_cam_arm*dev_pos + t_cam_arm;
 
+        if (do_locomotion) {
+          // Move chassis so that the arm is in front of the device
+          travel_ol_srv.request.delta_x = dev_pos(0);
+          travel_ol_srv.request.delta_y = 0;
+          travel_ol_srv.request.delta_theta = 0;
+
+          if (travel_ol_client.call(travel_ol_srv)) {
+            ROS_INFO("Commanded chassis to center arm with device");
+          } else {
+            ROS_ERROR("Failed to command chassis to center arm with device");
+            return 1;
+          }
+          wait_for_completion(r, chassis_done_ptr);
+          dev_pos(0) = 0; // TODO: this is a very strong assumption!
+        }
+
         // Command arm
         spin_rotary_srv.request.position.x = dev_pos(0);
         spin_rotary_srv.request.position.y = dev_pos(1);
@@ -359,6 +378,22 @@ int main(int argc, char** argv) {
                          query_wheel_srv.response.state.position.y,
                          query_wheel_srv.response.state.position.z);
         dev_pos = R_cam_arm*dev_pos + t_cam_arm;
+
+        if (do_locomotion) {
+          // Move chassis so that the arm is in front of the device
+          travel_ol_srv.request.delta_x = dev_pos(0);
+          travel_ol_srv.request.delta_y = 0;
+          travel_ol_srv.request.delta_theta = 0;
+
+          if (travel_ol_client.call(travel_ol_srv)) {
+            ROS_INFO("Commanded chassis to center arm with device");
+          } else {
+            ROS_ERROR("Failed to command chassis to center arm with device");
+            return 1;
+          }
+          wait_for_completion(r, chassis_done_ptr);
+          dev_pos(0) = 0; // TODO: this is a very strong assumption!
+        }
 
         // Command arm
         spin_rotary_srv.request.position.x = dev_pos(0);
@@ -397,6 +432,22 @@ int main(int argc, char** argv) {
                            query_shuttlecock_srv.response.state.position.y,
                            query_shuttlecock_srv.response.state.position.z);
           dev_pos = R_cam_arm*dev_pos + t_cam_arm;
+
+          if (do_locomotion) {
+            // Move chassis so that the arm is in front of the device
+            travel_ol_srv.request.delta_x = dev_pos(0);
+            travel_ol_srv.request.delta_y = 0;
+            travel_ol_srv.request.delta_theta = 0;
+
+            if (travel_ol_client.call(travel_ol_srv)) {
+              ROS_INFO("Commanded chassis to center arm with device");
+            } else {
+              ROS_ERROR("Failed to command chassis to center arm with device");
+              return 1;
+            }
+            wait_for_completion(r, chassis_done_ptr);
+            dev_pos(0) = 0; // TODO: this is a very strong assumption!
+          }
 
           // Command arm
           spin_shuttlecock_srv.request.position.x = dev_pos(0);
@@ -454,6 +505,22 @@ int main(int argc, char** argv) {
                            state.position.y,
                            state.position.z);
           dev_pos = R_cam_arm*dev_pos + t_cam_arm;
+
+          if (do_locomotion) {
+            // Move chassis so that the arm is in front of the device
+            travel_ol_srv.request.delta_x = dev_pos(0);
+            travel_ol_srv.request.delta_y = 0;
+            travel_ol_srv.request.delta_theta = 0;
+
+            if (travel_ol_client.call(travel_ol_srv)) {
+              ROS_INFO("Commanded chassis to center arm with device");
+            } else {
+              ROS_ERROR("Failed to command chassis to center arm with device");
+              return 1;
+            }
+            wait_for_completion(r, chassis_done_ptr);
+            dev_pos(0) = 0; // TODO: this is a very strong assumption!
+          }
 
           // Command arm
           switch_breaker_srv.request.position.x = dev_pos(0);
