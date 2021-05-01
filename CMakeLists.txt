@@ -78,13 +78,9 @@ add_service_files(
   SpinRotary.srv
   SpinShuttlecock.srv
   SwitchBreaker.srv
-  ResetArm.srv
   TravelCL.srv
   TravelOL.srv
   InitialLocalization.srv
-  StopChassis.srv
-  ChassisDone.srv
-  ArmDone.srv
 )
 
 ## Generate actions in the 'action' folder

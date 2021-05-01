@@ -17,8 +17,7 @@
 #include "shipbot_ros/SpinRotary.h"
 #include "shipbot_ros/SpinShuttlecock.h"
 #include "shipbot_ros/SwitchBreaker.h"
-#include "shipbot_ros/ResetArm.h"
-#include "shipbot_ros/ArmDone.h"
+#include <std_srvs/Empty.h>
 
 using namespace std;
 
@@ -50,8 +49,8 @@ class reset_arm {
      * res: technically supposed to be populated with the response, but
      * the response isn't used
      */
-    bool operator () (shipbot_ros::ResetArm::Request &req,
-                      shipbot_ros::ResetArm::Response &res) {
+    bool operator () (std_srvs::Empty::Request &req,
+                      std_srvs::Empty::Response &res) {
       planner->reset_arm(*task_space_config,
                          ros::Time::now().toSec() - start_time);
       planner->sample_points(marker.points);
@@ -263,10 +262,10 @@ int main(int argc, char** argv) {
   ros::ServiceServer spin_rotary_service = nh.advertiseService<shipbot_ros::SpinRotary::Request, shipbot_ros::SpinRotary::Response>("spin_rotary", spin_rotary(planner, config_ptr));
   ros::ServiceServer spin_shuttlecock_service = nh.advertiseService<shipbot_ros::SpinShuttlecock::Request, shipbot_ros::SpinShuttlecock::Response>("spin_shuttlecock", spin_shuttlecock(planner, config_ptr));
   ros::ServiceServer switch_breaker_service = nh.advertiseService<shipbot_ros::SwitchBreaker::Request, shipbot_ros::SwitchBreaker::Response>("switch_breaker", switch_breaker(planner, config_ptr));
-  ros::ServiceServer reset_arm_service = nh.advertiseService<shipbot_ros::ResetArm::Request, shipbot_ros::ResetArm::Response>("reset_arm", reset_arm(planner, config_ptr));
+  ros::ServiceServer reset_arm_service = nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>("reset_arm", reset_arm(planner, config_ptr));
 
-  ros::ServiceClient done_client = nh.serviceClient<shipbot_ros::ArmDone>("/mission_control_node/arm_done");
-  shipbot_ros::ArmDone done_srv;
+  ros::ServiceClient done_client = nh.serviceClient<std_srvs::Empty>("/mission_control_node/arm_done");
+  std_srvs::Empty done_srv;
   called_done = true;
 
   ros::Publisher grip_pub = nh.advertise<std_msgs::Bool>("/shipbot/grip", 1);

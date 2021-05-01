@@ -5,7 +5,6 @@ import rospy
 from shipbot_ros.msg import ChassisFeedback
 from shipbot_ros.msg import ChassisState
 from shipbot_ros.msg import ChassisCommand
-from shipbot_ros.srv import ChassisDone
 from kf import *
 import threading
 import time
@@ -89,7 +88,7 @@ prev_yaw = 0
 
 print('Waiting for mission control node')
 rospy.wait_for_service('/mission_control_node/chassis_done')
-chassis_done_client = rospy.ServiceProxy('/mission_control_node/chassis_done', ChassisDone)
+chassis_done_client = rospy.ServiceProxy('/mission_control_node/chassis_done', Empty)
 
 rate = rospy.Rate(10) # 10 Hz
 while not rospy.is_shutdown():

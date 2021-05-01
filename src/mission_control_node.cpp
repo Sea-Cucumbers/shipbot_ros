@@ -7,7 +7,6 @@
 #include "shipbot_ros/SpinRotary.h"
 #include "shipbot_ros/SpinShuttlecock.h"
 #include "shipbot_ros/SwitchBreaker.h"
-#include "shipbot_ros/ResetArm.h"
 #include "shipbot_ros/QueryWheel.h"
 #include "shipbot_ros/QuerySpigot.h"
 #include "shipbot_ros/QueryShuttlecock.h"
@@ -15,10 +14,8 @@
 #include "shipbot_ros/InitialLocalization.h"
 #include "shipbot_ros/TravelCL.h"
 #include "shipbot_ros/TravelOL.h"
-#include "shipbot_ros/StopChassis.h"
-#include "shipbot_ros/ChassisDone.h"
-#include "shipbot_ros/ArmDone.h"
 #include "shipbot_ros/ChassisState.h"
+#include <std_srvs/Empty.h>
 #include <Eigen/Dense>
 
 using namespace std;
@@ -100,8 +97,8 @@ class chassis_done {
      * res: technically supposed to be populated with the response, but
      * the response isn't used
      */
-    bool operator () (shipbot_ros::ChassisDone::Request &req,
-                      shipbot_ros::ChassisDone::Response &res) {
+    bool operator () (std_srvs::Empty::Request &req,
+                      std_srvs::Empty::Response &res) {
       *done_ptr = true;
       return true;
     }
@@ -126,9 +123,35 @@ class arm_done {
      * res: technically supposed to be populated with the response, but
      * the response isn't used
      */
-    bool operator () (shipbot_ros::ArmDone::Request &req,
-                      shipbot_ros::ArmDone::Response &res) {
+    bool operator () (std_srvs::Empty::Request &req,
+                      std_srvs::Empty::Response &res) {
       *done_ptr = true;
+      return true;
+    }
+};
+
+class start_mission {
+  private:
+    shared_ptr<bool> start_ptr;
+
+  public:
+    /*
+     * start_mission: constructor
+     * ARGUMENTS
+     * _start_ptr: pointer to start variable
+     */
+     start_mission(shared_ptr<bool> _start_ptr) : start_ptr(_start_ptr) {}
+
+    /*
+     * operator (): realizes that we should start the mission
+     * ARGUMENTS
+     * req: request, not used
+     * res: technically supposed to be populated with the response, but
+     * the response isn't used
+     */
+    bool operator () (std_srvs::Empty::Request &req,
+                      std_srvs::Empty::Response &res) {
+      *start_ptr = true;
       return true;
     }
 };
@@ -136,6 +159,7 @@ class arm_done {
 int main(int argc, char** argv) {
   ros::init(argc, argv, "mission_control_node");
   ros::NodeHandle nh("~");
+  ros::Rate r(20);
 
   // While testing, we might only try manipulation, or only locomotion.
   // Figure out which ones we're doing
@@ -173,6 +197,11 @@ int main(int argc, char** argv) {
   nh.getParam("/locF", locF);
   nh.getParam("/locG", locG);
   nh.getParam("/locH", locH);
+
+  // This service starts the mission
+  shared_ptr<bool> start_ptr = make_shared<bool>(false);
+  ros::ServiceServer start_service = nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>("start_mission", start_mission(start_ptr));
+  spin_until_completion(r, start_ptr);
 
   // Read mission file
   string mission_file;
@@ -232,32 +261,29 @@ int main(int argc, char** argv) {
   ros::ServiceClient spin_rotary_client = nh.serviceClient<shipbot_ros::SpinRotary>("/arm_control_node/spin_rotary");
   ros::ServiceClient spin_shuttlecock_client = nh.serviceClient<shipbot_ros::SpinShuttlecock>("/arm_control_node/spin_shuttlecock");
   ros::ServiceClient switch_breaker_client = nh.serviceClient<shipbot_ros::SwitchBreaker>("/arm_control_node/switch_breaker");
-  ros::ServiceClient reset_arm_client = nh.serviceClient<shipbot_ros::ResetArm>("/arm_control_node/reset_arm");
+  ros::ServiceClient reset_arm_client = nh.serviceClient<std_srvs::Empty>("/arm_control_node/reset_arm");
   shipbot_ros::SpinRotary spin_rotary_srv;
   shipbot_ros::SpinShuttlecock spin_shuttlecock_srv;
   shipbot_ros::SwitchBreaker switch_breaker_srv;
-  shipbot_ros::ResetArm reset_arm_srv;
+  std_srvs::Empty reset_arm_srv;
 
   // Initialize chassis service clients and srvs
-  ros::ServiceClient stop_chassis_client = nh.serviceClient<shipbot_ros::StopChassis>("/chassis_control_node/stop_chassis");
+  ros::ServiceClient stop_chassis_client = nh.serviceClient<std_srvs::Empty>("/chassis_control_node/stop_chassis");
   ros::ServiceClient travel_cl_client = nh.serviceClient<shipbot_ros::TravelCL>("/chassis_control_node/travel_cl");
   ros::ServiceClient travel_ol_client = nh.serviceClient<shipbot_ros::TravelOL>("/chassis_control_node/travel_ol");
   ros::ServiceClient localize_client = nh.serviceClient<shipbot_ros::InitialLocalization>("/chassis_control_node/localize");
 
-  shipbot_ros::StopChassis stop_chassis_srv;
+  std_srvs::Empty stop_chassis_srv;
   shipbot_ros::TravelCL travel_cl_srv;
   shipbot_ros::TravelOL travel_ol_srv;
   shipbot_ros::InitialLocalization localize_srv;
 
   // Advertise services for the chassis and arm to call when they're done whatever they're doing
   shared_ptr<bool> chassis_done_ptr = make_shared<bool>(false);
-  ros::ServiceServer chassis_done_service = nh.advertiseService<shipbot_ros::ChassisDone::Request, shipbot_ros::ChassisDone::Response>("chassis_done", chassis_done(chassis_done_ptr));
+  ros::ServiceServer chassis_done_service = nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>("chassis_done", chassis_done(chassis_done_ptr));
 
   shared_ptr<bool> arm_done_ptr = make_shared<bool>(false);
-  ros::ServiceServer arm_done_service = nh.advertiseService<shipbot_ros::ArmDone::Request, shipbot_ros::ArmDone::Response>("arm_done", arm_done(arm_done_ptr));
-
-  // Phew, setup done
-  ros::Rate r(20);
+  ros::ServiceServer arm_done_service = nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>("arm_done", arm_done(arm_done_ptr));
 
   // INITIAL LOCALIZATION PHASE
 
@@ -578,5 +604,7 @@ int main(int argc, char** argv) {
       spin_until_completion(r, arm_done_ptr);
     }
   }  
+
+  ros::spin();
 }
 

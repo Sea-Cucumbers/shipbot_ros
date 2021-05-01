@@ -8,10 +8,9 @@
 #include "shipbot_ros/TravelOL.h"
 #include "shipbot_ros/InitialLocalization.h"
 #include "shipbot_ros/ChassisCommand.h"
-#include "shipbot_ros/StopChassis.h"
+#include "std_srvs/Empty.h"
 #include "se2Interpolator.h"
 #include <Eigen/Dense>
-#include "shipbot_ros/ChassisDone.h"
 
 using namespace std;
 using namespace Eigen;
@@ -40,8 +39,8 @@ class stop {
      * res: technically supposed to be populated with the response, but
      * the response isn't used
      */
-    bool operator () (shipbot_ros::StopChassis::Request &req,
-                      shipbot_ros::StopChassis::Response &res) {
+    bool operator () (std_srvs::Empty::Request &req,
+                      std_srvs::Empty::Response &res) {
       *status = STOP;
       return true;
     }
@@ -227,13 +226,13 @@ int main(int argc, char** argv) {
   shared_ptr<int> safe_direction = make_shared<int>(0);
   ros::ServiceServer initial_localization_service = nh.advertiseService<shipbot_ros::InitialLocalization::Request, shipbot_ros::InitialLocalization::Response>("localize", localize(status, safe_direction));
 
-  ros::ServiceServer stop_service = nh.advertiseService<shipbot_ros::StopChassis::Request, shipbot_ros::StopChassis::Response>("stop_chassis", stop(status));
+  ros::ServiceServer stop_service = nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>("stop_chassis", stop(status));
 
   ros::Publisher cmd_pub = nh.advertise<shipbot_ros::ChassisCommand>("/shipbot/chassis_command", 1);
   shipbot_ros::ChassisCommand cmd_msg;
 
-  ros::ServiceClient done_client = nh.serviceClient<shipbot_ros::ChassisDone>("/mission_control_node/chassis_done");
-  shipbot_ros::ChassisDone done_srv;
+  ros::ServiceClient done_client = nh.serviceClient<std_srvs::Empty>("/mission_control_node/chassis_done");
+  std_srvs::Empty done_srv;
 
   Vector3d kp = Vector3d::Ones(3);
   vector<double> kpv;
