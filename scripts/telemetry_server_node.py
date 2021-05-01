@@ -9,12 +9,11 @@ import threading
 rospy.init_node('telemetry_server_node', anonymous=True)
 
 # Initialize bluetooth
-hostMACAddress = bluetooth.read_local_bdaddr()[0] 
 port = 1
 backlog = 1
 size = 1024
 s = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-s.bind((hostMACAddress, port))
+s.bind(('', port))
 s.listen(backlog)
 
 x = 0
@@ -35,16 +34,20 @@ def state_callback(msg):
 
 state_sub = rospy.Subscriber('/shipbot/chassis_state', ChassisState, state_callback)
 
-print('Waiting for mission control node')
-rospy.wait_for_service('/mission_control_node/start_mission')
 start_mission_client = rospy.ServiceProxy('/mission_control_node/start_mission', Empty)
+data = None
 
 rate = rospy.Rate(50)
 try:
   client, clientInfo = s.accept()
+  client.setblocking(False)
 
   while not rospy.is_shutdown():
-    data = client.recv(size)
+    try: 
+      data = client.recv(size)
+    except:
+      data = None
+
     if data:
       data = data.decode('utf-8')
       if data == '<start>':
