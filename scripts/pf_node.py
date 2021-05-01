@@ -11,7 +11,6 @@ from geometry_msgs.msg import Point
 from geometry_msgs.msg import TransformStamped
 from pf import *
 import threading, Queue
-import time
 import tf2_ros
 
 robot_width = 0.1778

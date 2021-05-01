@@ -7,7 +7,6 @@ from shipbot_ros.msg import ChassisState
 from shipbot_ros.msg import ChassisCommand
 from kf import *
 import threading
-import time
 
 got_fbk = False 
 got_cmd = False 
