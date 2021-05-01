@@ -56,9 +56,9 @@ try:
     client.send('<' + str(x) + ' ' + str(y) + ' ' + str(theta) + '>')
     lock.release()
     rate.sleep()
-
 except Exception as err: 
   print(err)
+finally:
   print("Closing socket")
   client.close()
   s.close()
