@@ -1,6 +1,4 @@
 <launch>
-  <arg name="rvizconfig" default="$(find shipbot_ros)/rviz/arm.rviz" />
-  <node name="shipbot_rviz" pkg="rviz" type="rviz" args="-d $(arg rvizconfig)" required="true" />
   <node name="arm_control_node" pkg="shipbot_ros" type="arm_control_node" output="screen">
     <param name="urdf" value="$(find shipbot_urdf)/urdf/shipbot.urdf"/>
     <param name="seconds_per_meter" value="10"/>
