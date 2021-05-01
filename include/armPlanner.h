@@ -21,7 +21,7 @@ class ArmPlanner {
     const double pause_dist = 0.1; 
 
     // How long do we wait for the jammer to grip/ungrip
-    const double grip_wait = 3;
+    const double grip_wait = 5;
 
     const double shuttlecock_length = 0.08174;
 

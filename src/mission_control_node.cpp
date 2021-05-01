@@ -379,7 +379,7 @@ int main(int argc, char** argv) {
         }
 
         double strafe_disp = -0.2;
-        while (!query_spigot_srv.response.state.visible) {
+        while (!query_spigot_srv.response.state.visible && ros::ok()) {
           cout << "Couldn't find spigot valve" << endl;
           // Keep strafing back and forth until we find it
           if (do_locomotion) {
@@ -426,7 +426,7 @@ int main(int argc, char** argv) {
         }
 
         double strafe_disp = -0.2;
-        while (!query_wheel_srv.response.state.visible) {
+        while (!query_wheel_srv.response.state.visible && ros::ok()) {
           cout << "Couldn't find wheel valve" << endl;
           // Keep strafing back and forth until we find it
           if (do_locomotion) {
@@ -473,7 +473,7 @@ int main(int argc, char** argv) {
         }
 
         double strafe_disp = -0.2;
-        while (!query_shuttlecock_srv.response.state.visible) {
+        while (!query_shuttlecock_srv.response.state.visible && ros::ok()) {
           cout << "Couldn't find shuttlecock valve" << endl;
 
           // Keep strafing back and forth until we find it
@@ -528,9 +528,9 @@ int main(int argc, char** argv) {
         }
 
         double strafe_disp = -0.2;
-        while (!query_breaker_srv.response.state1.visible ||
-               !query_breaker_srv.response.state2.visible ||
-               !query_breaker_srv.response.state3.visible) {
+        while ((!query_breaker_srv.response.state1.visible ||
+                !query_breaker_srv.response.state2.visible ||
+                !query_breaker_srv.response.state3.visible) && ros::ok()) {
 
           if (!query_breaker_srv.response.state1.visible) {
             cout << "Couldn't find leftmost breaker switch" << endl;
