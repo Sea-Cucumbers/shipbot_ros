@@ -43,10 +43,13 @@ devices = filter_by_interface(objects, "org.bluez.Device1")
 bt_devices = []
 for device in devices:
   obj = proxyobj(bus, device, 'org.freedesktop.DBus.Properties')
-  bt_devices.append({
-      "alias": str(obj.Get("org.bluez.Device1", "Alias")),
-      "addr": str(obj.Get("org.bluez.Device1", "Address"))
-  })
+  try:
+    bt_devices.append({
+        "alias": str(obj.Get("org.bluez.Device1", "Alias")),
+        "addr": str(obj.Get("org.bluez.Device1", "Address"))
+    })
+  except:
+    pass
 
 sc_idx = 0
 for i, device in enumerate(bt_devices):
