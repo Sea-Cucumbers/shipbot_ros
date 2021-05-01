@@ -50,8 +50,7 @@ for device in devices:
 
 sc_idx = 0
 for i, device in enumerate(bt_devices):
-  #if device['name'] == 'sea-sucumber':
-  if device['alias'] == 'Anoop-Raspi':
+  if device['alias'] == 'sea-cucumber':
     sc_idx = i
     break
 
@@ -70,10 +69,18 @@ def handle_start(req):
   start = True
   lock.release()
 
+stop = False
+def handle_stop(req):
+  global stop
+  lock.acquire()
+  stop = True
+  lock.release()
+
 rospy.init_node('telemetry_client_node', anonymous=True)
 rate = rospy.Rate(50)
 
-start_server = rospy.Service('start', Empty, handle_start)
+start_server = rospy.Service('/telemetry_client_node/start', Empty, handle_start)
+stop_server = rospy.Service('/telemetry_client_node/stop', Empty, handle_stop)
 
 br = tf2_ros.TransformBroadcaster()
 robot_tf = TransformStamped()
@@ -117,6 +124,10 @@ try:
     if start:
       sock.send('<start>')
       start = False
+
+    if stop:
+      sock.send('<stop>')
+      stop = False
 
     data = sock.recv(1024)
     if data:

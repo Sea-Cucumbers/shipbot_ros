@@ -1,0 +1,8 @@
+<launch>
+  <arg name="rvizconfig" default="$(find shipbot_ros)/rviz/pf.rviz" />
+  <node name="telemetry_rviz" pkg="rviz" type="rviz" args="-d $(arg rvizconfig)" required="true" />
+  <node name="telemetry_client_node" pkg="shipbot_ros" type="telemetry_client_node.py" output="screen">
+  </node>
+  <node name="rqt_gui" pkg="rqt_gui" type="rqt_gui" args = "--perspective-file $(find shipbot_ros)/gui/telemetry.perspective">
+  </node>
+</launch>
