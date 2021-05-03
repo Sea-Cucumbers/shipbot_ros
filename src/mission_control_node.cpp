@@ -7,10 +7,12 @@
 #include "shipbot_ros/SpinRotary.h"
 #include "shipbot_ros/SpinShuttlecock.h"
 #include "shipbot_ros/SwitchBreaker.h"
-#include "shipbot_ros/QueryWheel.h"
-#include "shipbot_ros/QuerySpigot.h"
-#include "shipbot_ros/QueryShuttlecock.h"
-#include "shipbot_ros/QueryBreaker.h"
+#include "shipbot_ros/WheelState.h"
+#include "shipbot_ros/SpigotState.h"
+#include "shipbot_ros/BreakerState.h"
+#include "shipbot_ros/SwitchState.h"
+#include "shipbot_ros/ShuttlecockState.h"
+#include "shipbot_ros/FindDevice.h"
 #include "shipbot_ros/InitialLocalization.h"
 #include "shipbot_ros/TravelCL.h"
 #include "shipbot_ros/TravelOL.h"
@@ -156,6 +158,106 @@ class start_mission {
     }
 };
 
+/*
+ * handle_wheel: wheel state message handler
+ */
+class handle_wheel {
+  private:
+    shared_ptr<shipbot_ros::WheelState> state_ptr;
+
+  public:
+    /*
+     * handle_wheel: constructor
+     * ARGUMENTS
+     * _state_ptr: the pointer we should populate with the received message
+     */
+    handle_wheel(shared_ptr<shipbot_ros::WheelState> _state_ptr) : state_ptr(_state_ptr) {}
+
+    /*
+     * operator (): populate our message pointer with the received message
+     * ARGUMENTS
+     * msg_ptr: pointer to received message
+     */
+    void operator () (const shipbot_ros::WheelStateConstPtr &msg_ptr) {
+      *state_ptr = *msg_ptr;
+    }
+};
+
+/*
+ * handle_spigot: spigot state message handler
+ */
+class handle_spigot {
+  private:
+    shared_ptr<shipbot_ros::SpigotState> state_ptr;
+
+  public:
+    /*
+     * handle_spigot: constructor
+     * ARGUMENTS
+     * _state_ptr: the pointer we should populate with the received message
+     */
+    handle_spigot(shared_ptr<shipbot_ros::SpigotState> _state_ptr) : state_ptr(_state_ptr) {}
+
+    /*
+     * operator (): populate our message pointer with the received message
+     * ARGUMENTS
+     * msg_ptr: pointer to received message
+     */
+    void operator () (const shipbot_ros::SpigotStateConstPtr &msg_ptr) {
+      *state_ptr = *msg_ptr;
+    }
+};
+
+/*
+ * handle_breaker: breaker state message handler
+ */
+class handle_breaker {
+  private:
+    shared_ptr<shipbot_ros::BreakerState> state_ptr;
+
+  public:
+    /*
+     * handle_breaker: constructor
+     * ARGUMENTS
+     * _state_ptr: the pointer we should populate with the received message
+     */
+    handle_breaker(shared_ptr<shipbot_ros::BreakerState> _state_ptr) : state_ptr(_state_ptr) {}
+
+    /*
+     * operator (): populate our message pointer with the received message
+     * ARGUMENTS
+     * msg_ptr: pointer to received message
+     */
+    void operator () (const shipbot_ros::BreakerStateConstPtr &msg_ptr) {
+      *state_ptr = *msg_ptr;
+    }
+};
+
+/*
+ * handle_shuttlecock: shuttlecock state message handler
+ */
+class handle_shuttlecock {
+  private:
+    shared_ptr<shipbot_ros::ShuttlecockState> state_ptr;
+
+  public:
+    /*
+     * handle_shuttlecock: constructor
+     * ARGUMENTS
+     * _state_ptr: the pointer we should populate with the received message
+     */
+    handle_shuttlecock(shared_ptr<shipbot_ros::ShuttlecockState> _state_ptr) : state_ptr(_state_ptr) {}
+
+    /*
+     * operator (): populate our message pointer with the received message
+     * ARGUMENTS
+     * msg_ptr: pointer to received message
+     */
+    void operator () (const shipbot_ros::ShuttlecockStateConstPtr &msg_ptr) {
+      *state_ptr = *msg_ptr;
+    }
+};
+
 int main(int argc, char** argv) {
   ros::init(argc, argv, "mission_control_node");
   ros::NodeHandle nh("~");
@@ -226,10 +328,7 @@ int main(int argc, char** argv) {
 
   if (do_manipulation) {
     // Wait for vision services
-    ros::service::waitForService("/realsense_node/query_wheel", -1);
-    ros::service::waitForService("/realsense_node/query_spigot", -1);
-    ros::service::waitForService("/realsense_node/query_shuttlecock", -1);
-    ros::service::waitForService("/realsense_node/query_breaker", -1);
+    ros::service::waitForService("/realsense_node/find_device", -1);
 
     // Wait for arm services
     ros::service::waitForService("/arm_control_node/spin_rotary", -1);
@@ -248,14 +347,18 @@ int main(int argc, char** argv) {
   }
 
   // Initialize vision service clients and srvs
-  ros::ServiceClient query_wheel_client = nh.serviceClient<shipbot_ros::QueryWheel>("/realsense_node/query_wheel");
-  ros::ServiceClient query_spigot_client = nh.serviceClient<shipbot_ros::QuerySpigot>("/realsense_node/query_spigot");
-  ros::ServiceClient query_shuttlecock_client = nh.serviceClient<shipbot_ros::QueryShuttlecock>("/realsense_node/query_shuttlecock");
-  ros::ServiceClient query_breaker_client = nh.serviceClient<shipbot_ros::QueryBreaker>("/realsense_node/query_breaker");
-  shipbot_ros::QueryWheel query_wheel_srv;
-  shipbot_ros::QuerySpigot query_spigot_srv;
-  shipbot_ros::QueryShuttlecock query_shuttlecock_srv;
-  shipbot_ros::QueryBreaker query_breaker_srv;
+  ros::ServiceClient find_device_client = nh.serviceClient<shipbot_ros::FindDevice>("/realsense_node/find_device");
+  shipbot_ros::FindDevice find_device_srv;
+
+  // Initialize vision subscribers
+  shared_ptr<shipbot_ros::WheelState> wheel_ptr = make_shared<shipbot_ros::WheelState>();
+  shared_ptr<shipbot_ros::SpigotState> spigot_ptr = make_shared<shipbot_ros::SpigotState>();
+  shared_ptr<shipbot_ros::BreakerState> breaker_ptr = make_shared<shipbot_ros::BreakerState>();
+  shared_ptr<shipbot_ros::ShuttlecockState> shuttlecock_ptr = make_shared<shipbot_ros::ShuttlecockState>();
+  ros::Subscriber wheel_sub = nh.subscribe<shipbot_ros::WheelState>("/shipbot/wheel_state", 1, handle_wheel(wheel_ptr));
+  ros::Subscriber spigot_sub = nh.subscribe<shipbot_ros::SpigotState>("/shipbot/wheel_state", 1, handle_spigot(spigot_ptr));
+  ros::Subscriber shuttlecock_sub = nh.subscribe<shipbot_ros::ShuttlecockState>("/shipbot/shuttlecock_state", 1, handle_shuttlecock(shuttlecock_ptr));
+  ros::Subscriber breaker_sub = nh.subscribe<shipbot_ros::BreakerState>("/shipbot/breaker_state", 1, handle_breaker(breaker_ptr));
 
   // Initialize arm service clients and srvs
   ros::ServiceClient spin_rotary_client = nh.serviceClient<shipbot_ros::SpinRotary>("/arm_control_node/spin_rotary");
@@ -295,6 +398,13 @@ int main(int argc, char** argv) {
       ROS_ERROR("Failed to command arm to reset");
     }
     spin_until_completion(r, arm_done_ptr);
+
+    find_device_srv.request.device_type = shipbot_ros::FindDevice::Request::NONE;
+    if (find_device_client.call(find_device_srv)) {
+      ROS_INFO("Told vision node to find nothing");
+    } else {
+      ROS_ERROR("Failed to tell vision node to find nothing");
+    }
   }
   
   if (do_locomotion) {
@@ -372,32 +482,30 @@ int main(int argc, char** argv) {
     if (do_manipulation) {
       if (tokens[0] == "V1") {
         // Query device
-        if (query_spigot_client.call(query_spigot_srv)) {
-          ROS_INFO("Successfully queried spigot");
+        find_device_srv.request.device_type = shipbot_ros::FindDevice::Request::SPIGOT;
+        if (find_device_client.call(find_device_srv)) {
+          ROS_INFO("Successfully called find_device");
         } else {
-          ROS_ERROR("Failed to query spigot");
+          ROS_ERROR("Failed to call find_device");
         }
 
         double strafe_disp = -0.2;
-        while (!query_spigot_srv.response.state.visible) {
+        while (!spigot_ptr->visible) {
           cout << "Couldn't find spigot valve" << endl;
           // Keep strafing back and forth until we find it
           if (do_locomotion) {
             minor_strafe(strafe_disp, travel_ol_client, r, chassis_done_ptr);
             strafe_disp = -strafe_disp;
-          }
-
-          if (query_spigot_client.call(query_spigot_srv)) {
-            ROS_INFO("Successfully queried spigot");
           } else {
-            ROS_ERROR("Failed to query spigot");
+            r.sleep();
+            ros::spinOnce();
           }
         }
 
         // Transform position into arm frame
-        Vector3d dev_pos(query_spigot_srv.response.state.position.x,
-                         query_spigot_srv.response.state.position.y,
-                         query_spigot_srv.response.state.position.z);
+        Vector3d dev_pos(spigot_ptr->position.x,
+                         spigot_ptr->position.y,
+                         spigot_ptr->position.z);
         dev_pos = R_cam_arm*dev_pos + t_cam_arm;
 
         if (do_locomotion) {
@@ -409,7 +517,7 @@ int main(int argc, char** argv) {
         spin_rotary_srv.request.position.x = dev_pos(0);
         spin_rotary_srv.request.position.y = dev_pos(1);
         spin_rotary_srv.request.position.z = dev_pos(2);
-        spin_rotary_srv.request.vertical_spin_axis = query_spigot_srv.response.state.vertical;
+        spin_rotary_srv.request.vertical_spin_axis = spigot_ptr->vertical;
         spin_rotary_srv.request.degrees = stoi(tokens[1]);
         if (spin_rotary_client.call(spin_rotary_srv)) {
           ROS_INFO("Commanded arm to spin spigot valve");
@@ -419,32 +527,30 @@ int main(int argc, char** argv) {
         spin_until_completion(r, arm_done_ptr);
       } else if (tokens[0] == "V2") {
         // Query device
-        if (query_wheel_client.call(query_wheel_srv)) {
-          ROS_INFO("Queried wheel");
+        find_device_srv.request.device_type = shipbot_ros::FindDevice::Request::WHEEL;
+        if (find_device_client.call(find_device_srv)) {
+          ROS_INFO("Successfully called find_device");
         } else {
-          ROS_ERROR("Failed to query wheel");
+          ROS_ERROR("Failed to call find_device");
         }
 
         double strafe_disp = -0.2;
-        while (!query_wheel_srv.response.state.visible) {
+        while (!wheel_ptr->visible) {
           cout << "Couldn't find wheel valve" << endl;
           // Keep strafing back and forth until we find it
           if (do_locomotion) {
             minor_strafe(strafe_disp, travel_ol_client, r, chassis_done_ptr);
             strafe_disp = -strafe_disp;
-          }
-
-          if (query_wheel_client.call(query_wheel_srv)) {
-            ROS_INFO("Successfully queried wheel");
           } else {
-            ROS_ERROR("Failed to query wheel");
+            r.sleep();
+            ros::spinOnce();
           }
         }
 
         // Transform position into arm frame
-        Vector3d dev_pos(query_wheel_srv.response.state.position.x,
-                         query_wheel_srv.response.state.position.y,
-                         query_wheel_srv.response.state.position.z);
+        Vector3d dev_pos(wheel_ptr->position.x,
+                         wheel_ptr->position.y,
+                         wheel_ptr->position.z);
         dev_pos = R_cam_arm*dev_pos + t_cam_arm;
 
         if (do_locomotion) {
@@ -466,38 +572,36 @@ int main(int argc, char** argv) {
         spin_until_completion(r, arm_done_ptr);
       } else if (tokens[0] == "V3") {
         // Query device
-        if (query_shuttlecock_client.call(query_shuttlecock_srv)) {
-          ROS_INFO("Successfully queried shuttlecock");
+        find_device_srv.request.device_type = shipbot_ros::FindDevice::Request::SHUTTLECOCK;
+        if (find_device_client.call(find_device_srv)) {
+          ROS_INFO("Successfully called find_device");
         } else {
-          ROS_ERROR("Failed to query shuttlecock");
+          ROS_ERROR("Failed to call find_device");
         }
 
         double strafe_disp = -0.2;
-        while (!query_shuttlecock_srv.response.state.visible) {
+        while (!shuttlecock_ptr->visible) {
           cout << "Couldn't find shuttlecock valve" << endl;
 
           // Keep strafing back and forth until we find it
           if (do_locomotion) {
             minor_strafe(strafe_disp, travel_ol_client, r, chassis_done_ptr);
             strafe_disp = -strafe_disp;
-          }
-
-          if (query_shuttlecock_client.call(query_shuttlecock_srv)) {
-            ROS_INFO("Successfully queried shuttlecock");
           } else {
-            ROS_ERROR("Failed to query shuttlecock");
+            r.sleep();
+            ros::spinOnce();
           }
         }
 
-        if (tokens[1] == "0" && query_shuttlecock_srv.response.state.open) {
+        if (tokens[1] == "0" && shuttlecock_ptr->open) {
           cout << "Shuttlecock already open, doing nothing" << endl;
-        } else if (tokens[1] == "1" && !query_shuttlecock_srv.response.state.open) {
+        } else if (tokens[1] == "1" && !shuttlecock_ptr->open) {
           cout << "Shuttlecock already closed, doing nothing" << endl;
         } else {
           // Transform position into arm frame
-          Vector3d dev_pos(query_shuttlecock_srv.response.state.position.x,
-                           query_shuttlecock_srv.response.state.position.y,
-                           query_shuttlecock_srv.response.state.position.z);
+          Vector3d dev_pos(shuttlecock_ptr->position.x,
+                           shuttlecock_ptr->position.y,
+                           shuttlecock_ptr->position.z);
           dev_pos = R_cam_arm*dev_pos + t_cam_arm;
 
           if (do_locomotion) {
@@ -509,7 +613,7 @@ int main(int argc, char** argv) {
           spin_shuttlecock_srv.request.position.x = dev_pos(0);
           spin_shuttlecock_srv.request.position.y = dev_pos(1);
           spin_shuttlecock_srv.request.position.z = dev_pos(2);
-          spin_shuttlecock_srv.request.vertical_spin_axis = query_shuttlecock_srv.response.state.vertical;
+          spin_shuttlecock_srv.request.vertical_spin_axis = shuttlecock_ptr->vertical;
           spin_shuttlecock_srv.request.do_open = tokens[1] == "0";
 
           if (spin_shuttlecock_client.call(spin_shuttlecock_srv)) {
@@ -521,47 +625,37 @@ int main(int argc, char** argv) {
         }
       } else if (tokens[0] == "A" || tokens[0] == "B") {
         // Query device
-        if (query_breaker_client.call(query_breaker_srv)) {
-          ROS_INFO("Successfully queried breaker");
+        find_device_srv.request.device_type = (tokens[0] == "A") ? shipbot_ros::FindDevice::Request::BREAKERA : shipbot_ros::FindDevice::Request::BREAKERB;
+        if (find_device_client.call(find_device_srv)) {
+          ROS_INFO("Successfully called find_device");
         } else {
-          ROS_ERROR("Failed to query breaker");
+          ROS_ERROR("Failed to call find_device");
         }
 
         double strafe_disp = -0.2;
-        while (!query_breaker_srv.response.state1.visible ||
-               !query_breaker_srv.response.state2.visible ||
-               !query_breaker_srv.response.state3.visible) {
+        while (!breaker_ptr->switches[0].visible ||
+               !breaker_ptr->switches[1].visible ||
+               !breaker_ptr->switches[2].visible) {
 
-          if (!query_breaker_srv.response.state1.visible) {
-            cout << "Couldn't find leftmost breaker switch" << endl;
-          }
-          if (!query_breaker_srv.response.state2.visible) {
-            cout << "Couldn't find middle breaker switch" << endl;
-          }
-          if (!query_breaker_srv.response.state3.visible) {
-            cout << "Couldn't find rightmost breaker switch" << endl;
-          }
+          cout << "Couldn't find all the breaker switches" << endl;
 
           // Keep strafing back and forth until we find it
           if (do_locomotion) {
             minor_strafe(strafe_disp, travel_ol_client, r, chassis_done_ptr);
             strafe_disp = -strafe_disp;
-          }
-
-          if (query_breaker_client.call(query_breaker_srv)) {
-            ROS_INFO("Successfully queried breaker");
           } else {
-            ROS_ERROR("Failed to query breaker");
+            r.sleep();
+            ros::spinOnce();
           }
         }
 
         shipbot_ros::SwitchState state;
         if (tokens[1] == "B1") {
-          state = query_breaker_srv.response.state1;
+          state = breaker_ptr->switches[0];
         } else if (tokens[1] == "B2") {
-          state = query_breaker_srv.response.state2;
+          state = breaker_ptr->switches[1];
         } else if (tokens[1] == "B3") {
-          state = query_breaker_srv.response.state3;
+          state = breaker_ptr->switches[2];
         }
 
         if (tokens[2] == "U" && state.up) {

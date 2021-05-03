@@ -60,6 +60,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   FILES
   SwitchState.msg
+  BreakerState.msg
   WheelState.msg
   SpigotState.msg
   ShuttlecockState.msg
@@ -71,10 +72,7 @@ add_message_files(
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
-  QueryBreaker.srv
-  QueryWheel.srv
-  QuerySpigot.srv
-  QueryShuttlecock.srv
+  FindDevice.srv
   SpinRotary.srv
   SpinShuttlecock.srv
   SwitchBreaker.srv
@@ -177,7 +175,6 @@ add_library(chassis_control OBJECT
 )
 
 add_library(vision OBJECT
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/deviceFinder.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/util.cpp
 )
 add_dependencies(vision shipbot_ros_generate_messages_cpp)
