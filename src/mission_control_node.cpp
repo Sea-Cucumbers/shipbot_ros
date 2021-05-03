@@ -490,7 +490,7 @@ int main(int argc, char** argv) {
         }
 
         double strafe_disp = -0.2;
-        while (!spigot_ptr->visible) {
+        while (!spigot_ptr->visible && ros::ok()) {
           cout << "Couldn't find spigot valve" << endl;
           // Keep strafing back and forth until we find it
           if (do_locomotion) {
@@ -535,7 +535,7 @@ int main(int argc, char** argv) {
         }
 
         double strafe_disp = -0.2;
-        while (!wheel_ptr->visible) {
+        while (!wheel_ptr->visible && ros::ok()) {
           cout << "Couldn't find wheel valve" << endl;
           // Keep strafing back and forth until we find it
           if (do_locomotion) {
@@ -580,7 +580,7 @@ int main(int argc, char** argv) {
         }
 
         double strafe_disp = -0.2;
-        while (!shuttlecock_ptr->visible) {
+        while (!shuttlecock_ptr->visible && ros::ok()) {
           cout << "Couldn't find shuttlecock valve" << endl;
 
           // Keep strafing back and forth until we find it
@@ -633,10 +633,9 @@ int main(int argc, char** argv) {
         }
 
         double strafe_disp = -0.2;
-        while (!breaker_ptr->switches[0].visible ||
-               !breaker_ptr->switches[1].visible ||
-               !breaker_ptr->switches[2].visible) {
-
+        while ((!breaker_ptr->switches[0].visible ||
+                !breaker_ptr->switches[1].visible ||
+                !breaker_ptr->switches[2].visible) && ros::ok()) {
           cout << "Couldn't find all the breaker switches" << endl;
 
           // Keep strafing back and forth until we find it
