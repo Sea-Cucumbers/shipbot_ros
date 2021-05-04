@@ -80,6 +80,10 @@ def command_callback(cmd_msg):
   w = cmd_msg.w
 
 rospy.init_node('localization_node', anonymous=True)
+
+print('Waiting for mission control node')
+rospy.wait_for_service('/mission_control_node/localization_done')
+
 chassis_sub = rospy.Subscriber('/shipbot/chassis_feedback', ChassisFeedback, chassis_callback)
 command_sub = rospy.Subscriber('/shipbot/chassis_command', ChassisCommand, command_callback)
 state_pub = rospy.Publisher('/shipbot/chassis_state', ChassisState, queue_size=1)
@@ -162,9 +166,7 @@ guiderail_pub = rospy.Publisher('/shipbot/guiderail', Marker, queue_size=1)
 guiderail_marker.points = [Point(1.524, 0, 0), Point(0, 0, 0), Point(0, 0, 0), Point(0, 0.9144, 0)]
 '''
 
-print('Waiting for mission control node')
-rospy.wait_for_service('/mission_control_node/chassis_done')
-chassis_done_client = rospy.ServiceProxy('/mission_control_node/chassis_done', Empty)
+localization_done_client = rospy.ServiceProxy('/mission_control_node/localization_done', Empty)
 
 rate = rospy.Rate(10) # 10 Hz
 while not rospy.is_shutdown():
@@ -196,7 +198,7 @@ while not rospy.is_shutdown():
       initialized = True
       prev_t = t
       prev_yaw = ardu_yaw
-      chassis_done_client()
+      localization_done_client()
       lock.release()
       continue
 
@@ -223,7 +225,7 @@ while not rospy.is_shutdown():
       state_to_print = np.copy(state)
       state_to_print[2] *= 180/np.pi
       state_to_print[:2] /= 0.0254
-      #print(np.trunc(state_to_print))
+      print(np.trunc(state_to_print))
       prev_t = t
       prev_yaw = ardu_yaw
 

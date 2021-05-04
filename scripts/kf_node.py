@@ -61,6 +61,10 @@ def command_callback(cmd_msg):
   w = cmd_msg.w
 
 rospy.init_node('localization_node', anonymous=True)
+
+print('Waiting for mission control node')
+rospy.wait_for_service('/mission_control_node/localization_done')
+
 chassis_sub = rospy.Subscriber('/shipbot/chassis_feedback', ChassisFeedback, chassis_callback)
 command_sub = rospy.Subscriber('/shipbot/chassis_command', ChassisCommand, command_callback)
 state_pub = rospy.Publisher('/shipbot/chassis_state', ChassisState, queue_size=1)
@@ -85,9 +89,7 @@ prev_t = 0
 cull_t = 0
 prev_yaw = 0
 
-print('Waiting for mission control node')
-rospy.wait_for_service('/mission_control_node/chassis_done')
-chassis_done_client = rospy.ServiceProxy('/mission_control_node/chassis_done', Empty)
+localization_done_client = rospy.ServiceProxy('/mission_control_node/localization_done', Empty)
 
 rate = rospy.Rate(10) # 10 Hz
 while not rospy.is_shutdown():
@@ -113,7 +115,7 @@ while not rospy.is_shutdown():
       prev_t = t
       cull_t = t
       prev_yaw = ardu_yaw
-      chassis_done_client()
+      localization_done_client()
       lock.release()
       continue
 

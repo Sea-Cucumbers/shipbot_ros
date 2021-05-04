@@ -339,6 +339,7 @@ int main(int argc, char** argv) {
     grip_pub.publish(grip_msg);
 
     //cout << position/0.0254 << endl << endl << endl;
+    /*
     pose.transform.translation.x = position(0);
     pose.transform.translation.y = position(1);
     pose.transform.translation.z = position(2);
@@ -352,6 +353,7 @@ int main(int argc, char** argv) {
 
     marker.header.stamp = ros::Time::now();
     trajectory_pub.publish(marker);
+    */
 
     r.sleep();
     ros::spinOnce();
