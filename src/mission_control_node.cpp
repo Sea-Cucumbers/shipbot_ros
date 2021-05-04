@@ -354,9 +354,10 @@ int main(int argc, char** argv) {
   shared_ptr<shipbot_ros::WheelState> wheel_ptr = make_shared<shipbot_ros::WheelState>();
   shared_ptr<shipbot_ros::SpigotState> spigot_ptr = make_shared<shipbot_ros::SpigotState>();
   shared_ptr<shipbot_ros::BreakerState> breaker_ptr = make_shared<shipbot_ros::BreakerState>();
+  breaker_ptr->switches = vector<shipbot_ros::SwitchState>(3);
   shared_ptr<shipbot_ros::ShuttlecockState> shuttlecock_ptr = make_shared<shipbot_ros::ShuttlecockState>();
   ros::Subscriber wheel_sub = nh.subscribe<shipbot_ros::WheelState>("/shipbot/wheel_state", 1, handle_wheel(wheel_ptr));
-  ros::Subscriber spigot_sub = nh.subscribe<shipbot_ros::SpigotState>("/shipbot/wheel_state", 1, handle_spigot(spigot_ptr));
+  ros::Subscriber spigot_sub = nh.subscribe<shipbot_ros::SpigotState>("/shipbot/spigot_state", 1, handle_spigot(spigot_ptr));
   ros::Subscriber shuttlecock_sub = nh.subscribe<shipbot_ros::ShuttlecockState>("/shipbot/shuttlecock_state", 1, handle_shuttlecock(shuttlecock_ptr));
   ros::Subscriber breaker_sub = nh.subscribe<shipbot_ros::BreakerState>("/shipbot/breaker_state", 1, handle_breaker(breaker_ptr));
 
@@ -502,6 +503,7 @@ int main(int argc, char** argv) {
           }
         }
 
+        find_device_srv.request.device_type = shipbot_ros::FindDevice::Request::NONE;
         if (find_device_client.call(find_device_srv)) {
           ROS_INFO("Told vision node to find nothing");
         } else {
@@ -553,6 +555,7 @@ int main(int argc, char** argv) {
           }
         }
 
+        find_device_srv.request.device_type = shipbot_ros::FindDevice::Request::NONE;
         if (find_device_client.call(find_device_srv)) {
           ROS_INFO("Told vision node to find nothing");
         } else {
@@ -605,6 +608,7 @@ int main(int argc, char** argv) {
           }
         }
 
+        find_device_srv.request.device_type = shipbot_ros::FindDevice::Request::NONE;
         if (find_device_client.call(find_device_srv)) {
           ROS_INFO("Told vision node to find nothing");
         } else {
@@ -666,6 +670,7 @@ int main(int argc, char** argv) {
           }
         }
 
+        find_device_srv.request.device_type = shipbot_ros::FindDevice::Request::NONE;
         if (find_device_client.call(find_device_srv)) {
           ROS_INFO("Told vision node to find nothing");
         } else {

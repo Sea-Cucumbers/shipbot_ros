@@ -358,6 +358,9 @@ int main(int argc, char** argv) {
         }
         continue;
       }
+      for (int i = 0; i < 3; ++i) {
+        breaker_state.switches[i].visible = true;
+      }
       for (int i = 0; i < 3; i++) {
         best_blob = blob_pq.top();
         breakers.push_back(best_blob);
@@ -479,6 +482,28 @@ int main(int argc, char** argv) {
       }
       breaker[1] = breakers.at(b2_idx);
 
+      cout << breaker[0].point.x << " " << breaker[0].point.y << " " << breaker[0].point.z << endl;
+      cout << breaker[1].point.x << " " << breaker[1].point.y << " " << breaker[1].point.z << endl;
+      cout << breaker[2].point.x << " " << breaker[2].point.y << " " << breaker[2].point.z << endl;
+      cout << endl;
+
+      bool all_zero = false;
+      for (int b = 0; b < 3; ++b) {
+        if (breaker[b].point.x == 0 &&
+            breaker[b].point.y == 0 &&
+            breaker[b].point.z == 0) {
+          all_zero = true;
+          break;
+        }
+      }
+
+      if (all_zero) {
+        for (int b = 0; b < 3; ++b) {
+          breaker_state.switches[b].visible = false;
+        }
+        continue;
+      }
+
       Mat black_mask;
       inRange(rsimagec_rgb, black_min, black_max, black_mask);
       bitwise_or(black_mask, rsimagec_segmented, rsimagec_segmented);
@@ -556,6 +581,13 @@ int main(int argc, char** argv) {
         }
         putText(rsimagec_rgb, tx, breaker[i].pixel, FONT_HERSHEY_SIMPLEX, 2,Scalar(0,255,0), 3);
       }
+    }
+
+    wheel_state.visible = true;
+    spigot_state.visible = true;
+    shuttlecock_state.visible = true;
+    for (int i = 0; i < 3; ++i) {
+      breaker_state.switches[i].visible = true;
     }
 
     if (pub_image) {

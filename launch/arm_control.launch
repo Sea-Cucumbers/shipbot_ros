@@ -1,4 +1,5 @@
 <launch>
+  <node name="write_gains_node" pkg="shipbot_ros" type="write_gains_node.py" output="screen"/>
   <node name="arm_control_node" pkg="shipbot_ros" type="arm_control_node" output="screen">
     <param name="urdf" value="$(find shipbot_urdf)/urdf/shipbot.urdf"/>
     <param name="seconds_per_meter" value="10"/>
