@@ -77,10 +77,10 @@ void ArmPlanner::spin_rotary(const VectorXd &start,
   seg_start = seg_end;
   if (vertical_spin_axis) {
     // If vertical axis, move 10 cm down
-    seg_end(2) -= pause_dist + 0.07;
+    seg_end(2) -= pause_dist + add_dist;
   } else {
     // If horizontal axis, move 10 cm forward
-    seg_end(1) += pause_dist + 0.07;
+    seg_end(1) += pause_dist + add_dist;
   }
   start_time = end_time;
   diff = seg_end.head<3>() - seg_start.head<3>();
@@ -122,10 +122,10 @@ void ArmPlanner::spin_rotary(const VectorXd &start,
   seg_start = seg_end;
   if (vertical_spin_axis) {
     // If vertical axis, move 10 cm up
-    seg_end(2) += pause_dist + 0.07;
+    seg_end(2) += pause_dist + add_dist;
   } else {
     // If horizontal axis, move 10 cm back
-    seg_end(1) -= pause_dist + 0.07;
+    seg_end(1) -= pause_dist + add_dist;
   }
   start_time = end_time;
   diff = seg_end.head<3>() - seg_start.head<3>();
@@ -280,9 +280,10 @@ void ArmPlanner::switch_breaker(const VectorXd &start,
                                          
   // Move forward
   seg_start = seg_end;
-  seg_end(1) += pause_dist;
+  seg_end(1) += pause_dist + add_dist;
+  diff = seg_end.head<3>() - seg_start.head<3>();
   start_time = end_time;
-  end_time += seconds_per_meter*pause_dist;
+  end_time += seconds_per_meter*diff.norm();
   segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,
                                                           seg_end,
                                                           start_time,
@@ -301,7 +302,8 @@ void ArmPlanner::switch_breaker(const VectorXd &start,
   seg_start = seg_end;
   seg_end(2) = seg_end(2) + (push_up ? 0.05 : -0.05);
   start_time = end_time;
-  end_time += seconds_per_meter*pause_dist;
+  diff = seg_end.head<3>() - seg_start.head<3>();
+  end_time += seconds_per_meter*diff.norm();
   segments.push_back(make_pair(true, MinJerkInterpolator(seg_start,
                                                           seg_end,
                                                           start_time,
@@ -318,9 +320,10 @@ void ArmPlanner::switch_breaker(const VectorXd &start,
 
   // Move back
   seg_start = seg_end;
-  seg_end(1) -= pause_dist;
+  seg_end(1) -= pause_dist + add_dist;
   start_time = end_time;
-  end_time += seconds_per_meter*pause_dist;
+  diff = seg_end.head<3>() - seg_start.head<3>();
+  end_time += seconds_per_meter*diff.norm();
   segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,
                                                           seg_end,
                                                           start_time,

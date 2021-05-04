@@ -3,7 +3,7 @@
   <rosparam file="$(find shipbot_ros)/config/stations.yaml" />
   <node name="mission_control_node" pkg="shipbot_ros" type="mission_control_node" output="screen">
     <param name="mission_file" value="$(find shipbot_ros)/config/mission_breaker.txt"/>
-    <param name="do_locomotion" value="false"/>
+    <param name="do_locomotion" value="true"/>
     <param name="do_manipulation" value="true"/>
   </node>
 </launch>

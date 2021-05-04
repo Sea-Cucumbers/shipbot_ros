@@ -20,6 +20,8 @@ class ArmPlanner {
     // before pushing a breaker switch?
     const double pause_dist = 0.1; 
 
+    const double add_dist = 0.07; 
+
     // How long do we wait for the jammer to grip/ungrip
     const double grip_wait = 5;
 
