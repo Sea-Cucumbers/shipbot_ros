@@ -502,6 +502,12 @@ int main(int argc, char** argv) {
           }
         }
 
+        if (find_device_client.call(find_device_srv)) {
+          ROS_INFO("Told vision node to find nothing");
+        } else {
+          ROS_ERROR("Failed to tell vision node to find nothing");
+        }
+
         // Transform position into arm frame
         Vector3d dev_pos(spigot_ptr->position.x,
                          spigot_ptr->position.y,
@@ -545,6 +551,12 @@ int main(int argc, char** argv) {
             r.sleep();
             ros::spinOnce();
           }
+        }
+
+        if (find_device_client.call(find_device_srv)) {
+          ROS_INFO("Told vision node to find nothing");
+        } else {
+          ROS_ERROR("Failed to tell vision node to find nothing");
         }
 
         // Transform position into arm frame
@@ -591,6 +603,12 @@ int main(int argc, char** argv) {
             r.sleep();
             ros::spinOnce();
           }
+        }
+
+        if (find_device_client.call(find_device_srv)) {
+          ROS_INFO("Told vision node to find nothing");
+        } else {
+          ROS_ERROR("Failed to tell vision node to find nothing");
         }
 
         if (tokens[1] == "0" && shuttlecock_ptr->open) {
@@ -646,6 +664,12 @@ int main(int argc, char** argv) {
             r.sleep();
             ros::spinOnce();
           }
+        }
+
+        if (find_device_client.call(find_device_srv)) {
+          ROS_INFO("Told vision node to find nothing");
+        } else {
+          ROS_ERROR("Failed to tell vision node to find nothing");
         }
 
         shipbot_ros::SwitchState state;
