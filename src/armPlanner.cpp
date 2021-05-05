@@ -270,6 +270,7 @@ void ArmPlanner::switch_breaker(const VectorXd &start,
   VectorXd seg_end = VectorXd::Zero(5);
   seg_end.head<3>() = position;
   seg_end(1) -= pause_dist;
+  seg_end(2) += push_up ? -0.05 : 0.05;
 
   Vector3d diff = seg_end.head<3>() - seg_start.head<3>();
   double end_time = start_time + seconds_per_meter*diff.norm();
