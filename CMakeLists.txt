@@ -76,8 +76,8 @@ add_service_files(
   SpinRotary.srv
   SpinShuttlecock.srv
   SwitchBreaker.srv
-  TravelCL.srv
-  TravelOL.srv
+  TravelAbs.srv
+  TravelRel.srv
   InitialLocalization.srv
 )
 

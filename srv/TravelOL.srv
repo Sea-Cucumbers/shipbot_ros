@@ -1,6 +1,0 @@
-# Note, these values are specified in the local frame
-float64 delta_x 
-float64 delta_y
-float64 delta_theta
----
-int8 no_response

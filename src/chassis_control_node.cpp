@@ -4,8 +4,8 @@
 #include <chrono>
 #include <thread>
 #include "shipbot_ros/ChassisState.h"
-#include "shipbot_ros/TravelCL.h"
-#include "shipbot_ros/TravelOL.h"
+#include "shipbot_ros/TravelAbs.h"
+#include "shipbot_ros/TravelRel.h"
 #include "shipbot_ros/InitialLocalization.h"
 #include "shipbot_ros/ChassisCommand.h"
 #include "std_srvs/Empty.h"
@@ -18,7 +18,7 @@ using namespace Eigen;
 // TODO: shouldn't be static, got lazy
 static double start_time;
 
-enum ControlStatus {STOP, LOCALIZE, CL, OL};
+enum ControlStatus {STOP, LOCALIZE, CL};
 
 class stop {
   private:
@@ -76,7 +76,7 @@ class localize {
     }
 };
 
-class travel_cl {
+class travel_abs {
   private:
     shared_ptr<SE2Interpolator> planner;
     shared_ptr<Vector3d> cur_state;
@@ -84,13 +84,13 @@ class travel_cl {
 
   public:
     /*
-     * travel_cl: constructor
+     * travel_abs: constructor
      * ARGUMENTS
      * _planner: pointer to planner
      * _cur_state: pointer to current state
      * _status: pointer to control status
      */
-     travel_cl(shared_ptr<SE2Interpolator> _planner,
+     travel_abs(shared_ptr<SE2Interpolator> _planner,
                shared_ptr<Vector3d> _cur_state,
                shared_ptr<ControlStatus> _status) : planner(_planner),
                                                     cur_state(_cur_state),
@@ -103,8 +103,8 @@ class travel_cl {
      * res: technically supposed to be populated with the response, but
      * the response isn't used
      */
-    bool operator () (shipbot_ros::TravelCL::Request &req,
-                      shipbot_ros::TravelCL::Response &res) {
+    bool operator () (shipbot_ros::TravelAbs::Request &req,
+                      shipbot_ros::TravelAbs::Response &res) {
       Vector3d end = VectorXd::Zero(3);
       end(0) = req.x;
       end(1) = req.y;
@@ -120,7 +120,7 @@ class travel_cl {
     }
 };
 
-class travel_ol {
+class travel_rel {
   private:
     shared_ptr<SE2Interpolator> planner;
     shared_ptr<Vector3d> cur_state;
@@ -128,12 +128,12 @@ class travel_ol {
 
   public:
     /*
-     * travel_ol: constructor
+     * travel_rel: constructor
      * ARGUMENTS
      * _planner: pointer to planner
      * _status: pointer to control status
      */
-     travel_ol(shared_ptr<SE2Interpolator> _planner,
+     travel_rel(shared_ptr<SE2Interpolator> _planner,
                shared_ptr<Vector3d> _cur_state,
                shared_ptr<ControlStatus> _status) : planner(_planner),
                                                     cur_state(_cur_state),
@@ -146,8 +146,8 @@ class travel_ol {
      * res: technically supposed to be populated with the response, but
      * the response isn't used
      */
-    bool operator () (shipbot_ros::TravelOL::Request &req,
-                      shipbot_ros::TravelOL::Response &res) {
+    bool operator () (shipbot_ros::TravelRel::Request &req,
+                      shipbot_ros::TravelRel::Response &res) {
       Vector3d end = VectorXd::Zero(3);
       double theta = (*cur_state)(2);
       double c = cos(theta);
@@ -161,7 +161,7 @@ class travel_ol {
       double traj_start = ros::Time::now().toSec() - start_time;
       double traj_time = max(err.head<2>().norm()*8, 8*abs(err(2))/M_PI);
       *planner = SE2Interpolator(*cur_state, end, traj_start, traj_start + traj_time);
-      *status = OL;
+      *status = CL;
       return true;
     }
 };
@@ -219,8 +219,8 @@ int main(int argc, char** argv) {
 
   shared_ptr<ControlStatus> status = make_shared<ControlStatus>(STOP);
 
-  ros::ServiceServer travel_cl_service = nh.advertiseService<shipbot_ros::TravelCL::Request, shipbot_ros::TravelCL::Response>("travel_cl", travel_cl(planner, state_ptr, status));
-  ros::ServiceServer travel_ol_service = nh.advertiseService<shipbot_ros::TravelOL::Request, shipbot_ros::TravelOL::Response>("travel_ol", travel_ol(planner, state_ptr, status));
+  ros::ServiceServer travel_abs_service = nh.advertiseService<shipbot_ros::TravelAbs::Request, shipbot_ros::TravelAbs::Response>("travel_abs", travel_abs(planner, state_ptr, status));
+  ros::ServiceServer travel_rel_service = nh.advertiseService<shipbot_ros::TravelRel::Request, shipbot_ros::TravelRel::Response>("travel_rel", travel_rel(planner, state_ptr, status));
 
   shared_ptr<bool> start_localization = make_shared<bool>(false);
   shared_ptr<int> safe_direction = make_shared<int>(0);
@@ -325,20 +325,6 @@ int main(int argc, char** argv) {
       cmd_msg.vx = c*cmd_vel(0) + s*cmd_vel(1);
       cmd_msg.vy = -s*cmd_vel(0) + c*cmd_vel(1);
       cmd_msg.w = cmd_vel(2);
-    } else if (*status == OL) {
-      VectorXd des_state = planner->eval(t);
-      VectorXd cmd_vel = planner->deriv1(t);
-      double theta = des_state(2);
-      double c = cos(theta);
-      double s = sin(theta);
-      cmd_msg.vx = c*cmd_vel(0) + s*cmd_vel(1);
-      cmd_msg.vy = -s*cmd_vel(0) + c*cmd_vel(1);
-      cmd_msg.w = cmd_vel(2);
-
-      if (t >= planner->get_end_time()) {
-        *status = STOP;
-        done_client.call(done_srv);
-      }
     }
     cmd_pub.publish(cmd_msg);
     r.sleep();
