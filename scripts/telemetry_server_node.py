@@ -29,12 +29,13 @@ def state_callback(msg):
   lock.acquire()
   x = msg.x
   y = msg.y
-  theta = msg.theta
+  theta = msg.yaw
   lock.release()
 
 state_sub = rospy.Subscriber('/shipbot/chassis_state', ChassisState, state_callback)
 
 start_mission_client = rospy.ServiceProxy('/mission_control_node/start_mission', Empty)
+stop_mission_client = rospy.ServiceProxy('/mission_control_node/stop_mission', Empty)
 data = None
 
 rate = rospy.Rate(50)
@@ -52,6 +53,8 @@ try:
       data = data.decode('utf-8')
       if data == '<start>':
         start_mission_client()
+      if data == '<stop>':
+        stop_mission_client()
       print(data)
 
     lock.acquire()

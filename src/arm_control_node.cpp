@@ -59,6 +59,39 @@ class reset_arm {
     }
 };
 
+class stop_arm {
+  private:
+    shared_ptr<ArmPlanner> planner;
+    shared_ptr<VectorXd> task_space_config;
+
+  public:
+    /*
+     * stop_arm: constructor
+     * ARGUMENTS
+     * _planner: pointer to planner
+     * _task_space_config: pointer to task-space configuration
+     */
+     stop_arm(shared_ptr<ArmPlanner> _planner,
+               shared_ptr<VectorXd> _task_space_config) : planner(_planner),
+                                                          task_space_config(_task_space_config) {}
+
+    /*
+     * operator (): stop the arm
+     * ARGUMENTS
+     * req: request
+     * res: technically supposed to be populated with the response, but
+     * the response isn't used
+     */
+    bool operator () (std_srvs::Empty::Request &req,
+                      std_srvs::Empty::Response &res) {
+      planner->stop_arm(*task_space_config,
+                         ros::Time::now().toSec() - start_time);
+      planner->sample_points(marker.points);
+      called_done = false;
+      return true;
+    }
+};
+
 class spin_rotary {
   private:
     shared_ptr<ArmPlanner> planner;
@@ -267,6 +300,7 @@ int main(int argc, char** argv) {
   ros::ServiceServer spin_shuttlecock_service = nh.advertiseService<shipbot_ros::SpinShuttlecock::Request, shipbot_ros::SpinShuttlecock::Response>("spin_shuttlecock", spin_shuttlecock(planner, config_ptr));
   ros::ServiceServer switch_breaker_service = nh.advertiseService<shipbot_ros::SwitchBreaker::Request, shipbot_ros::SwitchBreaker::Response>("switch_breaker", switch_breaker(planner, config_ptr));
   ros::ServiceServer reset_arm_service = nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>("reset_arm", reset_arm(planner, config_ptr));
+  ros::ServiceServer stop_arm_service = nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>("stop_arm", stop_arm(planner, config_ptr));
 
   ros::ServiceClient done_client = nh.serviceClient<std_srvs::Empty>("/mission_control_node/arm_done");
   std_srvs::Empty done_srv;

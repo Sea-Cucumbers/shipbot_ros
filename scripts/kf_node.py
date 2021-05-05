@@ -175,7 +175,7 @@ while not rospy.is_shutdown():
       state_to_print = np.copy(state)
       state_to_print[2] *= 180/np.pi
       state_to_print[:2] /= 0.0254
-      print(np.trunc(state_to_print))
+      #print(np.trunc(state_to_print))
       prev_t = t
       prev_yaw = ardu_yaw
     lock.release()

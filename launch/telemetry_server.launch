@@ -1,0 +1,3 @@
+<launch>
+  <node name="telemetry_server_node" pkg="shipbot_ros" type="telemetry_server_node.py" output="screen" respawn="true"/>
+</launch>

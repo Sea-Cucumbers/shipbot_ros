@@ -49,6 +49,20 @@ void ArmPlanner::reset_arm(const VectorXd &start,
   current_segment = segments.begin();
 }
 
+void ArmPlanner::stop_arm(const VectorXd &start,
+                          double start_time) {
+  segments.clear();
+  VectorXd seg_start = start;
+  VectorXd seg_end = start;
+  double end_time = start_time;
+  segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,
+                                                          seg_end,
+                                                          start_time,
+                                                          end_time)));
+                                         
+  current_segment = segments.begin();
+}
+
 void ArmPlanner::spin_rotary(const VectorXd &start,
                              const Vector3d &position,
                              bool vertical_spin_axis,

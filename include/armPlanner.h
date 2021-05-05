@@ -68,6 +68,15 @@ class ArmPlanner {
      */
     void reset_arm(const VectorXd &start,
                    double start_time);
+                   
+    /*
+     * stop_arm: stops the arm
+     * start: task-space configuration to stop at
+     * start_time: start time for trajectory
+     */
+    void stop_arm(const VectorXd &start,
+                  double start_time);
+
 
     /*
      * spin_rotary: generate task-space motion plan to manipulate a rotary valve

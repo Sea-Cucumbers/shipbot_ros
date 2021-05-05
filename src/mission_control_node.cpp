@@ -24,6 +24,7 @@ using namespace std;
 using namespace Eigen;
 
 static const double xee = -0.129243;
+static const double centering_offset = -0.035;
 
 /*
  * string_split: splits the string s into a vector of substrings separated
@@ -71,12 +72,11 @@ void spin_until_completion(ros::Rate &r, shared_ptr<bool> done_ptr) {
 void minor_strafe(double delta, ros::ServiceClient &travel_rel_client, ros::Rate &r, shared_ptr<bool> chassis_done_ptr) {
   shipbot_ros::TravelRel travel_rel_srv;
   travel_rel_srv.request.delta_x = 0;
-  travel_rel_srv.request.delta_y = delta;
+  travel_rel_srv.request.delta_y = -delta;
   travel_rel_srv.request.delta_theta = 0;
 
   if (travel_rel_client.call(travel_rel_srv)) {
     ROS_INFO("Commanded chassis to center arm with device");
-    cout << "i.e. translate " << delta << " m in the x" << endl;
   } else {
     ROS_ERROR("Failed to command chassis to center arm with device");
   }
@@ -131,6 +131,38 @@ class start_mission {
     bool operator () (std_srvs::Empty::Request &req,
                       std_srvs::Empty::Response &res) {
       *start_ptr = true;
+      return true;
+    }
+};
+
+class stop_mission {
+  private:
+    ros::ServiceClient *stop_chassis_client;
+    ros::ServiceClient *stop_arm_client;
+
+  public:
+    /*
+     * stop_mission: constructor
+     * ARGUMENTS
+     * _start_ptr: pointer to start variable
+     */
+     stop_mission(ros::ServiceClient *stop_chassis_client,
+                  ros::ServiceClient *stop_arm_client) : stop_chassis_client(stop_chassis_client),
+                                                         stop_arm_client(stop_arm_client) {}
+
+    /*
+     * operator (): realizes that we should stop the mission
+     * ARGUMENTS
+     * req: request, not used
+     * res: technically supposed to be populated with the response, but
+     * the response isn't used
+     */
+    bool operator () (std_srvs::Empty::Request &req,
+                      std_srvs::Empty::Response &res) {
+      std_srvs::Empty empty_srv;
+      stop_chassis_client->call(empty_srv);
+      stop_arm_client->call(empty_srv);
+      ros::spin();
       return true;
     }
 };
@@ -341,6 +373,7 @@ int main(int argc, char** argv) {
   ros::ServiceClient spin_shuttlecock_client = nh.serviceClient<shipbot_ros::SpinShuttlecock>("/arm_control_node/spin_shuttlecock");
   ros::ServiceClient switch_breaker_client = nh.serviceClient<shipbot_ros::SwitchBreaker>("/arm_control_node/switch_breaker");
   ros::ServiceClient reset_arm_client = nh.serviceClient<std_srvs::Empty>("/arm_control_node/reset_arm");
+  ros::ServiceClient stop_arm_client = nh.serviceClient<std_srvs::Empty>("/arm_control_node/stop_arm");
   shipbot_ros::SpinRotary spin_rotary_srv;
   shipbot_ros::SpinShuttlecock spin_shuttlecock_srv;
   shipbot_ros::SwitchBreaker switch_breaker_srv;
@@ -366,6 +399,9 @@ int main(int argc, char** argv) {
 
   shared_ptr<bool> arm_done_ptr = make_shared<bool>(false);
   ros::ServiceServer arm_done_service = nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>("arm_done", handle_done(arm_done_ptr));
+
+  // This service aborts the mission
+  ros::ServiceServer stop_service = nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>("stop_mission", stop_mission(&stop_chassis_client, &stop_arm_client));
 
   // INITIAL LOCALIZATION PHASE
 
@@ -468,7 +504,8 @@ int main(int argc, char** argv) {
           ROS_ERROR("Failed to call find_device");
         }
 
-        while (!spigot_ptr->visible && ros::ok()) {
+        double start_time = ros::Time::now().toSec();
+        while (!spigot_ptr->visible && ros::ok() && ros::Time::now().toSec() - start_time < 20) {
           cout << "Couldn't find spigot valve" << endl;
           r.sleep();
           ros::spinOnce();
@@ -489,7 +526,8 @@ int main(int argc, char** argv) {
                          spigot_ptr->position.z);
         dev_pos = R_cam_arm*dev_pos + t_cam_arm;
 
-        minor_strafe(dev_pos(0) - xee, travel_rel_client, r, chassis_done_ptr);
+        cout << "device is " << dev_pos(0) << " m in the x from the base" << endl;
+        minor_strafe(dev_pos(0) - xee + centering_offset, travel_rel_client, r, chassis_done_ptr);
         dev_pos(0) = xee; // TODO: this is a very strong assumption!
 
         // Command arm
@@ -513,7 +551,8 @@ int main(int argc, char** argv) {
           ROS_ERROR("Failed to call find_device");
         }
 
-        while (!wheel_ptr->visible && ros::ok()) {
+        double start_time = ros::Time::now().toSec();
+        while (!wheel_ptr->visible && ros::ok() && ros::Time::now().toSec() - start_time < 20) {
           cout << "Couldn't find wheel valve" << endl;
           r.sleep();
           ros::spinOnce();
@@ -533,8 +572,12 @@ int main(int argc, char** argv) {
 
         dev_pos = R_cam_arm*dev_pos + t_cam_arm;
 
-        minor_strafe(dev_pos(0) - xee, travel_rel_client, r, chassis_done_ptr);
-        dev_pos(0) = xee; // TODO: this is a very strong assumption!
+        cout << "device is " << dev_pos(0) << " m in the x from the base" << endl;
+
+        if (station != 'E' && station != 'F') {
+          minor_strafe(dev_pos(0) - xee + centering_offset, travel_rel_client, r, chassis_done_ptr);
+          dev_pos(0) = xee; // TODO: this is a very strong assumption!
+        }
 
         // Command arm
         spin_rotary_srv.request.position.x = dev_pos(0);
@@ -557,7 +600,8 @@ int main(int argc, char** argv) {
           ROS_ERROR("Failed to call find_device");
         }
 
-        while (!shuttlecock_ptr->visible && ros::ok()) {
+        double start_time = ros::Time::now().toSec();
+        while (!shuttlecock_ptr->visible && ros::ok() && ros::Time::now().toSec() - start_time < 20) {
           cout << "Couldn't find shuttlecock valve" << endl;
           r.sleep();
           ros::spinOnce();
@@ -581,8 +625,12 @@ int main(int argc, char** argv) {
                            shuttlecock_ptr->position.z);
           dev_pos = R_cam_arm*dev_pos + t_cam_arm;
 
-          minor_strafe(dev_pos(0) - xee, travel_rel_client, r, chassis_done_ptr);
-          dev_pos(0) = xee; // TODO: this is a very strong assumption!
+          cout << "device is " << dev_pos(0) << " m in the x from the base" << endl;
+
+          if (station != 'E' && station != 'F') {
+            minor_strafe(dev_pos(0) - xee + centering_offset, travel_rel_client, r, chassis_done_ptr);
+            dev_pos(0) = xee; // TODO: this is a very strong assumption!
+          }
 
           // Command arm
           spin_shuttlecock_srv.request.position.x = dev_pos(0);
@@ -607,9 +655,11 @@ int main(int argc, char** argv) {
           ROS_ERROR("Failed to call find_device");
         }
 
+        double start_time = ros::Time::now().toSec();
         while ((!breaker_ptr->switches[0].visible ||
                 !breaker_ptr->switches[1].visible ||
-                !breaker_ptr->switches[2].visible) && ros::ok()) {
+                !breaker_ptr->switches[2].visible) && ros::ok()
+                && ros::Time::now().toSec() - start_time < 20) {
           cout << "Couldn't find all the breaker switches" << endl;
           r.sleep();
           ros::spinOnce();
@@ -642,8 +692,12 @@ int main(int argc, char** argv) {
                            state.position.z);
           dev_pos = R_cam_arm*dev_pos + t_cam_arm;
 
-          minor_strafe(dev_pos(0) - xee, travel_rel_client, r, chassis_done_ptr);
-          dev_pos(0) = xee; // TODO: this is a very strong assumption!
+          cout << "device is " << dev_pos(0) << " m in the x from the base" << endl;
+
+          if (station != 'E' && station != 'F') {
+            minor_strafe(dev_pos(0) - xee + centering_offset, travel_rel_client, r, chassis_done_ptr);
+            dev_pos(0) = xee; // TODO: this is a very strong assumption!
+          }
 
           // Command arm
           switch_breaker_srv.request.position.x = dev_pos(0);
