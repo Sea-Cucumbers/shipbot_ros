@@ -279,12 +279,13 @@ void ArmPlanner::switch_breaker(const VectorXd &start,
                                 double start_time) {
   segments.clear();
 
-  // Pause 10 cm back
+  // Pause back and up/down depending on which way we're pushing
   VectorXd seg_start = start;
   VectorXd seg_end = VectorXd::Zero(5);
   seg_end.head<3>() = position;
   seg_end(1) -= pause_dist;
-  seg_end(2) += push_up ? -0.05 : 0.05;
+  seg_end(2) += push_up ? -pause_dist : pause_dist;
+  seg_end(3) = push_up ? M_PI/4 : -M_PI/4;
 
   Vector3d diff = seg_end.head<3>() - seg_start.head<3>();
   double end_time = start_time + seconds_per_meter*diff.norm();
@@ -293,9 +294,10 @@ void ArmPlanner::switch_breaker(const VectorXd &start,
                                                           start_time,
                                                            end_time)));
                                          
-  // Move forward
+  // Move forward and upward/downward depending on which way we're pushing 
   seg_start = seg_end;
   seg_end(1) += pause_dist + add_dist;
+  seg_end(2) = seg_end(2) + (push_up ? pause_dist + add_dist : -(pause_dist + add_dist));
   diff = seg_end.head<3>() - seg_start.head<3>();
   start_time = end_time;
   end_time += seconds_per_meter*diff.norm();
@@ -315,7 +317,7 @@ void ArmPlanner::switch_breaker(const VectorXd &start,
 
   // Push the switch
   seg_start = seg_end;
-  seg_end(2) = seg_end(2) + (push_up ? 0.05 : -0.05);
+  seg_end(2) = seg_end(2) + (push_up ? 0.1 : -0.1);
   start_time = end_time;
   diff = seg_end.head<3>() - seg_start.head<3>();
   end_time += seconds_per_meter*diff.norm();
