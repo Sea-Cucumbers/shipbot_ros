@@ -13,7 +13,6 @@
 #include "shipbot_ros/SwitchState.h"
 #include "shipbot_ros/ShuttlecockState.h"
 #include "shipbot_ros/FindDevice.h"
-#include "shipbot_ros/InitialLocalization.h"
 #include "shipbot_ros/TravelAbs.h"
 #include "shipbot_ros/TravelRel.h"
 #include "shipbot_ros/ChassisState.h"
@@ -383,19 +382,19 @@ int main(int argc, char** argv) {
   ros::ServiceClient stop_chassis_client = nh.serviceClient<std_srvs::Empty>("/chassis_control_node/stop_chassis");
   ros::ServiceClient travel_abs_client = nh.serviceClient<shipbot_ros::TravelAbs>("/chassis_control_node/travel_abs");
   ros::ServiceClient travel_rel_client = nh.serviceClient<shipbot_ros::TravelRel>("/chassis_control_node/travel_rel");
-  ros::ServiceClient localize_client = nh.serviceClient<shipbot_ros::InitialLocalization>("/chassis_control_node/localize");
+  ros::ServiceClient localize_client = nh.serviceClient<std_srvs::Empty>("/chassis_control_node/localize");
 
   std_srvs::Empty stop_chassis_srv;
   shipbot_ros::TravelAbs travel_abs_srv;
   shipbot_ros::TravelRel travel_rel_srv;
-  shipbot_ros::InitialLocalization localize_srv;
+  std_srvs::Empty localize_srv;
 
   // Advertise services for the chassis and arm to call when they're done whatever they're doing
   shared_ptr<bool> chassis_done_ptr = make_shared<bool>(false);
   ros::ServiceServer chassis_done_service = nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>("chassis_done", handle_done(chassis_done_ptr));
 
-  shared_ptr<bool> localization_done_ptr = make_shared<bool>(false);
-  ros::ServiceServer localization_done_service = nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>("localization_done", handle_done(localization_done_ptr));
+  shared_ptr<bool> loc_prep_done_ptr = make_shared<bool>(false);
+  ros::ServiceServer loc_prep_done_service = nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>("loc_prep_done", handle_done(loc_prep_done_ptr));
 
   shared_ptr<bool> arm_done_ptr = make_shared<bool>(false);
   ros::ServiceServer arm_done_service = nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>("arm_done", handle_done(arm_done_ptr));
@@ -424,7 +423,7 @@ int main(int argc, char** argv) {
   
   if (do_locomotion) {
     // Wait for localization to initialize
-    spin_until_completion(r, localization_done_ptr);
+    spin_until_completion(r, loc_prep_done_ptr);
 
     // Localize
     if (localize_client.call(localize_srv)) {

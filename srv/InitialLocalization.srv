@@ -1,8 +1,0 @@
-int8 FORWARD = 0
-int8 BACKWARD = 1
-int8 LEFT = 2
-int8 RIGHT = 3
-
-int8 safe_direction
----
-int8 no_response

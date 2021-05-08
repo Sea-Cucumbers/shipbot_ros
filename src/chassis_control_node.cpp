@@ -6,7 +6,6 @@
 #include "shipbot_ros/ChassisState.h"
 #include "shipbot_ros/TravelAbs.h"
 #include "shipbot_ros/TravelRel.h"
-#include "shipbot_ros/InitialLocalization.h"
 #include "shipbot_ros/ChassisCommand.h"
 #include "std_srvs/Empty.h"
 #include "se2Interpolator.h"
@@ -49,7 +48,6 @@ class stop {
 class localize {
   private:
     shared_ptr<ControlStatus> status;
-    shared_ptr<int> safe_direction;
 
   public:
     /*
@@ -57,9 +55,7 @@ class localize {
      * ARGUMENTS
      * _status: pointer to control status
      */
-     localize(shared_ptr<ControlStatus> _status,
-              shared_ptr<int> _safe_direction) : status(_status),
-                                                 safe_direction(_safe_direction) {}
+     localize(shared_ptr<ControlStatus> _status) : status(_status) {}
 
     /*
      * operator (): tell the chassis controller to move to localize the chassis
@@ -68,10 +64,9 @@ class localize {
      * res: technically supposed to be populated with the response, but
      * the response isn't used
      */
-    bool operator () (shipbot_ros::InitialLocalization::Request &req,
-                      shipbot_ros::InitialLocalization::Response &res) {
+    bool operator () (std_srvs::Empty::Request &req,
+                      std_srvs::Empty::Response &res) {
       *status = LOCALIZE;
-      *safe_direction = req.safe_direction;
       return true;
     }
 };
@@ -221,11 +216,7 @@ int main(int argc, char** argv) {
 
   ros::ServiceServer travel_abs_service = nh.advertiseService<shipbot_ros::TravelAbs::Request, shipbot_ros::TravelAbs::Response>("travel_abs", travel_abs(planner, state_ptr, status));
   ros::ServiceServer travel_rel_service = nh.advertiseService<shipbot_ros::TravelRel::Request, shipbot_ros::TravelRel::Response>("travel_rel", travel_rel(planner, state_ptr, status));
-
-  shared_ptr<bool> start_localization = make_shared<bool>(false);
-  shared_ptr<int> safe_direction = make_shared<int>(0);
-  ros::ServiceServer initial_localization_service = nh.advertiseService<shipbot_ros::InitialLocalization::Request, shipbot_ros::InitialLocalization::Response>("localize", localize(status, safe_direction));
-
+  ros::ServiceServer localization_service = nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>("localize", localize(status));
   ros::ServiceServer stop_service = nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>("stop_chassis", stop(status));
 
   ros::Publisher cmd_pub = nh.advertise<shipbot_ros::ChassisCommand>("/shipbot/chassis_command", 1);
@@ -243,11 +234,7 @@ int main(int argc, char** argv) {
 
   bool doing_localization = false;
   double loc_start_time = 0;
-  double loc_vx1 = 0;
-  double loc_vy1 = 0;
-  double loc_vx2 = 0;
-  double loc_vy2 = 0;
-
+  
   while (ros::ok())
   {
     double t = ros::Time::now().toSec() - start_time;
@@ -259,34 +246,6 @@ int main(int argc, char** argv) {
     } else if (*status == LOCALIZE) {
       if (!doing_localization) {
         loc_start_time = t;
-
-        switch (*safe_direction) {
-          case shipbot_ros::InitialLocalization::Request::FORWARD:
-            loc_vx1 = 0.05;
-            loc_vy1 = 0;
-            loc_vx2 = -0.05;
-            loc_vy2 = 0;
-            break;
-          case shipbot_ros::InitialLocalization::Request::BACKWARD:
-            loc_vx1 = -0.05;
-            loc_vy1 = 0;
-            loc_vx2 = 0.05;
-            loc_vy2 = 0;
-            break;
-          case shipbot_ros::InitialLocalization::Request::LEFT:
-            loc_vx1 = 0;
-            loc_vy1 = 0.05;
-            loc_vx2 = 0;
-            loc_vy2 = -0.05;
-            break;
-          case shipbot_ros::InitialLocalization::Request::RIGHT:
-            loc_vx1 = 0;
-            loc_vy1 = -0.05;
-            loc_vx2 = 0;
-            loc_vy2 = 0.05;
-            break;
-        }
-
         doing_localization = true;
       } else {
         double delta_t = t - loc_start_time;

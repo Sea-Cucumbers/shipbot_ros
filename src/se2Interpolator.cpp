@@ -1,32 +1,8 @@
 #include "se2Interpolator.h"
 #include <iostream>
+#include "angle_mod.h"
 
 using namespace std;
-
-double fmodp(double x, double y) {
-  double ret = fmod(x, y);
-  if (ret < 0) {
-    ret = y + ret;
-  }
-  return ret;
-}
-
-double angle_mod(double theta) {
-  return fmodp(theta, 2*M_PI);
-}
-
-double angdiff(double th1, double th2) {
-  th1 = angle_mod(th1);
-  th2 = angle_mod(th2);
-
-  if (th2 - th1 > M_PI) {
-    th2 -= 2*M_PI;
-  } else if (th2 - th1 < -M_PI) {
-    th2 -= 2*M_PI;
-  }
-
-  return th2 - th1;
-}
 
 SE2Interpolator::SE2Interpolator(const Vector3d &start, const Vector3d &end, double start_time, double end_time) : start(start), end(end), start_time(start_time), end_time(end_time), delta_t(end_time - start_time) {
   vel = error(start, end)/delta_t;

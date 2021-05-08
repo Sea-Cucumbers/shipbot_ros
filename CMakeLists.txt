@@ -78,7 +78,6 @@ add_service_files(
   SwitchBreaker.srv
   TravelAbs.srv
   TravelRel.srv
-  InitialLocalization.srv
 )
 
 ## Generate actions in the 'action' folder
@@ -148,8 +147,11 @@ target_link_libraries(gazebo_control_node ${catkin_LIBRARIES} pinocchio::pinocch
 add_executable(arm_control_node src/arm_control_node.cpp $<TARGET_OBJECTS:arm_control>)
 target_link_libraries(arm_control_node ${catkin_LIBRARIES} pinocchio::pinocchio)
 
-add_executable(chassis_control_node src/chassis_control_node.cpp $<TARGET_OBJECTS:chassis_control>)
+add_executable(chassis_control_node src/chassis_control_node.cpp $<TARGET_OBJECTS:chassis_control> $<TARGET_OBJECTS:angle_mod>)
 target_link_libraries(chassis_control_node ${catkin_LIBRARIES})
+
+add_executable(localization_mux_node src/localization_mux_node.cpp $<TARGET_OBJECTS:angle_mod>)
+target_link_libraries(localization_mux_node ${catkin_LIBRARIES})
 
 find_library(REALSENSE2_FOUND realsense2 HINTS ${LIBRARY_DIR} REQUIRED)
 if(NOT REALSENSE2_FOUND)
@@ -172,6 +174,10 @@ add_library(arm_control OBJECT
 
 add_library(chassis_control OBJECT
   ${CMAKE_CURRENT_SOURCE_DIR}/src/se2Interpolator.cpp
+)
+
+add_library(angle_mod OBJECT
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/angle_mod.cpp
 )
 
 add_library(vision OBJECT
