@@ -62,7 +62,7 @@ while not rospy.is_shutdown():
         chassis_msg.tofs[0] = data[1]/100
         chassis_msg.tofs[1] = data[2]/100
         chassis_msg.tofs[2] = data[3]/100
-        chassis_msg.tofs[3] = data[4]/100
+        chassis_msg.tofs[3] = data[4]/100 - 0.023
         chassis_pub.publish(chassis_msg)
       else:
         print('Data line should contain 5 elements, and it does not')

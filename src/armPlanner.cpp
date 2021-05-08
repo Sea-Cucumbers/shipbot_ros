@@ -258,9 +258,11 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
                                                               end_time)));
 
       // Move down and right
+      start_time = end_time;
       seg_start = seg_end;
       seg_end(0) += shuttlecock_length;
       seg_end(2) -= 2*pause_dist;
+
       diff = seg_end.head<3>() - seg_start.head<3>();
       end_time = start_time + seconds_per_meter*diff.norm();
       segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,

@@ -76,6 +76,8 @@ class travel_abs {
     shared_ptr<SE2Interpolator> planner;
     shared_ptr<Vector3d> cur_state;
     shared_ptr<ControlStatus> status;
+    double linear_speed;
+    double angular_speed;
 
   public:
     /*
@@ -87,9 +89,13 @@ class travel_abs {
      */
      travel_abs(shared_ptr<SE2Interpolator> _planner,
                shared_ptr<Vector3d> _cur_state,
-               shared_ptr<ControlStatus> _status) : planner(_planner),
-                                                    cur_state(_cur_state),
-                                                    status(_status) {}
+               shared_ptr<ControlStatus> _status,
+               double _linear_speed,
+               double _angular_speed) : planner(_planner),
+                                        cur_state(_cur_state),
+                                        status(_status),
+                                        linear_speed(_linear_speed),
+                                        angular_speed(_angular_speed) {}
 
     /*
      * operator (): plan trajectory to waypoint
@@ -108,7 +114,7 @@ class travel_abs {
       Vector3d err = planner->error(*cur_state, end);
 
       double traj_start = ros::Time::now().toSec() - start_time;
-      double traj_time = max(err.head<2>().norm()*8, 8*abs(err(2))/M_PI);
+      double traj_time = max(err.head<2>().norm()/linear_speed, abs(err(2))/angular_speed);
       *planner = SE2Interpolator(*cur_state, end, traj_start, traj_start + traj_time);
       *status = CL;
       return true;
@@ -120,6 +126,8 @@ class travel_rel {
     shared_ptr<SE2Interpolator> planner;
     shared_ptr<Vector3d> cur_state;
     shared_ptr<ControlStatus> status;
+    double linear_speed;
+    double angular_speed;
 
   public:
     /*
@@ -129,10 +137,14 @@ class travel_rel {
      * _status: pointer to control status
      */
      travel_rel(shared_ptr<SE2Interpolator> _planner,
-               shared_ptr<Vector3d> _cur_state,
-               shared_ptr<ControlStatus> _status) : planner(_planner),
-                                                    cur_state(_cur_state),
-                                                    status(_status) {}
+                shared_ptr<Vector3d> _cur_state,
+                shared_ptr<ControlStatus> _status,
+                double _linear_speed,
+                double _angular_speed) : planner(_planner),
+                                         cur_state(_cur_state),
+                                         status(_status),
+                                         linear_speed(_linear_speed),
+                                         angular_speed(_angular_speed) {}
 
     /*
      * operator (): plan open-loop trajectory
@@ -154,7 +166,7 @@ class travel_rel {
       Vector3d err = planner->error(*cur_state, end);
 
       double traj_start = ros::Time::now().toSec() - start_time;
-      double traj_time = max(err.head<2>().norm()*8, 8*abs(err(2))/M_PI);
+      double traj_time = max(err.head<2>().norm()/linear_speed, abs(err(2))/angular_speed);
       *planner = SE2Interpolator(*cur_state, end, traj_start, traj_start + traj_time);
       *status = CL;
       return true;
@@ -198,6 +210,11 @@ int main(int argc, char** argv) {
 
   double rate = 20;
 
+  double linear_speed = 0;
+  double angular_speed = 0;
+  nh.getParam("linear_speed", linear_speed);
+  nh.getParam("angular_speed", angular_speed);
+
   shared_ptr<Vector3d> state_ptr = make_shared<Vector3d>();
   shared_ptr<bool> got_state = make_shared<bool>(false);
   ros::Subscriber state_sub = nh.subscribe<shipbot_ros::ChassisState>("/shipbot/chassis_state", 1, handle_state(state_ptr, got_state));
@@ -214,8 +231,8 @@ int main(int argc, char** argv) {
 
   shared_ptr<ControlStatus> status = make_shared<ControlStatus>(STOP);
 
-  ros::ServiceServer travel_abs_service = nh.advertiseService<shipbot_ros::TravelAbs::Request, shipbot_ros::TravelAbs::Response>("travel_abs", travel_abs(planner, state_ptr, status));
-  ros::ServiceServer travel_rel_service = nh.advertiseService<shipbot_ros::TravelRel::Request, shipbot_ros::TravelRel::Response>("travel_rel", travel_rel(planner, state_ptr, status));
+  ros::ServiceServer travel_abs_service = nh.advertiseService<shipbot_ros::TravelAbs::Request, shipbot_ros::TravelAbs::Response>("travel_abs", travel_abs(planner, state_ptr, status, linear_speed, angular_speed));
+  ros::ServiceServer travel_rel_service = nh.advertiseService<shipbot_ros::TravelRel::Request, shipbot_ros::TravelRel::Response>("travel_rel", travel_rel(planner, state_ptr, status, linear_speed, angular_speed));
   ros::ServiceServer localization_service = nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>("localize", localize(status));
   ros::ServiceServer stop_service = nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>("stop_chassis", stop(status));
 
@@ -231,6 +248,7 @@ int main(int argc, char** argv) {
   kp(0) = kp[0];
   kp(1) = kp[1];
   kp(2) = kp[2];
+
 
   bool doing_localization = false;
   double loc_start_time = 0;

@@ -274,8 +274,10 @@ int main(int argc, char** argv) {
 
   // While testing, we might only try manipulation, or only locomotion.
   // Figure out which ones we're doing
+  bool do_localization_routine = false;
   bool do_locomotion = false;
   bool do_manipulation = false;
+  nh.getParam("do_localization_routine", do_localization_routine);
   nh.getParam("do_locomotion", do_locomotion);
   nh.getParam("do_manipulation", do_manipulation);
 
@@ -328,13 +330,14 @@ int main(int argc, char** argv) {
   // Split on commas
   vector<string> commands;
   string_split(commands, mission_str, ", ");
-  sort(commands.begin(), commands.end());
   for (vector<string>::iterator it = commands.begin(); it != commands.end(); ++it) {
     cout << *it << endl;
   }
 
   double target_time = stod(commands.back());
   commands.pop_back();
+
+  sort(commands.begin(), commands.end());
 
   if (do_manipulation) {
     // Wait for vision services
@@ -422,11 +425,12 @@ int main(int argc, char** argv) {
       ROS_ERROR("Failed to tell vision node to find nothing");
     }
   }
-  
-  if (do_locomotion) {
-    // Wait for localization to initialize
-    spin_until_completion(r, loc_prep_done_ptr);
 
+  // Wait for localization to initialize
+  spin_until_completion(r, loc_prep_done_ptr);
+  cout << "Localization is ready" << endl;
+  
+  if (do_localization_routine) {
     // Localize
     if (localize_client.call(localize_srv)) {
       ROS_INFO("Commanded chassis to perform localization routine");
@@ -605,6 +609,8 @@ int main(int argc, char** argv) {
         } else {
           ROS_ERROR("Failed to tell vision node to find nothing");
         }
+
+        cout << "Shuttlecock: " << (int)(shuttlecock_ptr->open) << " " << (int)(shuttlecock_ptr->vertical) << endl;
 
         if (tokens[1] == "0" && shuttlecock_ptr->open) {
           cout << "Shuttlecock already open, doing nothing" << endl;

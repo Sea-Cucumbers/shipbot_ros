@@ -82,7 +82,7 @@ def command_callback(cmd_msg):
 rospy.init_node('localization_node', anonymous=True)
 
 print('Waiting for mission control node')
-rospy.wait_for_service('/localization_mux/loc_prep_done')
+rospy.wait_for_service('/localization_mux_node/loc_prep_done_pf')
 
 chassis_sub = rospy.Subscriber('/shipbot/chassis_feedback', ChassisFeedback, chassis_callback)
 command_sub = rospy.Subscriber('/shipbot/chassis_command', ChassisCommand, command_callback)
