@@ -146,6 +146,9 @@ int main(int argc, char** argv) {
       // Facing toward long wall. Use sensors 3 and 0
       state_msg.x = fbk_ptr->tofs[3] - t3[1];
       state_msg.y = fbk_ptr->tofs[0] + t0[0];
+    } else {
+      state_msg.x = state_ptr->x;     
+      state_msg.y = state_ptr->y;     
     }
     state_msg.yaw = state_ptr->yaw;
     state_pub.publish(state_msg);

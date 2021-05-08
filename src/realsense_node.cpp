@@ -453,7 +453,6 @@ int main(int argc, char** argv) {
       std::cout << "Ratio: " << ratio << std::endl;
       if (*device_type != shipbot_ros::FindDevice::Request::SHUTTLECOCK) {
         spigot_state.vertical = ratio < 0.4;
-        wheel_state.vertical = false;
       }
       else { // shuttlecock, we also determine device state
         Rect br = ell.boundingRect();
