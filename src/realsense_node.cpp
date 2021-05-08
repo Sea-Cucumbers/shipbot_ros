@@ -235,7 +235,11 @@ int main(int argc, char** argv) {
       inRange(rsimagec_hls, lime_min, lime_max, mask2);
       bitwise_or(rsimagec_segmented, mask2, rsimagec_segmented);
     }
-
+    else if (*device_type == shipbot_ros::FindDevice::Request::BREAKERA ||
+        *device_type == shipbot_ros::FindDevice::Request::BREAKERB){
+      GaussianBlur(rsimagec_segmented, rsimagec_segmented, Size(5,5), 0.0);
+      inRange(rsimagec_segmented, 1, 255, rsimagec_segmented);
+    }
     Ptr<SimpleBlobDetector> detector = SimpleBlobDetector::create(params);
     // Detect blobs.
     std::vector<KeyPoint> keypoints;
@@ -286,6 +290,7 @@ int main(int argc, char** argv) {
     std::priority_queue<Blob> blob_pq;
     for (int k = 0; k < keypoints.size(); k++) {
       KeyPoint curr_keypoint = keypoints.at(k);
+      std::cout << "blob " << k << " size: " << curr_keypoint.size << std::endl;
       Point2d pixel = curr_keypoint.pt;
       int pixel_x = (int)pixel.x;
       int pixel_y = (int)pixel.y;
@@ -294,7 +299,7 @@ int main(int argc, char** argv) {
       double z = 0;
       cv::Point3d best_point_tmp;
       cv::Point2d best_pixel_tmp;
-      double best_dist_tmp;
+      double best_dist_tmp = 0;
       // check every pixel in the blob, find 3D coords
       // and get one 3D coord representing the blob
       for (int i = -r; i < r+1; i++) {
@@ -305,23 +310,36 @@ int main(int argc, char** argv) {
           auto got = u.find(key);
           if (got != u.end()) {
             Point3d pgot = got->second;
-            if (z == 0 || z > pgot.z) {
+            double dist_tmp = sqrt(pgot.x * pgot.x + pgot.y * pgot.y + pgot.z * pgot.z);
+            if (best_dist_tmp == 0 || best_dist_tmp > dist_tmp){
               z = pgot.z;
               best_point_tmp = pgot;
               Point2d px((double)x, (double)y);
               best_pixel_tmp = px;
-              best_dist_tmp = sqrt(pgot.x * pgot.x + pgot.y * pgot.y + z * z);
+              best_dist_tmp = dist_tmp;
             }
           }
         }
       }
       // push the blob to pq
       Blob blob(best_dist_tmp, best_point_tmp, best_pixel_tmp, curr_keypoint);
-      blob_pq.push(blob);
+      if (!(blob.point.x == 0 && blob.point.y == 0 && blob.point.z == 0))
+        blob_pq.push(blob);
     }
 
     std::vector<Blob> breakers;
     Blob best_blob;
+    if (blob_pq.empty()){
+      wheel_state.visible = false;
+      spigot_state.visible = false;
+      shuttlecock_state.visible = false;
+      for (int i = 0; i < 3; ++i) {
+        breaker_state.switches[i].visible = false;
+      }
+      std::cout << "Bad frame: no good blob" << std::endl;
+      error = ERROR_BAD_FRAME;
+      continue;
+    }
     // for valves, we find one best keypoint
     if (*device_type != shipbot_ros::FindDevice::Request::BREAKERA &&
         *device_type != shipbot_ros::FindDevice::Request::BREAKERB) {
@@ -380,11 +398,9 @@ int main(int argc, char** argv) {
     // Step 4.1: if it's a valve:
     if (*device_type != shipbot_ros::FindDevice::Request::BREAKERA &&
         *device_type != shipbot_ros::FindDevice::Request::BREAKERB) {
-      r = 100;
       // if it's a shuttlecock valve, we just check its #pixels
       if (*device_type == shipbot_ros::FindDevice::Request::SHUTTLECOCK) {
-        std::cout << best_blob.keypoint.size << std::endl;
-        shuttlecock_state.vertical = best_blob.keypoint.size < 45;
+        r = 100;
       }
       else if (*device_type == shipbot_ros::FindDevice::Request::SPIGOT) {
         r = 90;
@@ -396,7 +412,7 @@ int main(int argc, char** argv) {
       int xc, yc;
       xc = best_blob.pixel.x;
       yc = best_blob.pixel.y;
-      cv::rectangle(rethresh_mask, Point(xc-r, yc-r), Point(xc+r, yc+r), 255, FILLED);
+      cv::rectangle(rethresh_mask, Point(std::max(xc-r, 0), std::max(yc-r, 0)), Point(std::min(xc+r, w1), std::min(yc+r, h1)), 255, FILLED);
       bitwise_and(rethresh_mask, rsimagec_segmented, rsimage_rethreshed);
 
       // find its contours and fit an ellipse
@@ -436,15 +452,31 @@ int main(int argc, char** argv) {
       float ratio = get_rect_ratio(wid, hei);
       std::cout << "Ratio: " << ratio << std::endl;
       if (*device_type != shipbot_ros::FindDevice::Request::SHUTTLECOCK) {
-        shuttlecock_state.vertical = ratio < 0.4;
+        spigot_state.vertical = ratio < 0.4;
+        wheel_state.vertical = false;
       }
       else { // shuttlecock, we also determine device state
-        if (!shuttlecock_state.vertical) {
-          // check bounding rec
-          Rect br = ell.boundingRect();
-          shuttlecock_state.open = br.width <= br.height;
-        } else { // we count the #pixels
-          shuttlecock_state.open = best_blob.keypoint.size > 30;
+        Rect br = ell.boundingRect();
+        std::cout << "br w, h: " << br.width << ", " << br.height << std::endl;
+        // check br size
+        if (br.width > 110){
+          if (ratio < 0.13){
+            shuttlecock_state.vertical = true;
+            shuttlecock_state.open = true;
+          }
+          else{
+            shuttlecock_state.vertical = false;
+            shuttlecock_state.open = false;
+          }
+        }
+        else {
+          if (br.height > 110){
+            shuttlecock_state.vertical = false;
+            shuttlecock_state.open = true;
+          } else {
+            shuttlecock_state.vertical = true;
+            shuttlecock_state.open = false;
+          }
         }
       }
     }
