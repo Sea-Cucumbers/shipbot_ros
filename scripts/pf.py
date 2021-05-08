@@ -1,13 +1,13 @@
 from angle_mod import *
 import numpy as np
 
-robot_width = 0.1778
+robot_width = 0.1905
 
 minx = robot_width
 miny = robot_width
 
-maxx = 1.524 - robot_width
-maxy = 0.9144 - robot_width
+maxx = 1.568 - robot_width
+maxy = 0.95 - robot_width
 
 # STATE DEFINITION
 # state is [x, y, theta].

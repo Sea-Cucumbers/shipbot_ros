@@ -13,13 +13,13 @@ from pf import *
 import threading, Queue
 import tf2_ros
 
-robot_width = 0.1778
+robot_width = 0.1905
 
 minx = robot_width
 miny = robot_width
 
-maxx = 1.524 - robot_width
-maxy = 0.9144 - robot_width
+maxx = 1.568 - robot_width
+maxy = 0.95 - robot_width
 
 got_fbk = False 
 got_cmd = False 

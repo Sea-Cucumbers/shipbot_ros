@@ -292,22 +292,22 @@ int main(int argc, char** argv) {
   Vector3d t_cam_arm(t_cam_armv[0], t_cam_armv[1], t_cam_armv[2]);
 
   // Get station locations
-  vector<double> locA;
-  vector<double> locB;
-  vector<double> locC;
-  vector<double> locD;
-  vector<double> locE;
-  vector<double> locF;
-  vector<double> locG;
-  vector<double> locH;
-  nh.getParam("/locA", locA);
-  nh.getParam("/locB", locB);
-  nh.getParam("/locC", locC);
-  nh.getParam("/locD", locD);
-  nh.getParam("/locE", locE);
-  nh.getParam("/locF", locF);
-  nh.getParam("/locG", locG);
-  nh.getParam("/locH", locH);
+  vector<double> poseA;
+  vector<double> poseB;
+  vector<double> poseC;
+  vector<double> poseD;
+  vector<double> poseE;
+  vector<double> poseF;
+  vector<double> poseG;
+  vector<double> poseH;
+  nh.getParam("/poseA", poseA);
+  nh.getParam("/poseB", poseB);
+  nh.getParam("/poseC", poseC);
+  nh.getParam("/poseD", poseD);
+  nh.getParam("/poseE", poseE);
+  nh.getParam("/poseF", poseF);
+  nh.getParam("/poseG", poseG);
+  nh.getParam("/poseH", poseH);
 
   // This service starts the mission
   shared_ptr<bool> start_ptr = make_shared<bool>(false);
@@ -442,46 +442,37 @@ int main(int argc, char** argv) {
     // LOCOMOTION PHASE
     if (do_locomotion) {
       // Travel to station 
-      vector<double> station_loc;
-      double station_theta;
+      vector<double> station_pose;
       switch (station) {
         case 'A':
-          station_loc = locA;
-          station_theta = -M_PI/2;
+          station_pose = poseA;
           break;
         case 'B':
-          station_loc = locB;
-          station_theta = -M_PI/2;
+          station_pose = poseB;
           break;
         case 'C':
-          station_loc = locC;
-          station_theta = -M_PI/2;
+          station_pose = poseC;
           break;
         case 'D':
-          station_loc = locD;
-          station_theta = -M_PI/2;
+          station_pose = poseD;
           break;
         case 'E':
-          station_loc = locE;
-          station_theta = -M_PI/2;
+          station_pose = poseE;
           break;
         case 'F':
-          station_loc = locF;
-          station_theta = M_PI;
+          station_pose = poseF;
           break;
         case 'G':
-          station_loc = locG;
-          station_theta = M_PI;
+          station_pose = poseG;
           break;
         case 'H':
-          station_loc = locH;
-          station_theta = M_PI;
+          station_pose = poseH;
           break;
       }
 
-      travel_abs_srv.request.x = station_loc[0];
-      travel_abs_srv.request.y = station_loc[1];
-      travel_abs_srv.request.theta = station_theta;
+      travel_abs_srv.request.x = station_pose[0];
+      travel_abs_srv.request.y = station_pose[1];
+      travel_abs_srv.request.theta = station_pose[2];
       if (travel_abs_client.call(travel_abs_srv)) {
         ROS_INFO("Commanded chassis to travel to station");
       } else {

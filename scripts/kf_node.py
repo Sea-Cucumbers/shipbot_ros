@@ -70,8 +70,8 @@ command_sub = rospy.Subscriber('/shipbot/chassis_command', ChassisCommand, comma
 state_pub = rospy.Publisher('/shipbot/chassis_state', ChassisState, queue_size=1)
 state_msg = ChassisState()
 
-maxx = 1.524
-maxy = 0.9144
+maxx = 1.568
+maxy = 0.95
 
 collect_idx = 0
 ncollect = 50
