@@ -3,6 +3,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <algorithm>
 #include <vector>
 #include "shipbot_ros/SpinRotary.h"
 #include "shipbot_ros/SpinShuttlecock.h"
@@ -327,6 +328,7 @@ int main(int argc, char** argv) {
   // Split on commas
   vector<string> commands;
   string_split(commands, mission_str, ", ");
+  sort(commands.begin(), commands.end());
   for (vector<string>::iterator it = commands.begin(); it != commands.end(); ++it) {
     cout << *it << endl;
   }
