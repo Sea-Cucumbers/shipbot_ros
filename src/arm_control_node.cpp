@@ -314,8 +314,8 @@ int main(int argc, char** argv) {
   {
     group->getNextFeedback(group_feedback);
     group_feedback.getPosition(position_fbk);
-    position_fbk(1) += 0.05;
-    position_fbk(2) -= 0.05;
+    position_fbk(1) += 0.08;
+    position_fbk(2) -= 0.025;
     position_fbk(3) -= 0.075;
     group_feedback.getVelocity(velocity_fbk);
     group_feedback.getEffort(effort_fbk);
