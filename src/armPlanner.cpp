@@ -6,11 +6,15 @@ using namespace std;
 ArmPlanner::ArmPlanner(double seconds_per_meter,
                        double seconds_per_degree,
                        const VectorXd &reset_config,
-                       double pause_dist,
+                       double horizontal_pause_back,
+                       double vertical_pause_back,
+                       double vertical_pause_above,
                        double grip_wait) : seconds_per_meter(seconds_per_meter),
                                            seconds_per_degree(seconds_per_degree),
                                            reset_config(reset_config),
-                                           pause_dist(pause_dist),
+                                           horizontal_pause_back(horizontal_pause_back),
+                                           vertical_pause_back(vertical_pause_back),
+                                           vertical_pause_above(vertical_pause_above),
                                            grip_wait(grip_wait) {}
 
 void ArmPlanner::sample_points(vector<geometry_msgs::Point> &points) {
@@ -54,21 +58,26 @@ void ArmPlanner::spin_rotary(const VectorXd &start,
   waypoint.head<3>() = position;
 
   if (vertical_spin_axis) {
-    waypoint(2) += pause_dist;
+    waypoint(2) += vertical_pause_above;
+    waypoint(1) += vertical_pause_back;
     waypoint(3) = -M_PI/2;
   } else {
-    waypoint(1) -= pause_dist;
+    waypoint(1) -= horizontal_pause_back;
   }
 
   start_plan(start_time, false, start, waypoint);
                                          
-  // If vertical axis, move 10 cm down. If horizontal axis, move 10 cm forward
   if (vertical_spin_axis) {
-    waypoint(2) -= pause_dist;
+    // If vertical axis, move forward, then down
+    waypoint(1) += vertical_pause_back;
+    add_waypoint(waypoint);
+    waypoint(2) -= vertical_pause_above;
+    add_waypoint(waypoint);
   } else {
-    waypoint(1) += pause_dist;
+    // If horizontal axis, move forward
+    waypoint(1) += horizontal_pause_back;
+    add_waypoint(waypoint);
   }
-  add_waypoint(waypoint);
 
   // Wait for the gripper to grip
   add_grip_phase(true);
@@ -80,11 +89,15 @@ void ArmPlanner::spin_rotary(const VectorXd &start,
   // Wait for the gripper to ungrip
   add_grip_phase(true);
 
-  // If vertical axis, move 10 cm up. If horizontal axis, move 10 cm back
   if (vertical_spin_axis) {
-    waypoint(2) += pause_dist;
+    // If vertical axis, move up then back
+    waypoint(2) += vertical_pause_above;
+    add_waypoint(waypoint);
+    waypoint(1) -= vertical_pause_back;
+    add_waypoint(waypoint);
   } else {
-    waypoint(1) -= pause_dist;
+    // If horizontal axis, move back
+    waypoint(1) -= horizontal_pause_back;
   }
 
   current_segment = segments.begin();
@@ -103,16 +116,21 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
 
   if (do_open) {
     if (vertical_spin_axis) {
-      // The handle is pointing toward us. Stop above it
-      waypoint(2) += pause_dist;
+      // The handle is pointing toward us. Stop above it and backward
+      waypoint(1) -= vertical_pause_back;
+      waypoint(2) += vertical_pause_above;
       
       start_plan(start_time, false, start, waypoint);
+
+      // Move forward
+      waypoint(1) += vertical_pause_back;
+      add_waypoint(waypoint);
 
       // Harden end-effector
       add_grip_phase(true);
 
       // Move down
-      waypoint(2) -= pause_dist;
+      waypoint(2) -= vertical_pause_above;
       add_waypoint(waypoint);
 
       // Move forward and right
@@ -121,14 +139,14 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
       add_waypoint(waypoint);
 
       // Move up
-      waypoint(2) += pause_dist;
+      waypoint(2) += vertical_pause_above;
       add_waypoint(waypoint);
 
       // Unharden end-effector
       add_grip_phase(false);
     } else {
       // The handle is pointing right. Pause backward from it
-      waypoint(1) -= pause_dist;
+      waypoint(1) -= horizontal_pause_back;
       
       start_plan(start_time, false, start, waypoint);
 
@@ -136,7 +154,7 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
       add_grip_phase(true);
 
       // Move forward
-      waypoint(1) += pause_dist;
+      waypoint(1) += horizontal_pause_back;
       add_waypoint(waypoint);
 
       // Move up and left
@@ -145,7 +163,7 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
       add_waypoint(waypoint);
 
       // Move back
-      waypoint(1) -= pause_dist;
+      waypoint(1) -= horizontal_pause_back;
       add_waypoint(waypoint);
 
       // Unharden end-effector
@@ -153,16 +171,21 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
     }
   } else {
     if (vertical_spin_axis) {
-      // The handle is pointing right. Stop above it
-      waypoint(2) += pause_dist;
+      // The handle is pointing right. Stop above it and backward
+      waypoint(1) -= vertical_pause_back;
+      waypoint(2) += vertical_pause_above;
       
       start_plan(start_time, false, start, waypoint);
+
+      // Move forward
+      waypoint(1) += vertical_pause_back;
+      add_waypoint(waypoint);
 
       // Harden end-effector
       add_grip_phase(true);
 
       // Move down
-      waypoint(2) -= pause_dist;
+      waypoint(2) -= vertical_pause_above;
       add_waypoint(waypoint);
 
       // Move back and left
@@ -171,14 +194,14 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
       add_waypoint(waypoint);
 
       // Move up
-      waypoint(2) += pause_dist;
+      waypoint(2) += vertical_pause_above;
       add_waypoint(waypoint);
 
       // Unharden end-effector
       add_grip_phase(false);
     } else {
       // The handle is pointing up. Pause backward from it
-      waypoint(1) -= pause_dist;
+      waypoint(1) -= horizontal_pause_back;
       
       start_plan(start_time, false, start, waypoint);
 
@@ -186,7 +209,7 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
       add_grip_phase(true);
 
       // Move forward
-      waypoint(1) += pause_dist;
+      waypoint(1) += horizontal_pause_back;
       add_waypoint(waypoint);
 
       // Move down and right
@@ -195,7 +218,7 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
       add_waypoint(waypoint);
 
       // Move back
-      waypoint(1) -= pause_dist;
+      waypoint(1) -= horizontal_pause_back;
       add_waypoint(waypoint);
 
       // Unharden end-effector
@@ -213,29 +236,29 @@ void ArmPlanner::switch_breaker(const VectorXd &start,
   // Pause back and up/down depending on which way we're pushing
   VectorXd waypoint = VectorXd::Zero(5);
   waypoint.head<3>() = position;
-  waypoint(1) -= pause_dist;
-  waypoint(2) += push_up ? -pause_dist : pause_dist;
+  waypoint(1) -= horizontal_pause_back;
+  waypoint(2) += push_up ? -horizontal_pause_back : horizontal_pause_back;
   waypoint(3) = push_up ? M_PI/4 : -M_PI/4;
 
   start_plan(start_time, false, start, waypoint);
                                          
   // Move forward and upward/downward depending on which way we're pushing 
-  waypoint(1) += pause_dist;
-  waypoint(2) = waypoint(2) + (push_up ? pause_dist : -pause_dist);
+  waypoint(1) += horizontal_pause_back;
+  waypoint(2) = waypoint(2) + (push_up ? horizontal_pause_back : -horizontal_pause_back);
   add_waypoint(waypoint);
 
   // Grip
   add_grip_phase(true);
 
   // Push the switch
-  waypoint(2) = waypoint(2) + (push_up ? pause_dist : -pause_dist);
+  waypoint(2) = waypoint(2) + (push_up ? horizontal_pause_back : -horizontal_pause_back);
   add_waypoint(waypoint);
 
   // Ungrip
   add_grip_phase(false);
 
   // Move back
-  waypoint(1) -= pause_dist;
+  waypoint(1) -= horizontal_pause_back;
   add_waypoint(waypoint);
 
   current_segment = segments.begin();

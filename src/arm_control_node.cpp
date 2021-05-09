@@ -207,7 +207,9 @@ int main(int argc, char** argv) {
   double rate = 20;
   double seconds_per_meter = 6;
   double seconds_per_degree = 0.011;
-  double pause_dist = 0.1;
+  double horizontal_pause_back = 0.1;
+  double vertical_pause_back = 0.1;
+  double vertical_pause_above = 0.1;
   double grip_wait = 5;
   vector<double> reset_configv;
   reset_configv.push_back(-0.135214);
@@ -221,7 +223,9 @@ int main(int argc, char** argv) {
   nh.getParam("rate", rate);
   nh.getParam("seconds_per_meter", seconds_per_meter);
   nh.getParam("seconds_per_degree", seconds_per_degree);
-  nh.getParam("pause_dist", pause_dist);
+  nh.getParam("horizontal_pause_back", horizontal_pause_back);
+  nh.getParam("vertical_pause_back", vertical_pause_back);
+  nh.getParam("vertical_pause_above", vertical_pause_above);
   nh.getParam("grip_wait", grip_wait);
   nh.getParam("reset_config", reset_configv);
   nh.getParam("encoder_offsets", encoder_offsetsv);
@@ -293,7 +297,7 @@ int main(int argc, char** argv) {
   VectorXd velocity_fbk = VectorXd::Zero(group->size());
   VectorXd effort_fbk = VectorXd::Zero(group->size());
   
-  shared_ptr<ArmPlanner> planner = make_shared<ArmPlanner>(seconds_per_meter, seconds_per_degree, reset_config, pause_dist, grip_wait);
+  shared_ptr<ArmPlanner> planner = make_shared<ArmPlanner>(seconds_per_meter, seconds_per_degree, reset_config, horizontal_pause_back, vertical_pause_back, vertical_pause_above, grip_wait);
 
   Vector3d position(0, 0, 0);
   Quaterniond orientation(1, 0, 0, 0);

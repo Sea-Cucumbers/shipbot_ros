@@ -15,10 +15,9 @@ class ArmPlanner {
     const double seconds_per_meter;
     const double seconds_per_degree;
 
-    // How far back do we stop before engaging a rotary valve? How far to the side do
-    // we stop before pushing a shuttlecock valve? How far above/below do we stop
-    // before pushing a breaker switch?
-    double pause_dist; 
+    const double horizontal_pause_back;
+    const double vertical_pause_back;
+    const double vertical_pause_above;
 
     // How long do we wait for the jammer to grip/ungrip
     double grip_wait;
@@ -79,13 +78,17 @@ class ArmPlanner {
      * seconds_per_degree: if we're spinning a rotary valve, how many seconds
      * per degree do we spin?
      * reset_config: [x, y, z, pitch, roll] of arm at the reset configuration
-     * pause_dist: how far back/above do we pause before engaging devices?
+     * horizontal_pause_back: how far back do we pause before engaging horizontal devices?
+     * vertical_pause_back: how far back do we pause before engaging vertical devices?
+     * vertical_pause_above: how far above do we pause before engaging vertical devices?
      * grip_wait: how long do we wait for the gripper to grip/ungrip
      */
      ArmPlanner(double seconds_per_meter,
                 double seconds_per_degree,
                 const VectorXd &reset_config,
-                double pause_dist,
+                double horizontal_pause_back,
+                double vertical_pause_back,
+                double vertical_pause_above,
                 double grip_wait);
 
     /*

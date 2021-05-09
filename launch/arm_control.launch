@@ -7,7 +7,9 @@
     <param name="encoder_offsets" value="[0, 0.08, -0.025, -0.075, 0]"/>
     <param name="grip_wait" value="5"/>
     <param name="reset_config" value="[-0.135214, 0.18142, 0.05839807, -1.52432, 2.67237]"/>
-    <param name="pause_dist" value="0.1"/>
+    <param name="horizontal_pause_back" value="0.05"/>
+    <param name="vertical_pause_back" value="0.1"/>
+    <param name="vertical_pause_above" value="0.1"/>
     <param name="rate" value="100"/>
     <param name="gains_file" value="$(find shipbot_ros)/config/hebi_gains.xml"/>
   </node>
