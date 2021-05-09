@@ -53,7 +53,7 @@ void ArmPlanner::spin_rotary(const VectorXd &start,
                              bool vertical_spin_axis,
                              double degrees,
                              double start_time) {
-  // If vertical axis, pause 10 cm above. If horizontal axis, pause 10 cm back
+  // If vertical axis, pause above. If horizontal axis, pause back
   VectorXd waypoint = VectorXd::Zero(5);
   waypoint.head<3>() = position;
 
@@ -87,7 +87,7 @@ void ArmPlanner::spin_rotary(const VectorXd &start,
   add_waypoint(waypoint);
 
   // Wait for the gripper to ungrip
-  add_grip_phase(true);
+  add_grip_phase(false);
 
   if (vertical_spin_axis) {
     // If vertical axis, move up then back
@@ -98,6 +98,7 @@ void ArmPlanner::spin_rotary(const VectorXd &start,
   } else {
     // If horizontal axis, move back
     waypoint(1) -= horizontal_pause_back;
+    add_waypoint(waypoint);
   }
 
   current_segment = segments.begin();
