@@ -20,9 +20,11 @@ class ArmPlanner {
     const double vertical_pause_above;
 
     // How long do we wait for the jammer to grip/ungrip
-    double grip_wait;
+    const double grip_wait;
 
-    const double shuttlecock_length = 0.08174;
+    const double shuttlecock_tip_to_joint = 0.092075;
+    const double shuttlecock_handle_center_to_joint = 0.0635;
+    const double shuttlecock_depth = 0.024;
 
     VectorXd reset_config;
 

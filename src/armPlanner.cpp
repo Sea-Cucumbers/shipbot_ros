@@ -111,7 +111,7 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
   VectorXd waypoint = VectorXd::Zero(5);
   waypoint.head<3>() = position;
   if (vertical_spin_axis) {
-    waypoint(3) = -M_PI/2;
+    waypoint(3) = -M_PI/4;
   }
 
   if (do_open) {
@@ -122,58 +122,56 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
       
       start_plan(start_time, false, start, waypoint);
 
-      // Move forward
-      waypoint(1) += vertical_pause_back;
+      // Move forward and downward
+      waypoint(1) += vertical_pause_back + shuttlecock_tip_to_joint;
+      waypoint(2) -= vertical_pause_above - shuttlecock_depth;
       add_waypoint(waypoint);
 
       // Harden end-effector
       add_grip_phase(true);
 
-      // Move down
-      waypoint(2) -= vertical_pause_above;
-      add_waypoint(waypoint);
-
-      // Move forward and right
-      waypoint(0) += shuttlecock_length;
-      waypoint(1) += shuttlecock_length;
-      add_waypoint(waypoint);
-
-      // Move up
-      waypoint(2) += vertical_pause_above;
+      // Spin
+      waypoint(4) += M_PI/2;
       add_waypoint(waypoint);
 
       // Unharden end-effector
       add_grip_phase(false);
+
+      // Move up and back
+      waypoint(1) -= vertical_pause_back;
+      waypoint(2) += vertical_pause_above + shuttlecock_depth;
+      add_waypoint(waypoint);
     } else {
       // The handle is pointing right. Pause backward from it
+      waypoint(0) -= shuttlecock_handle_center_to_joint;
       waypoint(1) -= horizontal_pause_back;
       
       start_plan(start_time, false, start, waypoint);
 
+      // Move forward
+      waypoint(1) += horizontal_pause_back + shuttlecock_depth;
+      add_waypoint(waypoint);
+
       // Harden end-effector
       add_grip_phase(true);
 
-      // Move forward
-      waypoint(1) += horizontal_pause_back;
-      add_waypoint(waypoint);
-
-      // Move up and left
-      waypoint(0) -= shuttlecock_length;
-      waypoint(2) += shuttlecock_length;
-      add_waypoint(waypoint);
-
-      // Move back
-      waypoint(1) -= horizontal_pause_back;
+      // Spin
+      waypoint(4) += M_PI/2;
       add_waypoint(waypoint);
 
       // Unharden end-effector
       add_grip_phase(false);
+
+      // Move back
+      waypoint(1) -= horizontal_pause_back + shuttlecock_depth;
+      add_waypoint(waypoint);
     }
   } else {
     if (vertical_spin_axis) {
       // The handle is pointing right. Stop above it and backward
       waypoint(1) -= vertical_pause_back;
       waypoint(2) += vertical_pause_above;
+      waypoint(0) -= shuttlecock_handle_center_to_joint;
       
       start_plan(start_time, false, start, waypoint);
 
@@ -181,24 +179,24 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
       waypoint(1) += vertical_pause_back;
       add_waypoint(waypoint);
 
+      // Move down
+      waypoint(2) -= vertical_pause_above + shuttlecock_depth;
+      add_waypoint(waypoint);
+
       // Harden end-effector
       add_grip_phase(true);
 
-      // Move down
-      waypoint(2) -= vertical_pause_above;
-      add_waypoint(waypoint);
-
-      // Move back and left
-      waypoint(0) -= shuttlecock_length;
-      waypoint(1) -= shuttlecock_length;
-      add_waypoint(waypoint);
-
-      // Move up
-      waypoint(2) += vertical_pause_above;
+      // Spin
+      waypoint(4) -= M_PI/2;
       add_waypoint(waypoint);
 
       // Unharden end-effector
       add_grip_phase(false);
+
+      // Move up and back
+      waypoint(1) -= vertical_pause_back;
+      waypoint(2) += vertical_pause_above + shuttlecock_depth;
+      add_waypoint(waypoint);
     } else {
       // The handle is pointing up. Pause backward from it
       waypoint(1) -= horizontal_pause_back;
@@ -213,8 +211,8 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
       add_waypoint(waypoint);
 
       // Move down and right
-      waypoint(0) += shuttlecock_length;
-      waypoint(2) -= shuttlecock_length;
+      waypoint(0) += shuttlecock_tip_to_joint;
+      waypoint(2) -= shuttlecock_tip_to_joint;
       add_waypoint(waypoint);
 
       // Move back
