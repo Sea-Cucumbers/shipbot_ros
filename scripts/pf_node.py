@@ -211,7 +211,14 @@ while not rospy.is_shutdown():
         pf_thread = threading.Thread(target=update_weights, args=(queue, particles.copy(), log_weights, np.array(tofs)))
         pf_thread.start()
 
-      state = np.matmul(particles, np.exp(log_weights))
+      state = np.zeros(3)
+      weights = np.exp(log_weights)
+      state[:2] = np.matmul(particles[:2], weights)
+      directions = np.zeros((2, particles.shape[1]))
+      directions[0] = np.cos(particles[2])
+      directions[1] = np.sin(particles[2])
+      av_dir = np.matmul(directions, weights)
+      state[2] = np.arctan2(av_dir[1], av_dir[0])
 
       state_msg.x = state[0]
       state_msg.y = state[1]

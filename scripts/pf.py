@@ -83,7 +83,7 @@ def ray_intersect_segment(r0, dr, s0, s1):
 def normalize_log_weights(log_weights):
   weights = np.exp(log_weights - np.max(log_weights))
   weights /= np.sum(weights)
-  return np.log(weights)
+  return np.log(weights + 0.00001)
 
 # init_state_given_yaw: determines what the state should be if we have
 # a certain yaw an the sensors are reading the values given by obs
@@ -168,7 +168,8 @@ def get_new_log_weights(particles, log_weights, obs):
   for p in range(particles.shape[1]):
     zhat = sensor_model(particles[:, p])
     resid = zhat - obs
-    new_log_weights[p] = log_weights[p] - 0.5*np.dot(resid[good_idx], resid[good_idx])*100
+    cov = 0.0004*np.eye(2)
+    new_log_weights[p] = log_weights[p] - 0.5*np.dot(resid[good_idx], np.linalg.solve(cov, resid[good_idx])) - 0.5*2*np.log(2*np.pi) - 0.5*np.log(np.linalg.det(cov))
 
   new_log_weights = normalize_log_weights(new_log_weights)
   best_idx = np.argmax(new_log_weights)
@@ -191,5 +192,6 @@ def resample(particles, log_weights, nparticles):
     new_particles[:, p] = particles[:, i]
     new_log_weights[p] = 1.0/nparticles
 
+  new_particles[2] += np.random.normal(scale=0.2, size=(nparticles,))
   log_weights = np.log(new_log_weights)
   return new_particles, log_weights
