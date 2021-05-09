@@ -2,12 +2,34 @@ from angle_mod import *
 import numpy as np
 
 robot_width = 0.1905
-
 minx = robot_width
 miny = robot_width
+long_wall = 1.568
+short_wall = 0.95
+maxx = long_wall - robot_width
+maxy = short_wall - robot_width
 
-maxx = 1.568 - robot_width
-maxy = 0.95 - robot_width
+corner = np.array([0, 0])
+long_wall_end = np.array([long_wall, 0])
+short_wall_end = np.array([0, short_wall])
+
+# Displacements [x, y] of sensors in chassis' local frame, where
+# chassis' local frame aligns with the world frame at theta = 0
+t0 = np.array([0.1651, -0.09525])
+t1 = np.array([-0.1016, 0.15875])
+t2 = np.array([-0.1651, 0.1143])
+t3 = np.array([0.1016, -0.15875])
+
+# Ray vectors for each sensor in the chassis' local frame
+dr0 = np.array([1, 0])
+dr1 = np.array([0, 1])
+dr2 = np.array([-1, 0])
+dr3 = np.array([0, -1])
+
+ts = [t0, t1, t2, t3]
+drs = [dr0, dr1, dr2, dr3]
+
+sensor_info = zip(ts, drs)
 
 # STATE DEFINITION
 # state is [x, y, theta].
@@ -62,28 +84,6 @@ def normalize_log_weights(log_weights):
   weights = np.exp(log_weights - np.max(log_weights))
   weights /= np.sum(weights)
   return np.log(weights)
-
-corner = np.array([0, 0])
-long_wall_end = np.array([1.524, 0])
-short_wall_end = np.array([0, 0.9144])
-
-# Displacements [x, y] of sensors in chassis' local frame, where
-# chassis' local frame aligns with the world frame at theta = 0
-t0 = np.array([0.1651, -0.09525])
-t1 = np.array([-0.1016, 0.15875])
-t2 = np.array([-0.1651, 0.1143])
-t3 = np.array([0.1016, -0.15875])
-
-# Ray vectors for each sensor in the chassis' local frame
-dr0 = np.array([1, 0])
-dr1 = np.array([0, 1])
-dr2 = np.array([-1, 0])
-dr3 = np.array([0, -1])
-
-ts = [t0, t1, t2, t3]
-drs = [dr0, dr1, dr2, dr3]
-
-sensor_info = zip(ts, drs)
 
 # init_state_given_yaw: determines what the state should be if we have
 # a certain yaw an the sensors are reading the values given by obs

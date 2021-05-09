@@ -14,12 +14,12 @@ import threading, Queue
 import tf2_ros
 
 robot_width = 0.1905
-
 minx = robot_width
 miny = robot_width
-
-maxx = 1.568 - robot_width
-maxy = 0.95 - robot_width
+long_wall = 1.568
+short_wall = 0.95
+maxx = long_wall - robot_width
+maxy = short_wall - robot_width
 
 got_fbk = False 
 got_cmd = False 
@@ -88,9 +88,6 @@ chassis_sub = rospy.Subscriber('/shipbot/chassis_feedback', ChassisFeedback, cha
 command_sub = rospy.Subscriber('/shipbot/chassis_command', ChassisCommand, command_callback)
 state_pub = rospy.Publisher('/shipbot/chassis_state_pf', ChassisState, queue_size=1)
 state_msg = ChassisState()
-
-maxx = 1.524
-maxy = 0.9144
 
 collect_idx = 0
 ncollect = 50

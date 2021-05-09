@@ -8,6 +8,14 @@ from shipbot_ros.msg import ChassisCommand
 from kf import *
 import threading
 
+robot_width = 0.1905
+minx = robot_width
+miny = robot_width
+long_wall = 1.568
+short_wall = 0.95
+maxx = long_wall - robot_width
+maxy = short_wall - robot_width
+
 got_fbk = False 
 got_cmd = False 
 t = 0
@@ -69,9 +77,6 @@ chassis_sub = rospy.Subscriber('/shipbot/chassis_feedback', ChassisFeedback, cha
 command_sub = rospy.Subscriber('/shipbot/chassis_command', ChassisCommand, command_callback)
 state_pub = rospy.Publisher('/shipbot/chassis_state', ChassisState, queue_size=1)
 state_msg = ChassisState()
-
-maxx = 1.568
-maxy = 0.95
 
 collect_idx = 0
 ncollect = 50
