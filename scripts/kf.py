@@ -96,7 +96,7 @@ def ray_intersect_segment(r0, dr, s0, s1):
 def normalize_log_weights(log_weights):
   weights = np.exp(log_weights - np.max(log_weights))
   weights /= np.sum(weights)
-  return np.log(weights)
+  return np.log(weights + 0.00001)
 
 # init_state_given_yaw: determines what the state should be if we have
 # a certain yaw an the sensors are reading the values given by obs
@@ -230,33 +230,18 @@ def dh(state):
 # Gaussian sum
 # RETURN: corrected state and covariance
 def correct(state, cov, obs, log_weight):
-  R = 0.01*np.eye(4)
-  zhat = sensor_model(state)
-  for i in range(4):
-    if zhat[i] > 1.25:
-      # Sensor isn't looking at a wall, so don't trust it
-      R[i, i] = 16
-    if obs[i] > 1.25:
-      R[i, i] = 16
-      obs[i] = 2
-  sort_idx = np.argsort(obs)
-  R[sort_idx[2], sort_idx[2]] = 16
-  R[sort_idx[3], sort_idx[3]] = 16
-  obs[sort_idx[2]] = 2
-  obs[sort_idx[3]] = 2
-      
+  R = 0.0016*np.eye(2)
+  zhat = sensor_model(state) 
   H_t = dh(state)
+
+  sort_idx = np.argsort(obs)
+  good_idx = sort_idx[:2]
+  zhat = zhat[good_idx]
+  obs = obs[good_idx]
+  H_t = H_t[good_idx]
 
   resid = obs - zhat
   inn_cov = np.matmul(np.matmul(H_t, cov), H_t.transpose()) + R
-
-  # Check if any sensors are surprisingly off. If so, don't trust them
-  for sensor in range(4):
-    if resid[sensor]*resid[sensor]/inn_cov[sensor, sensor] > 9:
-      inn_cov[sensor, sensor] -= R[sensor, sensor]
-      R[sensor, sensor] = 16
-      inn_cov[sensor, sensor] += R[sensor, sensor]
-      obs[sensor] = 2
 
   K = np.linalg.solve(inn_cov, np.matmul(H_t, cov)).transpose()
   state = state + np.matmul(K, resid)

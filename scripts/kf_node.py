@@ -7,6 +7,10 @@ from shipbot_ros.msg import ChassisState
 from shipbot_ros.msg import ChassisCommand
 from kf import *
 import threading
+import tf2_ros
+from geometry_msgs.msg import TransformStamped
+from geometry_msgs.msg import Point
+from visualization_msgs.msg import Marker
 
 robot_width = 0.1905
 minx = robot_width
@@ -84,7 +88,6 @@ collected = False
 collection = np.zeros((4, ncollect))
 valid_sensors = np.zeros(4, dtype=np.bool)
 initialized = False
-yawsum = 0 
 
 nfilters = 8
 states = np.zeros((3, nfilters))
@@ -93,6 +96,43 @@ log_weights = np.log(np.ones(nfilters)/nfilters)
 prev_t = 0
 cull_t = 0
 prev_yaw = 0
+
+# Only needed for rviz
+'''
+br = tf2_ros.TransformBroadcaster()
+robot_tf = TransformStamped()
+
+robot_tf.header.stamp = rospy.Time.now()
+robot_tf.header.frame_id = 'world'
+robot_tf.child_frame_id = 'shipbot'
+robot_tf.transform.translation.x = 0
+robot_tf.transform.translation.y = 0
+robot_tf.transform.translation.z = 0
+robot_tf.transform.rotation.x = 0
+robot_tf.transform.rotation.y = 0
+robot_tf.transform.rotation.z = 0
+robot_tf.transform.rotation.w = 1
+br.sendTransform(robot_tf)
+
+guiderail_marker = Marker()
+guiderail_marker.header.frame_id = 'world'
+guiderail_marker.type = Marker.LINE_LIST
+guiderail_marker.action = Marker.ADD
+guiderail_marker.pose.position.x = 0
+guiderail_marker.pose.position.y = 0
+guiderail_marker.pose.position.z = 0
+guiderail_marker.pose.orientation.w = 1
+guiderail_marker.pose.orientation.x = 0
+guiderail_marker.pose.orientation.y = 0
+guiderail_marker.pose.orientation.z = 0
+guiderail_marker.scale.x = 0.01
+guiderail_marker.color.r = 0
+guiderail_marker.color.g = 1
+guiderail_marker.color.b = 0
+guiderail_marker.color.a = 1
+guiderail_pub = rospy.Publisher('/shipbot/guiderail', Marker, queue_size=1)
+guiderail_marker.points = [Point(1.524, 0, 0), Point(0, 0, 0), Point(0, 0, 0), Point(0, 0.9144, 0)]
+'''
 
 localization_done_client = rospy.ServiceProxy('/mission_control_node/localization_done', Empty)
 
@@ -130,7 +170,6 @@ while not rospy.is_shutdown():
         states[:, i], covs[i] = predict(states[:, i], covs[i], vx, vy, ardu_yaw - prev_yaw, t - prev_t)
         states[:, i], covs[i], new_log_weights[i] = correct(states[:, i], covs[i], np.array(tofs), log_weights[i])
       
-      yawsum += abs(ardu_yaw - prev_yaw)
       if t > 2 + cull_t:
         cull_t = t
         log_weights = new_log_weights
@@ -169,7 +208,14 @@ while not rospy.is_shutdown():
             log_weights = normalize_log_weights(log_weights)
             nfilters = len(covs)
 
-      state = np.matmul(states, np.exp(log_weights))
+      state = np.zeros(3)
+      weights = np.exp(log_weights)
+      state[:2] = np.matmul(states[:2], weights)
+      directions = np.zeros((2, states.shape[1]))
+      directions[0] = np.cos(states[2])
+      directions[1] = np.sin(states[2])
+      av_dir = np.matmul(directions, weights)
+      state[2] = np.arctan2(av_dir[1], av_dir[0])
 
       state_msg.x = state[0]
       state_msg.y = state[1]
@@ -183,6 +229,19 @@ while not rospy.is_shutdown():
       #print(np.trunc(state_to_print))
       prev_t = t
       prev_yaw = ardu_yaw
+
+      # Only needed for rviz
+      '''
+      guiderail_pub.publish(guiderail_marker)
+
+      robot_tf.transform.translation.x = state[0]
+      robot_tf.transform.translation.y = state[1]
+      robot_tf.transform.rotation.z = np.sin(state[2]/2)
+      robot_tf.transform.rotation.w = np.cos(state[2]/2)
+      robot_tf.header.stamp = rospy.Time.now()
+      br.sendTransform(robot_tf)
+      '''
+
     lock.release()
 
   rate.sleep()
