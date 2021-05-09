@@ -58,3 +58,7 @@ double MinJerkInterpolator::get_end_time() {
 bool MinJerkInterpolator::contains_time(double t) {
   return t >= start_time && t <= end_time;
 }
+
+const VectorXd &MinJerkInterpolator::get_end() {
+  return end;
+}

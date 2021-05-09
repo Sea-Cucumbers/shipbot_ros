@@ -63,4 +63,9 @@ class MinJerkInterpolator {
      * RETURN: returns true if the given time is within the time bounds
      */
     bool contains_time(double t);
+
+    /*
+     * get_end: get trajectory ending configuration
+     */
+    const VectorXd &get_end();
 };

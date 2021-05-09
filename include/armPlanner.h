@@ -18,12 +18,10 @@ class ArmPlanner {
     // How far back do we stop before engaging a rotary valve? How far to the side do
     // we stop before pushing a shuttlecock valve? How far above/below do we stop
     // before pushing a breaker switch?
-    const double pause_dist = 0.1; 
-
-    const double add_dist = 0.07; 
+    double pause_dist; 
 
     // How long do we wait for the jammer to grip/ungrip
-    const double grip_wait = 5;
+    double grip_wait;
 
     const double shuttlecock_length = 0.08174;
 
@@ -42,6 +40,36 @@ class ArmPlanner {
      */
     void retrieve_segment(double t);
 
+    /*
+     * add_waypoint: augment our current plan to take us from
+     * the current end to the new waypoint. The plan now
+     * ends at the given waypoint. This segment adopts the
+     * grip status of the previous segment
+     * ARGUMENTS
+     * waypoint: waypoint which we append to trajectory
+     */
+    void add_waypoint(const VectorXd &waypoint);
+
+    /*
+     * add_grip_phase: augment our current plan with a segment where
+     * we grip or ungrip
+     * ARGUMENTS
+     * grip: if true, we grip, if false, we ungrip
+     */
+    void add_grip_phase(bool grip);
+
+    /*
+     * start_plan: clears the plan and begins a new
+     * plan starting at the given configuration at the given
+     * time and ending at the given waypoint
+     * ARGUMENTS
+     * start_time: starting time of first segment
+     * grip: do we grip during the first segment?
+     * start: starting configuration of first segment
+     * waypoint: ending configuration of first segment
+     */
+    void start_plan(double start_time, bool grip, const VectorXd &start, const VectorXd &waypoint);
+
   public:
     /*
      * constructor
@@ -50,9 +78,15 @@ class ArmPlanner {
      * how many seconds should a meter long segment take?
      * seconds_per_degree: if we're spinning a rotary valve, how many seconds
      * per degree do we spin?
+     * reset_config: [x, y, z, pitch, roll] of arm at the reset configuration
+     * pause_dist: how far back/above do we pause before engaging devices?
+     * grip_wait: how long do we wait for the gripper to grip/ungrip
      */
-    ArmPlanner(double seconds_per_meter,
-               double seconds_per_degree);
+     ArmPlanner(double seconds_per_meter,
+                double seconds_per_degree,
+                const VectorXd &reset_config,
+                double pause_dist,
+                double grip_wait);
 
     /*
      * sample_points: sample points along current trajectory

@@ -4,16 +4,14 @@
 using namespace std;
 
 ArmPlanner::ArmPlanner(double seconds_per_meter,
-                       double seconds_per_degree) : seconds_per_meter(seconds_per_meter),
-                                                    seconds_per_degree(seconds_per_degree) {
- reset_config = VectorXd::Zero(5);
- reset_config(0) = -0.135214;
- reset_config(1) = 0.18142;
- reset_config(2) = 0.05839807;
- reset_config(3) = -1.52432;
- reset_config(4) = 2.67237;
-
-}
+                       double seconds_per_degree,
+                       const VectorXd &reset_config,
+                       double pause_dist,
+                       double grip_wait) : seconds_per_meter(seconds_per_meter),
+                                           seconds_per_degree(seconds_per_degree),
+                                           reset_config(reset_config),
+                                           pause_dist(pause_dist),
+                                           grip_wait(grip_wait) {}
 
 void ArmPlanner::sample_points(vector<geometry_msgs::Point> &points) {
   points.clear();
@@ -36,30 +34,13 @@ void ArmPlanner::sample_points(vector<geometry_msgs::Point> &points) {
 
 void ArmPlanner::reset_arm(const VectorXd &start,
                            double start_time) {
-  segments.clear();
-  VectorXd seg_start = start;
-  VectorXd seg_end = reset_config;
-  Vector3d diff = seg_end.head<3>() - seg_start.head<3>();
-  double end_time = start_time + seconds_per_meter*diff.norm();
-  segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,
-                                                          seg_end,
-                                                          start_time,
-                                                          end_time)));
-                                         
+  start_plan(start_time, false, start, reset_config);
   current_segment = segments.begin();
 }
 
 void ArmPlanner::stop_arm(const VectorXd &start,
                           double start_time) {
-  segments.clear();
-  VectorXd seg_start = start;
-  VectorXd seg_end = start;
-  double end_time = start_time;
-  segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,
-                                                          seg_end,
-                                                          start_time,
-                                                          end_time)));
-                                         
+  start_plan(start_time, false, start, start);
   current_segment = segments.begin();
 }
 
@@ -68,86 +49,43 @@ void ArmPlanner::spin_rotary(const VectorXd &start,
                              bool vertical_spin_axis,
                              double degrees,
                              double start_time) {
-  segments.clear();
-  VectorXd seg_start = start;
-  VectorXd seg_end = VectorXd::Zero(5);
-  seg_end.head<3>() = position;
+  // If vertical axis, pause 10 cm above. If horizontal axis, pause 10 cm back
+  VectorXd waypoint = VectorXd::Zero(5);
+  waypoint.head<3>() = position;
+
   if (vertical_spin_axis) {
-    // If vertical axis, pause 10 cm above
-    seg_end(2) += pause_dist;
-    seg_end(3) = -M_PI/2;
+    waypoint(2) += pause_dist;
+    waypoint(3) = -M_PI/2;
   } else {
-    // If horizontal axis, pause 10 cm back
-    seg_end(1) -= pause_dist;
+    waypoint(1) -= pause_dist;
   }
-  Vector3d diff = seg_end.head<3>() - seg_start.head<3>();
-  double end_time = start_time + seconds_per_meter*diff.norm();
-  segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,
-                                                          seg_end,
-                                                          start_time,
-                                                          end_time)));
+
+  start_plan(start_time, false, start, waypoint);
                                          
- 
-  seg_start = seg_end;
+  // If vertical axis, move 10 cm down. If horizontal axis, move 10 cm forward
   if (vertical_spin_axis) {
-    // If vertical axis, move 10 cm down
-    seg_end(2) -= pause_dist + add_dist;
+    waypoint(2) -= pause_dist;
   } else {
-    // If horizontal axis, move 10 cm forward
-    seg_end(1) += pause_dist + add_dist;
+    waypoint(1) += pause_dist;
   }
-  start_time = end_time;
-  diff = seg_end.head<3>() - seg_start.head<3>();
-  end_time += seconds_per_meter*diff.norm();
-  segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,
-                                                          seg_end,
-                                                          start_time,
-                                                          end_time)));
+  add_waypoint(waypoint);
 
   // Wait for the gripper to grip
-  start_time = end_time;
-  end_time += grip_wait;
-  seg_start = seg_end;
-  segments.push_back(make_pair(true, MinJerkInterpolator(seg_start,
-                                                         seg_end,
-                                                         start_time,
-                                                         end_time)));
+  add_grip_phase(true);
 
   // Spin the valve
-  start_time = end_time;
-  end_time += seconds_per_degree*degrees;
-  seg_start = seg_end;
-  seg_end(4) -= degrees*M_PI/180;
-  segments.push_back(make_pair(true, MinJerkInterpolator(seg_start,
-                                                         seg_end,
-                                                         start_time,
-                                                         end_time)));
+  waypoint(4) -= degrees*M_PI/180;
+  add_waypoint(waypoint);
 
   // Wait for the gripper to ungrip
-  start_time = end_time;
-  end_time += grip_wait;
-  seg_start = seg_end;
-  segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,
-                                                          seg_end,
-                                                          start_time,
-                                                          end_time)));
+  add_grip_phase(true);
 
-  // Move back
-  seg_start = seg_end;
+  // If vertical axis, move 10 cm up. If horizontal axis, move 10 cm back
   if (vertical_spin_axis) {
-    // If vertical axis, move 10 cm up
-    seg_end(2) += pause_dist + add_dist;
+    waypoint(2) += pause_dist;
   } else {
-    // If horizontal axis, move 10 cm back
-    seg_end(1) -= pause_dist + add_dist;
+    waypoint(1) -= pause_dist;
   }
-  start_time = end_time;
-  diff = seg_end.head<3>() - seg_start.head<3>();
-  end_time += seconds_per_meter*diff.norm();
-  segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,
-                                                          seg_end,
-                                                          start_time,
-                                                          end_time)));
 
   current_segment = segments.begin();
 }
@@ -157,118 +95,111 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
                                   bool vertical_spin_axis,
                                   bool do_open,
                                   double start_time) {
-  segments.clear();
-  VectorXd seg_start = start;
-  VectorXd seg_end = VectorXd::Zero(5);
-  seg_end.head<3>() = position;
+  VectorXd waypoint = VectorXd::Zero(5);
+  waypoint.head<3>() = position;
   if (vertical_spin_axis) {
-    seg_end(3) = -M_PI/2;
+    waypoint(3) = -M_PI/2;
   }
 
   if (do_open) {
     if (vertical_spin_axis) {
-      // The handle is pointing toward us. Stop to the left of it
-      seg_end(0) -= pause_dist;
+      // The handle is pointing toward us. Stop above it
+      waypoint(2) += pause_dist;
       
-      Vector3d diff = seg_end.head<3>() - seg_start.head<3>();
-      double end_time = start_time + seconds_per_meter*diff.norm();
-      segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,
-                                                              seg_end,
-                                                              start_time,
-                                                              end_time)));
+      start_plan(start_time, false, start, waypoint);
+
+      // Harden end-effector
+      add_grip_phase(true);
+
+      // Move down
+      waypoint(2) -= pause_dist;
+      add_waypoint(waypoint);
 
       // Move forward and right
-      start_time = end_time;
-      seg_start = seg_end;
-      seg_end(0) += 2*pause_dist;
-      seg_end(1) += shuttlecock_length;
-      diff = seg_end.head<3>() - seg_start.head<3>();
-      end_time = start_time + seconds_per_meter*diff.norm();
-      segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,
-                                                              seg_end,
-                                                              start_time,
-                                                              end_time)));
-    } else {
-      // The handle is currently pointing right. Stop below it
-      seg_end(2) -= pause_dist;
+      waypoint(0) += shuttlecock_length;
+      waypoint(1) += shuttlecock_length;
+      add_waypoint(waypoint);
 
-      Vector3d diff = seg_end.head<3>() - seg_start.head<3>();
-      double end_time = start_time + seconds_per_meter*diff.norm();
-      segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,
-                                                              seg_end,
-                                                              start_time,
-                                                              end_time)));
+      // Move up
+      waypoint(2) += pause_dist;
+      add_waypoint(waypoint);
+
+      // Unharden end-effector
+      add_grip_phase(false);
+    } else {
+      // The handle is pointing right. Pause backward from it
+      waypoint(1) -= pause_dist;
+      
+      start_plan(start_time, false, start, waypoint);
+
+      // Harden end-effector
+      add_grip_phase(true);
+
+      // Move forward
+      waypoint(1) += pause_dist;
+      add_waypoint(waypoint);
 
       // Move up and left
-      start_time = end_time;
-      seg_start = seg_end;
-      seg_end(0) -= shuttlecock_length;
-      seg_end(2) += 2*pause_dist;
-      diff = seg_end.head<3>() - seg_start.head<3>();
-      end_time = start_time + seconds_per_meter*diff.norm();
-      segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,
-                                                              seg_end,
-                                                              start_time,
-                                                              end_time)));
+      waypoint(0) -= shuttlecock_length;
+      waypoint(2) += shuttlecock_length;
+      add_waypoint(waypoint);
+
+      // Move back
+      waypoint(1) -= pause_dist;
+      add_waypoint(waypoint);
+
+      // Unharden end-effector
+      add_grip_phase(false);
     }
   } else {
     if (vertical_spin_axis) {
-      // The handle is currently pointing right. Stop above it and forward
-      seg_end(1) += pause_dist;
-      seg_end(2) += pause_dist;
+      // The handle is pointing right. Stop above it
+      waypoint(2) += pause_dist;
+      
+      start_plan(start_time, false, start, waypoint);
 
-      Vector3d diff = seg_end.head<3>() - seg_start.head<3>();
-      double end_time = start_time + seconds_per_meter*diff.norm();
-      segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,
-                                                              seg_end,
-                                                              start_time,
-                                                              end_time)));
+      // Harden end-effector
+      add_grip_phase(true);
 
-      // Move down 
-      start_time = end_time;
-      seg_start = seg_end;
-      seg_end(2) -= pause_dist;
-      diff = seg_end.head<3>() - seg_start.head<3>();
-      end_time = start_time + seconds_per_meter*diff.norm();
-      segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,
-                                                              seg_end,
-                                                              start_time,
-                                                              end_time)));
+      // Move down
+      waypoint(2) -= pause_dist;
+      add_waypoint(waypoint);
 
-      // Pull back and left
-      start_time = end_time;
-      seg_start = seg_end;
-      seg_end(0) -= shuttlecock_length;
-      seg_end(1) -= 2*pause_dist;
-      diff = seg_end.head<3>() - seg_start.head<3>();
-      end_time = start_time + seconds_per_meter*diff.norm();
-      segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,
-                                                              seg_end,
-                                                              start_time,
-                                                              end_time)));
+      // Move back and left
+      waypoint(0) -= shuttlecock_length;
+      waypoint(1) -= shuttlecock_length;
+      add_waypoint(waypoint);
+
+      // Move up
+      waypoint(2) += pause_dist;
+      add_waypoint(waypoint);
+
+      // Unharden end-effector
+      add_grip_phase(false);
     } else {
-      // The handle is currently pointing up, stop to the left of it
-      seg_end(0) -= pause_dist;
+      // The handle is pointing up. Pause backward from it
+      waypoint(1) -= pause_dist;
+      
+      start_plan(start_time, false, start, waypoint);
 
-      Vector3d diff = seg_end.head<3>() - seg_start.head<3>();
-      double end_time = start_time + seconds_per_meter*diff.norm();
-      segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,
-                                                              seg_end,
-                                                              start_time,
-                                                              end_time)));
+      // Harden end-effector
+      add_grip_phase(true);
+
+      // Move forward
+      waypoint(1) += pause_dist;
+      add_waypoint(waypoint);
 
       // Move down and right
-      start_time = end_time;
-      seg_start = seg_end;
-      seg_end(0) += shuttlecock_length;
-      seg_end(2) -= 2*pause_dist;
+      waypoint(0) += shuttlecock_length;
+      waypoint(2) -= shuttlecock_length;
+      add_waypoint(waypoint);
 
-      diff = seg_end.head<3>() - seg_start.head<3>();
-      end_time = start_time + seconds_per_meter*diff.norm();
-      segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,
-                                                              seg_end,
-                                                              start_time,
-                                                              end_time)));
+      // Move back
+      waypoint(1) -= pause_dist;
+      add_waypoint(waypoint);
+
+      // Unharden end-effector
+      add_grip_phase(true);
     }
   }
 
@@ -279,74 +210,33 @@ void ArmPlanner::switch_breaker(const VectorXd &start,
                                 const Vector3d &position,
                                 bool push_up,
                                 double start_time) {
-  segments.clear();
-
   // Pause back and up/down depending on which way we're pushing
-  VectorXd seg_start = start;
-  VectorXd seg_end = VectorXd::Zero(5);
-  seg_end.head<3>() = position;
-  seg_end(1) -= pause_dist;
-  seg_end(2) += push_up ? -pause_dist : pause_dist;
-  seg_end(3) = push_up ? M_PI/4 : -M_PI/4;
+  VectorXd waypoint = VectorXd::Zero(5);
+  waypoint.head<3>() = position;
+  waypoint(1) -= pause_dist;
+  waypoint(2) += push_up ? -pause_dist : pause_dist;
+  waypoint(3) = push_up ? M_PI/4 : -M_PI/4;
 
-  Vector3d diff = seg_end.head<3>() - seg_start.head<3>();
-  double end_time = start_time + seconds_per_meter*diff.norm();
-  segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,
-                                                          seg_end,
-                                                          start_time,
-                                                           end_time)));
+  start_plan(start_time, false, start, waypoint);
                                          
   // Move forward and upward/downward depending on which way we're pushing 
-  seg_start = seg_end;
-  seg_end(1) += pause_dist + add_dist;
-  seg_end(2) = seg_end(2) + (push_up ? pause_dist + add_dist : -(pause_dist + add_dist));
-  diff = seg_end.head<3>() - seg_start.head<3>();
-  start_time = end_time;
-  end_time += seconds_per_meter*diff.norm();
-  segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,
-                                                          seg_end,
-                                                          start_time,
-                                                          end_time)));
+  waypoint(1) += pause_dist;
+  waypoint(2) = waypoint(2) + (push_up ? pause_dist : -pause_dist);
+  add_waypoint(waypoint);
 
-  // Wait for the gripper to grip
-  start_time = end_time;
-  end_time += 3;
-  seg_start = seg_end;
-  segments.push_back(make_pair(true, MinJerkInterpolator(seg_start,
-                                                          seg_end,
-                                                          start_time,
-                                                          end_time)));
+  // Grip
+  add_grip_phase(true);
 
   // Push the switch
-  seg_start = seg_end;
-  seg_end(2) = seg_end(2) + (push_up ? 0.1 : -0.1);
-  start_time = end_time;
-  diff = seg_end.head<3>() - seg_start.head<3>();
-  end_time += seconds_per_meter*diff.norm();
-  segments.push_back(make_pair(true, MinJerkInterpolator(seg_start,
-                                                          seg_end,
-                                                          start_time,
-                                                          end_time)));
+  waypoint(2) = waypoint(2) + (push_up ? pause_dist : -pause_dist);
+  add_waypoint(waypoint);
 
-  // Wait for the gripper to ungrip
-  start_time = end_time;
-  end_time += 3;
-  seg_start = seg_end;
-  segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,
-                                                          seg_end,
-                                                          start_time,
-                                                          end_time)));
+  // Ungrip
+  add_grip_phase(false);
 
   // Move back
-  seg_start = seg_end;
-  seg_end(1) -= pause_dist + add_dist;
-  start_time = end_time;
-  diff = seg_end.head<3>() - seg_start.head<3>();
-  end_time += seconds_per_meter*diff.norm();
-  segments.push_back(make_pair(false, MinJerkInterpolator(seg_start,
-                                                          seg_end,
-                                                          start_time,
-                                                          end_time)));
+  waypoint(1) -= pause_dist;
+  add_waypoint(waypoint);
 
   current_segment = segments.begin();
 }
@@ -403,4 +293,45 @@ bool ArmPlanner::planned() {
 
 double ArmPlanner::get_end_time() {
   return segments.back().second.get_end_time();
+}
+
+void ArmPlanner::add_grip_phase(bool grip) {
+  if (segments.size() == 0) {
+    cout << "Cannot call add_waypoint on empty plan" << endl;
+    return;
+  }
+  VectorXd start = segments.back().second.get_end();
+  double start_time = segments.back().second.get_end_time(); 
+  double end_time = start_time + grip_wait;
+  segments.push_back(make_pair(grip, MinJerkInterpolator(start,
+                                                         start,
+                                                         start_time,
+                                                         end_time)));
+}
+
+void ArmPlanner::add_waypoint(const VectorXd &waypoint) {
+  if (segments.size() == 0) {
+    cout << "Cannot call add_waypoint on empty plan" << endl;
+    return;
+  }
+
+  VectorXd start = segments.back().second.get_end();
+  double start_time = segments.back().second.get_end_time(); 
+  Vector3d diff = waypoint.head<3>() - start.head<3>();
+  double end_time = start_time + seconds_per_meter*diff.norm();
+  bool grip = segments.back().first;
+  segments.push_back(make_pair(grip, MinJerkInterpolator(start,
+                                                         waypoint,
+                                                         start_time,
+                                                         end_time)));
+}
+
+void ArmPlanner::start_plan(double start_time, bool grip, const VectorXd &start, const VectorXd &waypoint) {
+  segments.clear();
+  Vector3d diff = waypoint.head<3>() - start.head<3>();
+  double end_time = start_time + seconds_per_meter*diff.norm();
+  segments.push_back(make_pair(grip, MinJerkInterpolator(start,
+                                                         waypoint,
+                                                         start_time,
+                                                         end_time)));
 }

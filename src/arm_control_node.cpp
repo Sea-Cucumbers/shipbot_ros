@@ -207,11 +207,33 @@ int main(int argc, char** argv) {
   double rate = 20;
   double seconds_per_meter = 6;
   double seconds_per_degree = 0.011;
+  double pause_dist = 0.1;
+  double grip_wait = 5;
+  vector<double> reset_configv;
+  reset_configv.push_back(-0.135214);
+  reset_configv.push_back(0.18142);
+  reset_configv.push_back(0.05839807);
+  reset_configv.push_back(-1.52432);
+  reset_configv.push_back(2.67237);
+  vector<double> encoder_offsetsv(5, 0);
   
   nh.getParam("urdf", urdf_file);
   nh.getParam("rate", rate);
   nh.getParam("seconds_per_meter", seconds_per_meter);
   nh.getParam("seconds_per_degree", seconds_per_degree);
+  nh.getParam("pause_dist", pause_dist);
+  nh.getParam("grip_wait", grip_wait);
+  nh.getParam("reset_config", reset_configv);
+  nh.getParam("encoder_offsets", encoder_offsetsv);
+
+  VectorXd reset_config(5);
+  VectorXd encoder_offsets(5);
+
+  for (int i = 0; i < 5; ++i) {
+    reset_config(i) = reset_configv[i];
+    encoder_offsets(i) = encoder_offsets[i];
+  }
+
   KDHelper kd(urdf_file);
 
   const vector<string> &actuator_names = kd.get_actuator_names();
@@ -271,7 +293,7 @@ int main(int argc, char** argv) {
   VectorXd velocity_fbk = VectorXd::Zero(group->size());
   VectorXd effort_fbk = VectorXd::Zero(group->size());
   
-  shared_ptr<ArmPlanner> planner = make_shared<ArmPlanner>(seconds_per_meter, seconds_per_degree);
+  shared_ptr<ArmPlanner> planner = make_shared<ArmPlanner>(seconds_per_meter, seconds_per_degree, reset_config, pause_dist, grip_wait);
 
   Vector3d position(0, 0, 0);
   Quaterniond orientation(1, 0, 0, 0);
@@ -314,9 +336,7 @@ int main(int argc, char** argv) {
   {
     group->getNextFeedback(group_feedback);
     group_feedback.getPosition(position_fbk);
-    position_fbk(1) += 0.08;
-    position_fbk(2) -= 0.025;
-    position_fbk(3) -= 0.075;
+    position_fbk += encoder_offsets;
     group_feedback.getVelocity(velocity_fbk);
     group_feedback.getEffort(effort_fbk);
 
@@ -356,6 +376,7 @@ int main(int argc, char** argv) {
       //kd.idk(velocity_cmds, task_vel);
 
       // Send commands to HEBI modules
+      position_cmds -= encoder_offsets;
       group_command.setPosition(position_cmds);
       //group_command.setVelocity(velocity_cmds);
       group_command.setEffort(effort_cmds);
@@ -363,7 +384,8 @@ int main(int argc, char** argv) {
 
       if (!called_done && t > planner->get_end_time()) {
         VectorXd err = task_config - current_task_config;
-        if (err.head<3>().norm() < 0.1) {
+        // We have the + 5 here because the arm might be stuck
+        if (err.head<3>().norm() < 0.1 && t > planner->get_end_time() + 5) {
           done_client.call(done_srv);
           called_done = true;
         }
