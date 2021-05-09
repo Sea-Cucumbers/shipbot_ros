@@ -130,20 +130,19 @@ int main(int argc, char** argv) {
 
   while (ros::ok())
   {
-    /*
-    if (angdiff(state_ptr->yaw, 0) < M_PI/16) {
+    if (abs(angdiff(state_ptr->yaw, 0)) < M_PI/16) {
       // Facing away from short wall. Use sensors 2 and 3
       state_msg.x = fbk_ptr->tofs[2] - t2[0];
       state_msg.y = fbk_ptr->tofs[3] - t3[1];
-    } else if (angdiff(state_ptr->yaw, M_PI/2) < M_PI/16) {
+    } else if (abs(angdiff(state_ptr->yaw, M_PI/2)) < M_PI/16) {
       // Facing away from long wall. Use sensors 1 and 2
       state_msg.x = fbk_ptr->tofs[1] + t1[1];
       state_msg.y = fbk_ptr->tofs[2] - t2[0];
-    } else if (angdiff(state_ptr->yaw, M_PI) < M_PI/16) {
+    } else if (abs(angdiff(state_ptr->yaw, M_PI)) < M_PI/16) {
       // Facing toward short wall. Use sensors 0 and 1
       state_msg.x = fbk_ptr->tofs[0] + t0[0];
       state_msg.y = fbk_ptr->tofs[1] + t1[1];
-    } else if (angdiff(state_ptr->yaw, 3*M_PI/2) < M_PI/16) {
+    } else if (abs(angdiff(state_ptr->yaw, 3*M_PI/2)) < M_PI/16) {
       // Facing toward long wall. Use sensors 3 and 0
       state_msg.x = fbk_ptr->tofs[3] - t3[1];
       state_msg.y = fbk_ptr->tofs[0] + t0[0];
@@ -152,10 +151,6 @@ int main(int argc, char** argv) {
       state_msg.y = state_ptr->y;     
     }
     state_msg.yaw = state_ptr->yaw;
-    */
-    state_msg.x = fbk_ptr->tofs[3] - t3[1];
-    state_msg.y = fbk_ptr->tofs[0] + t0[0];
-    state_msg.yaw = 3*M_PI/2;
 
     state_pub.publish(state_msg);
     r.sleep();

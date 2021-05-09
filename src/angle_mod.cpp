@@ -20,7 +20,7 @@ double angdiff(double th1, double th2) {
   if (th2 - th1 > M_PI) {
     th2 -= 2*M_PI;
   } else if (th2 - th1 < -M_PI) {
-    th2 -= 2*M_PI;
+    th2 += 2*M_PI;
   }
 
   return th2 - th1;
