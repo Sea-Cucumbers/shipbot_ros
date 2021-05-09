@@ -174,6 +174,8 @@ add_library(arm_control OBJECT
 
 add_library(chassis_control OBJECT
   ${CMAKE_CURRENT_SOURCE_DIR}/src/se2Interpolator.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/chassisPlanner.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/geometry.cpp
 )
 
 add_library(angle_mod OBJECT

@@ -41,6 +41,10 @@ double SE2Interpolator::get_end_time() {
   return end_time;
 }
 
+const Vector3d &SE2Interpolator::get_end() {
+  return end;
+}
+
 bool SE2Interpolator::contains_time(double t) {
   return t >= start_time && t <= end_time;
 }

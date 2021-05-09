@@ -8,7 +8,7 @@
 #include "shipbot_ros/TravelRel.h"
 #include "shipbot_ros/ChassisCommand.h"
 #include "std_srvs/Empty.h"
-#include "se2Interpolator.h"
+#include "chassisPlanner.h"
 #include <Eigen/Dense>
 
 using namespace std;
@@ -73,11 +73,9 @@ class localize {
 
 class travel_abs {
   private:
-    shared_ptr<SE2Interpolator> planner;
+    shared_ptr<ChassisPlanner> planner;
     shared_ptr<Vector3d> cur_state;
     shared_ptr<ControlStatus> status;
-    double linear_speed;
-    double angular_speed;
 
   public:
     /*
@@ -87,15 +85,11 @@ class travel_abs {
      * _cur_state: pointer to current state
      * _status: pointer to control status
      */
-     travel_abs(shared_ptr<SE2Interpolator> _planner,
+     travel_abs(shared_ptr<ChassisPlanner> _planner,
                shared_ptr<Vector3d> _cur_state,
-               shared_ptr<ControlStatus> _status,
-               double _linear_speed,
-               double _angular_speed) : planner(_planner),
-                                        cur_state(_cur_state),
-                                        status(_status),
-                                        linear_speed(_linear_speed),
-                                        angular_speed(_angular_speed) {}
+               shared_ptr<ControlStatus> _status) : planner(_planner),
+                                                    cur_state(_cur_state),
+                                                    status(_status) {}
 
     /*
      * operator (): plan trajectory to waypoint
@@ -106,16 +100,12 @@ class travel_abs {
      */
     bool operator () (shipbot_ros::TravelAbs::Request &req,
                       shipbot_ros::TravelAbs::Response &res) {
-      Vector3d end = VectorXd::Zero(3);
-      end(0) = req.x;
-      end(1) = req.y;
-      end(2) = req.theta;
+      Vector3d goal = VectorXd::Zero(3);
+      goal(0) = req.x;
+      goal(1) = req.y;
+      goal(2) = req.theta;
 
-      Vector3d err = planner->error(*cur_state, end);
-
-      double traj_start = ros::Time::now().toSec() - start_time;
-      double traj_time = max(err.head<2>().norm()/linear_speed, abs(err(2))/angular_speed);
-      *planner = SE2Interpolator(*cur_state, end, traj_start, traj_start + traj_time);
+      planner->plan(ros::Time::now().toSec() - start_time, *cur_state, goal);
       *status = CL;
       return true;
     }
@@ -123,11 +113,9 @@ class travel_abs {
 
 class travel_rel {
   private:
-    shared_ptr<SE2Interpolator> planner;
+    shared_ptr<ChassisPlanner> planner;
     shared_ptr<Vector3d> cur_state;
     shared_ptr<ControlStatus> status;
-    double linear_speed;
-    double angular_speed;
 
   public:
     /*
@@ -136,15 +124,11 @@ class travel_rel {
      * _planner: pointer to planner
      * _status: pointer to control status
      */
-     travel_rel(shared_ptr<SE2Interpolator> _planner,
+     travel_rel(shared_ptr<ChassisPlanner> _planner,
                 shared_ptr<Vector3d> _cur_state,
-                shared_ptr<ControlStatus> _status,
-                double _linear_speed,
-                double _angular_speed) : planner(_planner),
-                                         cur_state(_cur_state),
-                                         status(_status),
-                                         linear_speed(_linear_speed),
-                                         angular_speed(_angular_speed) {}
+                shared_ptr<ControlStatus> _status) : planner(_planner),
+                                                     cur_state(_cur_state),
+                                                     status(_status) {}
 
     /*
      * operator (): plan open-loop trajectory
@@ -155,19 +139,15 @@ class travel_rel {
      */
     bool operator () (shipbot_ros::TravelRel::Request &req,
                       shipbot_ros::TravelRel::Response &res) {
-      Vector3d end = VectorXd::Zero(3);
+      Vector3d goal = VectorXd::Zero(3);
       double theta = (*cur_state)(2);
       double c = cos(theta);
       double s = sin(theta);
-      end(0) = (*cur_state)(0) + req.delta_x*c - req.delta_y*s;
-      end(1) = (*cur_state)(1) + req.delta_x*s + req.delta_y*c;
-      end(2) = theta + req.delta_theta;
+      goal(0) = (*cur_state)(0) + req.delta_x*c - req.delta_y*s;
+      goal(1) = (*cur_state)(1) + req.delta_x*s + req.delta_y*c;
+      goal(2) = theta + req.delta_theta;
 
-      Vector3d err = planner->error(*cur_state, end);
-
-      double traj_start = ros::Time::now().toSec() - start_time;
-      double traj_time = max(err.head<2>().norm()/linear_speed, abs(err(2))/angular_speed);
-      *planner = SE2Interpolator(*cur_state, end, traj_start, traj_start + traj_time);
+      planner->plan(start_time, *cur_state, goal);
       *status = CL;
       return true;
     }
@@ -227,12 +207,12 @@ int main(int argc, char** argv) {
   
   start_time = ros::Time::now().toSec();
 
-  shared_ptr<SE2Interpolator> planner = make_shared<SE2Interpolator>(*state_ptr, *state_ptr, 0, 0);
+  shared_ptr<ChassisPlanner> planner = make_shared<ChassisPlanner>(linear_speed, angular_speed);
 
   shared_ptr<ControlStatus> status = make_shared<ControlStatus>(STOP);
 
-  ros::ServiceServer travel_abs_service = nh.advertiseService<shipbot_ros::TravelAbs::Request, shipbot_ros::TravelAbs::Response>("travel_abs", travel_abs(planner, state_ptr, status, linear_speed, angular_speed));
-  ros::ServiceServer travel_rel_service = nh.advertiseService<shipbot_ros::TravelRel::Request, shipbot_ros::TravelRel::Response>("travel_rel", travel_rel(planner, state_ptr, status, linear_speed, angular_speed));
+  ros::ServiceServer travel_abs_service = nh.advertiseService<shipbot_ros::TravelAbs::Request, shipbot_ros::TravelAbs::Response>("travel_abs", travel_abs(planner, state_ptr, status));
+  ros::ServiceServer travel_rel_service = nh.advertiseService<shipbot_ros::TravelRel::Request, shipbot_ros::TravelRel::Response>("travel_rel", travel_rel(planner, state_ptr, status));
   ros::ServiceServer localization_service = nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>("localize", localize(status));
   ros::ServiceServer stop_service = nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>("stop_chassis", stop(status));
 

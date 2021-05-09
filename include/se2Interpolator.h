@@ -61,6 +61,11 @@ class SE2Interpolator {
     double get_end_time();
 
     /*
+     * get_end: get trajectory end point
+     */
+    const Vector3d &get_end();
+
+    /*
      * contains_time: returns true if the given time is within the time bounds
      * RETURN: returns true if the given time is within the time bounds
      */
