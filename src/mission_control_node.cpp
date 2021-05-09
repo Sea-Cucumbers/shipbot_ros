@@ -24,7 +24,6 @@ using namespace std;
 using namespace Eigen;
 
 static const double xee = -0.129243;
-static const double centering_offset = -0.035;
 
 /*
  * string_split: splits the string s into a vector of substrings separated
@@ -522,9 +521,10 @@ int main(int argc, char** argv) {
                          spigot_ptr->position.z);
         dev_pos = R_cam_arm*dev_pos + t_cam_arm;
 
-        cout << "device is " << dev_pos(0) << " m in the x from the base" << endl;
-        minor_strafe(dev_pos(0) - xee + centering_offset, travel_rel_client, r, chassis_done_ptr);
-        dev_pos(0) = xee; // TODO: this is a very strong assumption!
+        if (station != 'E' && station != 'F') {
+          minor_strafe(dev_pos(0) - xee, travel_rel_client, r, chassis_done_ptr);
+          dev_pos(0) = xee; // TODO: this is a very strong assumption!
+        }
 
         // Command arm
         spin_rotary_srv.request.position.x = dev_pos(0);
@@ -568,10 +568,8 @@ int main(int argc, char** argv) {
 
         dev_pos = R_cam_arm*dev_pos + t_cam_arm;
 
-        cout << "device is " << dev_pos(0) << " m in the x from the base" << endl;
-
         if (station != 'E' && station != 'F') {
-          minor_strafe(dev_pos(0) - xee + centering_offset, travel_rel_client, r, chassis_done_ptr);
+          minor_strafe(dev_pos(0) - xee, travel_rel_client, r, chassis_done_ptr);
           dev_pos(0) = xee; // TODO: this is a very strong assumption!
         }
 
@@ -623,10 +621,8 @@ int main(int argc, char** argv) {
                            shuttlecock_ptr->position.z);
           dev_pos = R_cam_arm*dev_pos + t_cam_arm;
 
-          cout << "device is " << dev_pos(0) << " m in the x from the base" << endl;
-
           if (station != 'E' && station != 'F') {
-            minor_strafe(dev_pos(0) - xee + centering_offset, travel_rel_client, r, chassis_done_ptr);
+            minor_strafe(dev_pos(0) - xee, travel_rel_client, r, chassis_done_ptr);
             dev_pos(0) = xee; // TODO: this is a very strong assumption!
           }
 
@@ -690,10 +686,8 @@ int main(int argc, char** argv) {
                            state.position.z);
           dev_pos = R_cam_arm*dev_pos + t_cam_arm;
 
-          cout << "device is " << dev_pos(0) << " m in the x from the base" << endl;
-
           if (station != 'E' && station != 'F') {
-            minor_strafe(dev_pos(0) - xee + centering_offset, travel_rel_client, r, chassis_done_ptr);
+            minor_strafe(dev_pos(0) - xee, travel_rel_client, r, chassis_done_ptr);
             dev_pos(0) = xee; // TODO: this is a very strong assumption!
           }
 
