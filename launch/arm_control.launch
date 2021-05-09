@@ -1,6 +1,4 @@
 <launch>
-  <arg name="rvizconfig" default="$(find shipbot_ros)/rviz/arm.rviz" />
-  <node name="shipbot_rviz" pkg="rviz" type="rviz" args="-d $(arg rvizconfig)" required="true" />
   <node name="write_gains_node" pkg="shipbot_ros" type="write_gains_node.py" output="screen"/>
   <node name="arm_control_node" pkg="shipbot_ros" type="arm_control_node" output="screen">
     <param name="urdf" value="$(find shipbot_urdf)/urdf/shipbot.urdf"/>

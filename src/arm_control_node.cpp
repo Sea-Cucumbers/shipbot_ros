@@ -231,7 +231,7 @@ int main(int argc, char** argv) {
 
   for (int i = 0; i < 5; ++i) {
     reset_config(i) = reset_configv[i];
-    encoder_offsets(i) = encoder_offsets[i];
+    encoder_offsets(i) = encoder_offsetsv[i];
   }
 
   KDHelper kd(urdf_file);
