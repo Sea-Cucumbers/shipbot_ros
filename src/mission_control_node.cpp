@@ -19,6 +19,8 @@
 #include "shipbot_ros/ChassisState.h"
 #include <std_srvs/Empty.h>
 #include <Eigen/Dense>
+#include <tf2_ros/transform_listener.h>
+#include <geometry_msgs/TransformStamped.h>
 
 using namespace std;
 using namespace Eigen;
@@ -266,6 +268,31 @@ class handle_shuttlecock {
     }
 };
 
+/*
+ * handle_chassis_state: chassis state message handler
+ */
+class handle_chassis_state {
+  private:
+    shared_ptr<shipbot_ros::ChassisState> state_ptr;
+
+  public:
+    /*
+     * handle_chassis_state: constructor
+     * ARGUMENTS
+     * _state_ptr: the pointer we should populate with the received message
+     */
+    handle_chassis_state(shared_ptr<shipbot_ros::ChassisState> _state_ptr) : state_ptr(_state_ptr) {}
+
+    /*
+     * operator (): populate our message pointer with the received message
+     * ARGUMENTS
+     * msg_ptr: pointer to received message
+     */
+    void operator () (const shipbot_ros::ChassisStateConstPtr &msg_ptr) {
+      *state_ptr = *msg_ptr;
+    }
+};
+
 int main(int argc, char** argv) {
   ros::init(argc, argv, "mission_control_node");
   ros::NodeHandle nh("~");
@@ -281,16 +308,35 @@ int main(int argc, char** argv) {
   nh.getParam("do_manipulation", do_manipulation);
 
   // Get extrinsics between arm and camera
-  vector<double> t_cam_armv;
-  vector<double> R_cam_armv;
-  nh.getParam("/t_cam_arm", t_cam_armv);
-  nh.getParam("/R_cam_arm", R_cam_armv);
+  tf2_ros::Buffer tf_buffer;
+  tf2_ros::TransformListener tf_listener(tf_buffer);
+  geometry_msgs::TransformStamped cam_wrt_arm ;
+  geometry_msgs::TransformStamped arm_wrt_chassis ;
+  bool got_tfs = false;
+  while (!got_tfs) {
+    try {
+      cam_wrt_arm = tf_buffer.lookupTransform("arm_base", "camera", ros::Time(0));
+      arm_wrt_chassis = tf_buffer.lookupTransform("chassis", "arm_base", ros::Time(0));
+      got_tfs = true;
+    } catch (tf2::TransformException ex) {
+    }
+  }
 
-  Matrix3d R_cam_arm;
-  R_cam_arm << R_cam_armv[0], R_cam_armv[1], R_cam_armv[2],
-               R_cam_armv[3], R_cam_armv[4], R_cam_armv[5],
-               R_cam_armv[6], R_cam_armv[7], R_cam_armv[8];
-  Vector3d t_cam_arm(t_cam_armv[0], t_cam_armv[1], t_cam_armv[2]);
+  Matrix4d H_cam_arm;
+  H_cam_arm(3, 3) = 1;
+  H_cam_arm.topLeftCorner<3, 3>() = Quaterniond(cam_wrt_arm.transform.rotation.w,
+                                                cam_wrt_arm.transform.rotation.x,
+                                                cam_wrt_arm.transform.rotation.y,
+                                                cam_wrt_arm.transform.rotation.z).toRotationMatrix();
+  H_cam_arm.topRightCorner<3, 1>() = Vector3d(cam_wrt_arm.transform.translation.x, cam_wrt_arm.transform.translation.y, cam_wrt_arm.transform.translation.z);
+
+  Matrix4d H_arm_chassis;
+  H_arm_chassis(3, 3) = 1;
+  H_arm_chassis.topLeftCorner<3, 3>() = Quaterniond(arm_wrt_chassis.transform.rotation.w,
+                                                    arm_wrt_chassis.transform.rotation.x,
+                                                    arm_wrt_chassis.transform.rotation.y,
+                                                    arm_wrt_chassis.transform.rotation.z).toRotationMatrix();
+  H_arm_chassis.topRightCorner<3, 1>() = Vector3d(arm_wrt_chassis.transform.translation.x, arm_wrt_chassis.transform.translation.y, arm_wrt_chassis.transform.translation.z);
 
   // Get station locations
   vector<double> poseA;
@@ -370,6 +416,10 @@ int main(int argc, char** argv) {
   ros::Subscriber spigot_sub = nh.subscribe<shipbot_ros::SpigotState>("/shipbot/spigot_state", 1, handle_spigot(spigot_ptr));
   ros::Subscriber shuttlecock_sub = nh.subscribe<shipbot_ros::ShuttlecockState>("/shipbot/shuttlecock_state", 1, handle_shuttlecock(shuttlecock_ptr));
   ros::Subscriber breaker_sub = nh.subscribe<shipbot_ros::BreakerState>("/shipbot/breaker_state", 1, handle_breaker(breaker_ptr));
+
+  // Initialize chassis subscriber
+  shared_ptr<shipbot_ros::ChassisState> chassis_state_ptr = make_shared<shipbot_ros::ChassisState>();
+  ros::Subscriber chassis_state_sub = nh.subscribe<shipbot_ros::ChassisState>("/shipbot/chassis_state", 1, handle_chassis_state(chassis_state_ptr));
 
   // Initialize arm service clients and srvs
   ros::ServiceClient spin_rotary_client = nh.serviceClient<shipbot_ros::SpinRotary>("/arm_control_node/spin_rotary");
@@ -471,6 +521,9 @@ int main(int argc, char** argv) {
         case 'H':
           station_pose = poseH;
           break;
+        default:
+          cout << "Bad mission file" << endl;
+          exit(1);
       }
 
       travel_abs_srv.request.x = station_pose[0];
@@ -490,43 +543,134 @@ int main(int argc, char** argv) {
     string_split(tokens, rest, " ");
 
     if (do_manipulation) {
+      // Query device
       if (tokens[0] == "V1") {
-        // Query device
         find_device_srv.request.device_type = shipbot_ros::FindDevice::Request::SPIGOT;
-        if (find_device_client.call(find_device_srv)) {
-          ROS_INFO("Successfully called find_device");
+      } else if (tokens[0] == "V2") {
+        find_device_srv.request.device_type = shipbot_ros::FindDevice::Request::WHEEL;
+      } else if (tokens[0] == "V3") {
+        find_device_srv.request.device_type = shipbot_ros::FindDevice::Request::SHUTTLECOCK;
+      } else if (tokens[0] == "A") {
+        find_device_srv.request.device_type = shipbot_ros::FindDevice::Request::BREAKERA;
+      } else if (tokens[0] == "B") {
+        find_device_srv.request.device_type = shipbot_ros::FindDevice::Request::BREAKERB;
+      } else {
+        cout << "Bad mission file" << endl;
+        exit(1);
+      }
+      if (find_device_client.call(find_device_srv)) {
+        ROS_INFO("Successfully called find_device");
+      } else {
+        ROS_ERROR("Failed to call find_device");
+      }
+
+      // Wait until we find it
+      double start_time = ros::Time::now().toSec();
+      while (ros::ok() && ros::Time::now().toSec() - start_time < 20) {
+        if ((tokens[0] == "V1" && spigot_ptr->visible) ||
+            (tokens[0] == "V2" && wheel_ptr->visible) ||
+            (tokens[0] == "V3" && shuttlecock_ptr->visible) ||
+            ((tokens[0] == "A" || tokens[0] == "B") &&
+             breaker_ptr->switches[0].visible &&
+             breaker_ptr->switches[1].visible &&
+             breaker_ptr->switches[2].visible)) {
+          break;
+        }
+        cout << "Haven't found device yet" << endl;
+        r.sleep();
+        ros::spinOnce();
+      }
+
+      cout << "Found device" << endl;
+
+      find_device_srv.request.device_type = shipbot_ros::FindDevice::Request::NONE;
+      if (find_device_client.call(find_device_srv)) {
+        ROS_INFO("Told vision node to pause");
+      } else {
+        ROS_ERROR("Failed to tell vision node to pause");
+      }
+
+      // Read device position
+      Vector4d dev_pos;
+      dev_pos(3) = 1;
+      if (tokens[0] == "V1") {
+        dev_pos(0) = spigot_ptr->position.x;
+        dev_pos(1) = spigot_ptr->position.y;
+        dev_pos(2) = spigot_ptr->position.z;
+      } else if (tokens[0] == "V2") {
+        dev_pos(0) = wheel_ptr->position.x;
+        dev_pos(1) = wheel_ptr->position.y;
+        dev_pos(2) = wheel_ptr->position.z;
+      } else if (tokens[0] == "V3") {
+        if (tokens[1] == "0" && shuttlecock_ptr->open) {
+          cout << "Shuttlecock already open, doing nothing" << endl;
+          continue;
+        } else if (tokens[1] == "1" && !shuttlecock_ptr->open) {
+          cout << "Shuttlecock already closed, doing nothing" << endl;
+          continue;
+        }
+
+        dev_pos(0) = shuttlecock_ptr->position.x;
+        dev_pos(1) = shuttlecock_ptr->position.y;
+        dev_pos(2) = shuttlecock_ptr->position.z;
+      } else if (tokens[0] == "A" || tokens[0] == "B") {
+        shipbot_ros::SwitchState state;
+        if (tokens[1] == "B1") {
+          state = breaker_ptr->switches[0];
+        } else if (tokens[1] == "B2") {
+          state = breaker_ptr->switches[1];
+        } else if (tokens[1] == "B3") {
+          state = breaker_ptr->switches[2];
+        }
+
+        if (tokens[2] == "U" && state.up) {
+          cout << "Switch already up, doing nothing" << endl;
+          continue;
+        } else if (tokens[2] == "D" && !state.up) {
+          cout << "Switch already down, doing nothing" << endl;
+          continue;
+        }
+
+        dev_pos(0) = state.position.x;
+        dev_pos(1) = state.position.y;
+        dev_pos(2) = state.position.z;
+      }
+
+      // Transform device position into chassis frame and f
+      // figure out how much to shift along the arm's x axis such that
+      // the device is centered with the arm
+      dev_pos = H_cam_arm*dev_pos;
+      Vector4d shift = Vector4d::Zero();
+      shift(0) = dev_pos(0) - xee;
+
+      // Transform device position into world frame
+      Matrix4d H_chassis_world;
+      H_chassis_world(3, 3) = 1;
+      H_chassis_world.topRightCorner<3, 1>() = Vector3d(chassis_state_ptr->x, chassis_state_ptr->y, 0);
+      H_chassis_world.topLeftCorner<3, 3>() = AngleAxisd(chassis_state_ptr->yaw, Vector3d(0, 0, 1)).toRotationMatrix();
+      dev_pos = H_chassis_world*H_arm_chassis*dev_pos;
+
+      // If we can, translate the chassis to center the arm
+      if (station != 'E' && station != 'F') {
+        Vector4d goal = H_chassis_world.col(3) + H_chassis_world*H_arm_chassis*shift;
+        travel_abs_srv.request.x = goal(0);
+        travel_abs_srv.request.y = goal(1);
+        travel_abs_srv.request.theta = chassis_state_ptr->yaw;
+        if (travel_abs_client.call(travel_abs_srv)) {
+          ROS_INFO("Commanded chassis to center the arm with the device");
         } else {
-          ROS_ERROR("Failed to call find_device");
+          ROS_ERROR("Failed to command chassis to center the arm with the device");
         }
+        spin_until_completion(r, chassis_done_ptr);
+      }
 
-        double start_time = ros::Time::now().toSec();
-        while (!spigot_ptr->visible && ros::ok() && ros::Time::now().toSec() - start_time < 20) {
-          cout << "Couldn't find spigot valve" << endl;
-          r.sleep();
-          ros::spinOnce();
-        }
+      // Now get the new device position in the arm frame
+      H_chassis_world.topRightCorner<3, 1>() = Vector3d(chassis_state_ptr->x, chassis_state_ptr->y, 0);
+      H_chassis_world.topLeftCorner<3, 3>() = AngleAxisd(chassis_state_ptr->yaw, Vector3d(0, 0, 1)).toRotationMatrix();
+      dev_pos = H_arm_chassis.inverse()*H_chassis_world.inverse()*dev_pos;
 
-        cout << "Found device" << endl;
-
-        find_device_srv.request.device_type = shipbot_ros::FindDevice::Request::NONE;
-        if (find_device_client.call(find_device_srv)) {
-          ROS_INFO("Told vision node to find nothing");
-        } else {
-          ROS_ERROR("Failed to tell vision node to find nothing");
-        }
-
-        // Transform position into arm frame
-        Vector3d dev_pos(spigot_ptr->position.x,
-                         spigot_ptr->position.y,
-                         spigot_ptr->position.z);
-        dev_pos = R_cam_arm*dev_pos + t_cam_arm;
-
-        if (station != 'E' && station != 'F') {
-          minor_strafe(dev_pos(0) - xee, travel_rel_client, r, chassis_done_ptr);
-          dev_pos(0) = xee; // TODO: this is a very strong assumption!
-        }
-
-        // Command arm
+      // Command arm
+      if (tokens[0] == "V1") {
         spin_rotary_srv.request.position.x = dev_pos(0);
         spin_rotary_srv.request.position.y = dev_pos(1);
         spin_rotary_srv.request.position.z = dev_pos(2);
@@ -539,41 +683,6 @@ int main(int argc, char** argv) {
         }
         spin_until_completion(r, arm_done_ptr);
       } else if (tokens[0] == "V2") {
-        // Query device
-        find_device_srv.request.device_type = shipbot_ros::FindDevice::Request::WHEEL;
-        if (find_device_client.call(find_device_srv)) {
-          ROS_INFO("Successfully called find_device");
-        } else {
-          ROS_ERROR("Failed to call find_device");
-        }
-
-        double start_time = ros::Time::now().toSec();
-        while (!wheel_ptr->visible && ros::ok() && ros::Time::now().toSec() - start_time < 20) {
-          cout << "Couldn't find wheel valve" << endl;
-          r.sleep();
-          ros::spinOnce();
-        }
-
-        find_device_srv.request.device_type = shipbot_ros::FindDevice::Request::NONE;
-        if (find_device_client.call(find_device_srv)) {
-          ROS_INFO("Told vision node to find nothing");
-        } else {
-          ROS_ERROR("Failed to tell vision node to find nothing");
-        }
-
-        // Transform position into arm frame
-        Vector3d dev_pos(wheel_ptr->position.x,
-                         wheel_ptr->position.y,
-                         wheel_ptr->position.z);
-
-        dev_pos = R_cam_arm*dev_pos + t_cam_arm;
-
-        if (station != 'E' && station != 'F') {
-          minor_strafe(dev_pos(0) - xee, travel_rel_client, r, chassis_done_ptr);
-          dev_pos(0) = xee; // TODO: this is a very strong assumption!
-        }
-
-        // Command arm
         spin_rotary_srv.request.position.x = dev_pos(0);
         spin_rotary_srv.request.position.y = dev_pos(1);
         spin_rotary_srv.request.position.z = dev_pos(2);
@@ -584,127 +693,32 @@ int main(int argc, char** argv) {
         } else {
           ROS_ERROR("Failed to command arm to spin wheel valve");
         }
-        spin_until_completion(r, arm_done_ptr);
       } else if (tokens[0] == "V3") {
-        // Query device
-        find_device_srv.request.device_type = shipbot_ros::FindDevice::Request::SHUTTLECOCK;
-        if (find_device_client.call(find_device_srv)) {
-          ROS_INFO("Successfully called find_device");
+        spin_shuttlecock_srv.request.position.x = dev_pos(0);
+        spin_shuttlecock_srv.request.position.y = dev_pos(1);
+        spin_shuttlecock_srv.request.position.z = dev_pos(2);
+        spin_shuttlecock_srv.request.vertical_spin_axis = shuttlecock_ptr->vertical;
+        spin_shuttlecock_srv.request.do_open = tokens[1] == "0";
+
+        if (spin_shuttlecock_client.call(spin_shuttlecock_srv)) {
+          ROS_INFO("Commanded arm to spin shuttlecock valve");
         } else {
-          ROS_ERROR("Failed to call find_device");
-        }
-
-        double start_time = ros::Time::now().toSec();
-        while (!shuttlecock_ptr->visible && ros::ok() && ros::Time::now().toSec() - start_time < 20) {
-          cout << "Couldn't find shuttlecock valve" << endl;
-          r.sleep();
-          ros::spinOnce();
-        }
-
-        find_device_srv.request.device_type = shipbot_ros::FindDevice::Request::NONE;
-        if (find_device_client.call(find_device_srv)) {
-          ROS_INFO("Told vision node to find nothing");
-        } else {
-          ROS_ERROR("Failed to tell vision node to find nothing");
-        }
-
-        cout << "Shuttlecock: " << (int)(shuttlecock_ptr->open) << " " << (int)(shuttlecock_ptr->vertical) << endl;
-
-        if (tokens[1] == "0" && shuttlecock_ptr->open) {
-          cout << "Shuttlecock already open, doing nothing" << endl;
-        } else if (tokens[1] == "1" && !shuttlecock_ptr->open) {
-          cout << "Shuttlecock already closed, doing nothing" << endl;
-        } else {
-          // Transform position into arm frame
-          Vector3d dev_pos(shuttlecock_ptr->position.x,
-                           shuttlecock_ptr->position.y,
-                           shuttlecock_ptr->position.z);
-          dev_pos = R_cam_arm*dev_pos + t_cam_arm;
-
-          if (station != 'E' && station != 'F') {
-            minor_strafe(dev_pos(0) - xee, travel_rel_client, r, chassis_done_ptr);
-            dev_pos(0) = xee; // TODO: this is a very strong assumption!
-          }
-
-          // Command arm
-          spin_shuttlecock_srv.request.position.x = dev_pos(0);
-          spin_shuttlecock_srv.request.position.y = dev_pos(1);
-          spin_shuttlecock_srv.request.position.z = dev_pos(2);
-          spin_shuttlecock_srv.request.vertical_spin_axis = shuttlecock_ptr->vertical;
-          spin_shuttlecock_srv.request.do_open = tokens[1] == "0";
-
-          if (spin_shuttlecock_client.call(spin_shuttlecock_srv)) {
-            ROS_INFO("Commanded arm to spin shuttlecock valve");
-          } else {
-            ROS_ERROR("Failed to command arm to spin shuttlecock valve");
-          }
-          spin_until_completion(r, arm_done_ptr);
+          ROS_ERROR("Failed to command arm to spin shuttlecock valve");
         }
       } else if (tokens[0] == "A" || tokens[0] == "B") {
-        // Query device
-        find_device_srv.request.device_type = (tokens[0] == "A") ? shipbot_ros::FindDevice::Request::BREAKERA : shipbot_ros::FindDevice::Request::BREAKERB;
-        if (find_device_client.call(find_device_srv)) {
-          ROS_INFO("Successfully called find_device");
+        switch_breaker_srv.request.position.x = dev_pos(0);
+        switch_breaker_srv.request.position.y = dev_pos(1);
+        switch_breaker_srv.request.position.z = dev_pos(2);
+        switch_breaker_srv.request.push_up = tokens[2] == "U";
+
+        if (switch_breaker_client.call(switch_breaker_srv)) {
+          ROS_INFO("Commanded arm to switch a breaker switch");
         } else {
-          ROS_ERROR("Failed to call find_device");
-        }
-
-        double start_time = ros::Time::now().toSec();
-        while ((!breaker_ptr->switches[0].visible ||
-                !breaker_ptr->switches[1].visible ||
-                !breaker_ptr->switches[2].visible) && ros::ok()
-                && ros::Time::now().toSec() - start_time < 20) {
-          cout << "Couldn't find all the breaker switches" << endl;
-          r.sleep();
-          ros::spinOnce();
-        }
-
-        find_device_srv.request.device_type = shipbot_ros::FindDevice::Request::NONE;
-        if (find_device_client.call(find_device_srv)) {
-          ROS_INFO("Told vision node to find nothing");
-        } else {
-          ROS_ERROR("Failed to tell vision node to find nothing");
-        }
-
-        shipbot_ros::SwitchState state;
-        if (tokens[1] == "B1") {
-          state = breaker_ptr->switches[0];
-        } else if (tokens[1] == "B2") {
-          state = breaker_ptr->switches[1];
-        } else if (tokens[1] == "B3") {
-          state = breaker_ptr->switches[2];
-        }
-
-        if (tokens[2] == "U" && state.up) {
-          cout << "Switch already up, doing nothing" << endl;
-        } else if (tokens[2] == "D" && !state.up) {
-          cout << "Switch already down, doing nothing" << endl;
-        } else {
-          // Transform position into arm frame
-          Vector3d dev_pos(state.position.x,
-                           state.position.y,
-                           state.position.z);
-          dev_pos = R_cam_arm*dev_pos + t_cam_arm;
-
-          if (station != 'E' && station != 'F') {
-            minor_strafe(dev_pos(0) - xee, travel_rel_client, r, chassis_done_ptr);
-            dev_pos(0) = xee; // TODO: this is a very strong assumption!
-          }
-
-          // Command arm
-          switch_breaker_srv.request.position.x = dev_pos(0);
-          switch_breaker_srv.request.position.y = dev_pos(1);
-          switch_breaker_srv.request.position.z = dev_pos(2);
-          switch_breaker_srv.request.push_up = tokens[2] == "U";
-
-          if (switch_breaker_client.call(switch_breaker_srv)) {
-            ROS_INFO("Commanded arm to switch a breaker switch");
-          } else {
-            ROS_ERROR("Failed to command arm to switch a breaker switch");
-          }
-          spin_until_completion(r, arm_done_ptr);
+          ROS_ERROR("Failed to command arm to switch a breaker switch");
         }
       }
+
+      spin_until_completion(r, arm_done_ptr);
 
       // Reset the arm
       if (reset_arm_client.call(reset_arm_srv)) {

@@ -1,0 +1,4 @@
+<launch>
+  <node name="camera_arm_publisher" type="static_transform_publisher" pkg="tf2_ros" output="screen" args="0.05 0.105 0.3429 0 0 -1.5708 camera arm_base"/>
+  <node name="arm_chassis_publisher" type="static_transform_publisher" pkg="tf2_ros" output="screen" args="0.036576 -0.002159 0 -1.5708 0 0 arm_base chassis"/>
+</launch>
