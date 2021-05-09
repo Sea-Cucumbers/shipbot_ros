@@ -322,16 +322,14 @@ int main(int argc, char** argv) {
     }
   }
 
-  Matrix4d H_cam_arm;
-  H_cam_arm(3, 3) = 1;
+  Matrix4d H_cam_arm = Matrix4d::Identity();
   H_cam_arm.topLeftCorner<3, 3>() = Quaterniond(cam_wrt_arm.transform.rotation.w,
                                                 cam_wrt_arm.transform.rotation.x,
                                                 cam_wrt_arm.transform.rotation.y,
                                                 cam_wrt_arm.transform.rotation.z).toRotationMatrix();
   H_cam_arm.topRightCorner<3, 1>() = Vector3d(cam_wrt_arm.transform.translation.x, cam_wrt_arm.transform.translation.y, cam_wrt_arm.transform.translation.z);
 
-  Matrix4d H_arm_chassis;
-  H_arm_chassis(3, 3) = 1;
+  Matrix4d H_arm_chassis = Matrix4d::Identity();
   H_arm_chassis.topLeftCorner<3, 3>() = Quaterniond(arm_wrt_chassis.transform.rotation.w,
                                                     arm_wrt_chassis.transform.rotation.x,
                                                     arm_wrt_chassis.transform.rotation.y,
@@ -644,8 +642,7 @@ int main(int argc, char** argv) {
       shift(0) = dev_pos(0) - xee;
 
       // Transform device position into world frame
-      Matrix4d H_chassis_world;
-      H_chassis_world(3, 3) = 1;
+      Matrix4d H_chassis_world = Matrix4d::Identity();
       H_chassis_world.topRightCorner<3, 1>() = Vector3d(chassis_state_ptr->x, chassis_state_ptr->y, 0);
       H_chassis_world.topLeftCorner<3, 3>() = AngleAxisd(chassis_state_ptr->yaw, Vector3d(0, 0, 1)).toRotationMatrix();
       dev_pos = H_chassis_world*H_arm_chassis*dev_pos;
@@ -653,6 +650,7 @@ int main(int argc, char** argv) {
       // If we can, translate the chassis to center the arm
       if (station != 'E' && station != 'F') {
         Vector4d goal = H_chassis_world.col(3) + H_chassis_world*H_arm_chassis*shift;
+
         travel_abs_srv.request.x = goal(0);
         travel_abs_srv.request.y = goal(1);
         travel_abs_srv.request.theta = chassis_state_ptr->yaw;
