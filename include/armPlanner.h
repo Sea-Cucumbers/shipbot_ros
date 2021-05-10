@@ -6,12 +6,21 @@
 using namespace Eigen;
 using namespace std;
 
+struct Segment {
+  bool grip;
+  bool press;
+  MinJerkInterpolator interpolator;
+
+  Segment(bool grip, bool press, const MinJerkInterpolator &interpolator) : grip(grip), press(press),
+                                                                            interpolator(interpolator) {}
+};
+
 /*
  * ArmPlanner: currently just generates min-jerk straight lines between a given start and end
  */
 class ArmPlanner {
   private:
-    vector<pair<bool, MinJerkInterpolator>> segments;
+    vector<Segment> segments;
     const double seconds_per_meter;
     const double seconds_per_degree;
 
@@ -20,7 +29,10 @@ class ArmPlanner {
     const double vertical_pause_above;
 
     // How long do we wait for the jammer to grip/ungrip
-    const double grip_wait;
+    const double grip_delay;
+
+    // How long do we wait when we start/stop applying pressure?
+    const double press_delay;
 
     const double shuttlecock_tip_to_joint = 0.092075;
     const double shuttlecock_handle_center_to_joint = 0.0635;
@@ -28,7 +40,7 @@ class ArmPlanner {
 
     VectorXd reset_config;
 
-    vector<pair<bool, MinJerkInterpolator>>::iterator current_segment;
+    vector<Segment>::iterator current_segment;
 
     /*
      * retrieve_segment: populated current_segment with the segment
@@ -45,7 +57,7 @@ class ArmPlanner {
      * add_waypoint: augment our current plan to take us from
      * the current end to the new waypoint. The plan now
      * ends at the given waypoint. This segment adopts the
-     * grip status of the previous segment
+     * grip status and press status of the previous segment
      * ARGUMENTS
      * waypoint: waypoint which we append to trajectory
      */
@@ -60,16 +72,25 @@ class ArmPlanner {
     void add_grip_phase(bool grip);
 
     /*
+     * add_press_phase: augment our current plan with a segment where
+     * we start or stop pressing
+     * ARGUMENTS
+     * press: if true, we press, if false, we stop pressing
+     */
+    void add_press_phase(bool press);
+
+    /*
      * start_plan: clears the plan and begins a new
      * plan starting at the given configuration at the given
      * time and ending at the given waypoint
      * ARGUMENTS
      * start_time: starting time of first segment
      * grip: do we grip during the first segment?
+     * press: do we press during the first segment?
      * start: starting configuration of first segment
      * waypoint: ending configuration of first segment
      */
-    void start_plan(double start_time, bool grip, const VectorXd &start, const VectorXd &waypoint);
+    void start_plan(double start_time, bool grip, bool press, const VectorXd &start, const VectorXd &waypoint);
 
   public:
     /*
@@ -83,15 +104,16 @@ class ArmPlanner {
      * horizontal_pause_back: how far back do we pause before engaging horizontal devices?
      * vertical_pause_back: how far back do we pause before engaging vertical devices?
      * vertical_pause_above: how far above do we pause before engaging vertical devices?
-     * grip_wait: how long do we wait for the gripper to grip/ungrip
+     * grip_delay: how long do we wait for the gripper to grip/ungrip
      */
-     ArmPlanner(double seconds_per_meter,
-                double seconds_per_degree,
-                const VectorXd &reset_config,
-                double horizontal_pause_back,
-                double vertical_pause_back,
-                double vertical_pause_above,
-                double grip_wait);
+    ArmPlanner(double seconds_per_meter,
+               double seconds_per_degree,
+               const VectorXd &reset_config,
+               double horizontal_pause_back,
+               double vertical_pause_back,
+               double vertical_pause_above,
+               double grip_delay,
+               double press_delay);
 
     /*
      * sample_points: sample points along current trajectory
@@ -163,9 +185,10 @@ class ArmPlanner {
      * ARGUMENTS
      * t: time to evaluate
      * grip: populated with true if we're supposed to be gripping, false otherwise
+     * press: populated with true if we're supposed to be pressing, false otherwise
      * RETURN: task state at time t
      */
-    VectorXd eval(double t, bool &grip);
+    VectorXd eval(double t, bool &grip, bool &press);
 
     /*
      * deriv1: returns the desired task velocity at time t. If t is outside the

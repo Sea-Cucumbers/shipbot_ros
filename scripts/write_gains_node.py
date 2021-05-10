@@ -18,4 +18,8 @@ if group is None:
 group_command = hebi.GroupCommand(group.size)
 group_command.position_limit_max = 6
 group_command.position_limit_min = -6
+group_command.effort_max_target = 7
+group_command.effort_min_target = -7
+group_command.velocity_max_target = 2
+group_command.velocity_min_target = -2
 group.send_command(group_command)
