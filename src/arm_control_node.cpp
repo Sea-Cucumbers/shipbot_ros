@@ -210,9 +210,10 @@ int main(int argc, char** argv) {
   double horizontal_pause_back = 0.1;
   double vertical_pause_back = 0.1;
   double vertical_pause_above = 0.1;
+  double pause_left = 0.05;
   double grip_delay = 5;
   double press_delay = 2;
-  double press_force = 2; // Newtons
+  double press_force = 5; // Newtons
   vector<double> reset_configv;
   reset_configv.push_back(-0.135214);
   reset_configv.push_back(0.18142);
@@ -228,11 +229,12 @@ int main(int argc, char** argv) {
   nh.getParam("horizontal_pause_back", horizontal_pause_back);
   nh.getParam("vertical_pause_back", vertical_pause_back);
   nh.getParam("vertical_pause_above", vertical_pause_above);
+  nh.getParam("pause_left", pause_left);
   nh.getParam("grip_delay", grip_delay);
   nh.getParam("press_delay", press_delay);
   nh.getParam("press_force", press_force);
-  nh.getParam("reset_config", reset_configv);
-  nh.getParam("encoder_offsets", encoder_offsetsv);
+  nh.getParam("/reset_config", reset_configv);
+  nh.getParam("/encoder_offsets", encoder_offsetsv);
 
   VectorXd reset_config(5);
   VectorXd encoder_offsets(5);
@@ -301,7 +303,7 @@ int main(int argc, char** argv) {
   VectorXd velocity_fbk = VectorXd::Zero(group->size());
   VectorXd effort_fbk = VectorXd::Zero(group->size());
   
-  shared_ptr<ArmPlanner> planner = make_shared<ArmPlanner>(seconds_per_meter, seconds_per_degree, reset_config, horizontal_pause_back, vertical_pause_back, vertical_pause_above, grip_delay, press_delay);
+  shared_ptr<ArmPlanner> planner = make_shared<ArmPlanner>(seconds_per_meter, seconds_per_degree, reset_config, horizontal_pause_back, vertical_pause_back, vertical_pause_above, pause_left, grip_delay, press_delay);
 
   Vector3d position(0, 0, 0);
   Quaterniond orientation(1, 0, 0, 0);
@@ -399,7 +401,7 @@ int main(int argc, char** argv) {
       if (!called_done && t > planner->get_end_time()) {
         VectorXd err = task_config - current_task_config;
         // We have the + 5 here because the arm might be stuck
-        if (err.head<3>().norm() < 0.1 && t > planner->get_end_time() + 5) {
+        if (err.head<3>().norm() < 0.1 || t > planner->get_end_time() + 5) {
           done_client.call(done_srv);
           called_done = true;
         }

@@ -9,6 +9,7 @@ ArmPlanner::ArmPlanner(double seconds_per_meter,
                        double horizontal_pause_back,
                        double vertical_pause_back,
                        double vertical_pause_above,
+                       double pause_left,
                        double grip_delay,
                        double press_delay) : seconds_per_meter(seconds_per_meter),
                                              seconds_per_degree(seconds_per_degree),
@@ -16,6 +17,7 @@ ArmPlanner::ArmPlanner(double seconds_per_meter,
                                              horizontal_pause_back(horizontal_pause_back),
                                              vertical_pause_back(vertical_pause_back),
                                              vertical_pause_above(vertical_pause_above),
+                                             pause_left(pause_left),
                                              grip_delay(grip_delay),
                                              press_delay(press_delay) {}
 
@@ -82,12 +84,18 @@ void ArmPlanner::spin_rotary(const VectorXd &start,
     add_waypoint(waypoint);
   }
 
+  // Start pressing
+  add_press_phase(true);
+
   // Wait for the gripper to grip
   add_grip_phase(true);
 
   // Spin the valve
   waypoint(4) -= degrees*M_PI/180;
   add_waypoint(waypoint);
+
+  // Stop pressing
+  add_press_phase(false);
 
   // Wait for the gripper to ungrip
   add_grip_phase(false);
@@ -114,41 +122,49 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
                                   double start_time) {
   VectorXd waypoint = VectorXd::Zero(5);
   waypoint.head<3>() = position;
-  if (vertical_spin_axis) {
-    waypoint(3) = -M_PI/4;
-  }
 
   if (do_open) {
     if (vertical_spin_axis) {
-      // The handle is pointing toward us. Stop above it and backward
+      // The handle is pointing toward us. Stop above it and behind it
       waypoint(1) -= vertical_pause_back;
       waypoint(2) += vertical_pause_above;
+      waypoint(3) = -M_PI/2;
       
       start_plan(start_time, false, false, start, waypoint);
 
-      // Move forward and downward
-      waypoint(1) += vertical_pause_back + shuttlecock_tip_to_joint;
-      waypoint(2) -= vertical_pause_above - shuttlecock_depth;
+      // Move forward
+      waypoint(1) += vertical_pause_back - 0.075;
       add_waypoint(waypoint);
 
-      // Harden end-effector
+      // Move down
+      waypoint(2) -= vertical_pause_above;
+
+      // Start pressing
+      add_press_phase(true);
+
+      // Grip
       add_grip_phase(true);
 
-      // Spin
-      waypoint(4) += M_PI/2;
+      // Move forward and right
+      waypoint(0) += shuttlecock_tip_to_joint;
+      waypoint(1) += shuttlecock_tip_to_joint + 0.02;
+      waypoint(4) += 3*M_PI/4;
       add_waypoint(waypoint);
 
-      // Unharden end-effector
+      // Stop pressing
+      add_press_phase(false);
+
+      // Ungrip
       add_grip_phase(false);
 
-      // Move up and back
-      waypoint(1) -= vertical_pause_back;
-      waypoint(2) += vertical_pause_above + shuttlecock_depth;
+      // Move up
+      waypoint(2) += vertical_pause_above;
       add_waypoint(waypoint);
     } else {
       // The handle is pointing right. Pause backward from it
-      waypoint(0) -= shuttlecock_handle_center_to_joint;
+      waypoint(0) += 0.0254;
       waypoint(1) -= horizontal_pause_back;
+      waypoint(2) -= 0.02;
       
       start_plan(start_time, false, false, start, waypoint);
 
@@ -156,12 +172,20 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
       waypoint(1) += horizontal_pause_back + shuttlecock_depth;
       add_waypoint(waypoint);
 
+      // Start pressing
+      add_press_phase(true);
+
       // Harden end-effector
       add_grip_phase(true);
 
       // Spin
-      waypoint(4) += M_PI/2;
+      waypoint(4) += 3*M_PI/4;
+      waypoint(0) -= shuttlecock_handle_center_to_joint;
+      waypoint(2) += shuttlecock_handle_center_to_joint;
       add_waypoint(waypoint);
+
+      // Stop pressing
+      add_press_phase(false);
 
       // Unharden end-effector
       add_grip_phase(false);
@@ -175,24 +199,32 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
       // The handle is pointing right. Stop above it and backward
       waypoint(1) -= vertical_pause_back;
       waypoint(2) += vertical_pause_above;
-      waypoint(0) -= shuttlecock_handle_center_to_joint;
+      waypoint(0) -= shuttlecock_handle_center_to_joint + 0.02;
+      waypoint(3) = -M_PI/4;
       
       start_plan(start_time, false, false, start, waypoint);
 
-      // Move forward
-      waypoint(1) += vertical_pause_back;
+      // Move forward and down
+      waypoint(1) += vertical_pause_back - 0.02;
+      waypoint(2) -= vertical_pause_above + shuttlecock_depth;
       add_waypoint(waypoint);
 
-      // Move down
-      waypoint(2) -= vertical_pause_above + shuttlecock_depth;
+      // Start pressing
+      add_press_phase(true);
+
+      // Face down
+      waypoint(3) = -M_PI/2;
       add_waypoint(waypoint);
 
       // Harden end-effector
       add_grip_phase(true);
 
       // Spin
-      waypoint(4) -= M_PI/2;
+      waypoint(4) -= 3*M_PI/4;
       add_waypoint(waypoint);
+
+      // Stop pressing
+      add_press_phase(false);
 
       // Unharden end-effector
       add_grip_phase(false);
@@ -249,13 +281,18 @@ void ArmPlanner::switch_breaker(const VectorXd &start,
   waypoint(2) = waypoint(2) + (push_up ? horizontal_pause_back : -horizontal_pause_back);
   add_waypoint(waypoint);
 
+  // Start pressing
+  add_press_phase(true);
+
   // Grip
   add_grip_phase(true);
 
   // Push the switch
-  waypoint(2) = waypoint(2) + (push_up ? horizontal_pause_back : -horizontal_pause_back);
-  waypoint(3) = push_up ? -M_PI/4 : M_PI/4;
+  waypoint(2) = waypoint(2) + (push_up ? 0.1 : -0.1);
   add_waypoint(waypoint);
+
+  // Stop pressing
+  add_press_phase(false);
 
   // Ungrip
   add_grip_phase(false);

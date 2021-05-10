@@ -130,6 +130,7 @@ int main(int argc, char** argv) {
 
   while (ros::ok())
   {
+    /*
     if (abs(angdiff(state_ptr->yaw, 0)) < M_PI/16) {
       // Facing away from short wall. Use sensors 2 and 3
       state_msg.x = fbk_ptr->tofs[2] - t2[0];
@@ -151,6 +152,10 @@ int main(int argc, char** argv) {
       state_msg.y = state_ptr->y;     
     }
     state_msg.yaw = state_ptr->yaw;
+    */
+    state_msg.x = fbk_ptr->tofs[3] - t3[1];
+    state_msg.y = fbk_ptr->tofs[0] + t0[0];
+    state_msg.yaw = -M_PI/2;
 
     state_pub.publish(state_msg);
     r.sleep();

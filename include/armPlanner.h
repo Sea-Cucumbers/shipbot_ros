@@ -27,6 +27,7 @@ class ArmPlanner {
     const double horizontal_pause_back;
     const double vertical_pause_back;
     const double vertical_pause_above;
+    const double pause_left;
 
     // How long do we wait for the jammer to grip/ungrip
     const double grip_delay;
@@ -104,6 +105,7 @@ class ArmPlanner {
      * horizontal_pause_back: how far back do we pause before engaging horizontal devices?
      * vertical_pause_back: how far back do we pause before engaging vertical devices?
      * vertical_pause_above: how far above do we pause before engaging vertical devices?
+     * pause_left: how far to the left do we pause when pushing something?
      * grip_delay: how long do we wait for the gripper to grip/ungrip
      */
     ArmPlanner(double seconds_per_meter,
@@ -112,6 +114,7 @@ class ArmPlanner {
                double horizontal_pause_back,
                double vertical_pause_back,
                double vertical_pause_above,
+               double pause_left,
                double grip_delay,
                double press_delay);
 

@@ -1,17 +1,16 @@
 <launch>
+  <rosparam file="$(find shipbot_ros)/config/arm_config.yaml" />
   <node name="write_gains_node" pkg="shipbot_ros" type="write_gains_node.py" output="screen"/>
   <node name="arm_control_node" pkg="shipbot_ros" type="arm_control_node" output="screen">
     <param name="urdf" value="$(find shipbot_urdf)/urdf/shipbot.urdf"/>
     <param name="seconds_per_meter" value="10"/>
     <param name="seconds_per_degree" value="0.011"/>
-    <param name="encoder_offsets" value="[0, 0.08, -0.025, -0.075, 0]"/>
     <param name="grip_delay" value="5"/>
     <param name="press_delay" value="2"/>
-    <param name="press_force" value="2"/>
-    <param name="reset_config" value="[-0.135214, 0.18142, 0.05839807, -1.52432, 2.67237]"/>
+    <param name="press_force" value="10"/>
     <param name="horizontal_pause_back" value="0.05"/>
     <param name="vertical_pause_back" value="0.1"/>
-    <param name="vertical_pause_above" value="0.15"/>
+    <param name="vertical_pause_above" value="0.1"/>
     <param name="rate" value="100"/>
     <param name="gains_file" value="$(find shipbot_ros)/config/hebi_gains.xml"/>
   </node>

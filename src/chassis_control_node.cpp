@@ -270,9 +270,11 @@ int main(int argc, char** argv) {
       VectorXd des_vel = planner->deriv1(t);
 
       VectorXd err = planner->error(*state_ptr, des_state);
-      if (t >= planner->get_end_time() && err.head<2>().norm() < 0.02 && abs(err(2)) < 0.1) {
-        *status = STOP;
-        done_client.call(done_srv);
+      if (t >= planner->get_end_time()) {
+        if ((err.head<2>().norm() < 0.02 && abs(err(2)) < 0.1) ||t >= planner->get_end_time() + 5) {
+          *status = STOP;
+          done_client.call(done_srv);
+        }
       }
 
       VectorXd cmd_vel = des_vel + kp.cwiseProduct(err);

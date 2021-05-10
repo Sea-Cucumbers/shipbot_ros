@@ -679,7 +679,6 @@ int main(int argc, char** argv) {
         } else {
           ROS_ERROR("Failed to command arm to spin spigot valve");
         }
-        spin_until_completion(r, arm_done_ptr);
       } else if (tokens[0] == "V2") {
         spin_rotary_srv.request.position.x = dev_pos(0);
         spin_rotary_srv.request.position.y = dev_pos(1);
