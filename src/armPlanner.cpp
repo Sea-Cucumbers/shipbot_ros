@@ -251,6 +251,7 @@ void ArmPlanner::switch_breaker(const VectorXd &start,
 
   // Push the switch
   waypoint(2) = waypoint(2) + (push_up ? horizontal_pause_back : -horizontal_pause_back);
+  waypoint(3) = push_up ? -M_PI/4 : M_PI/4;
   add_waypoint(waypoint);
 
   // Ungrip
