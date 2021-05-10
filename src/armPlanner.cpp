@@ -9,13 +9,15 @@ ArmPlanner::ArmPlanner(double seconds_per_meter,
                        double horizontal_pause_back,
                        double vertical_pause_back,
                        double vertical_pause_above,
-                       double grip_wait) : seconds_per_meter(seconds_per_meter),
-                                           seconds_per_degree(seconds_per_degree),
-                                           reset_config(reset_config),
-                                           horizontal_pause_back(horizontal_pause_back),
-                                           vertical_pause_back(vertical_pause_back),
-                                           vertical_pause_above(vertical_pause_above),
-                                           grip_wait(grip_wait) {}
+                       double grip_delay,
+                       double press_delay) : seconds_per_meter(seconds_per_meter),
+                                             seconds_per_degree(seconds_per_degree),
+                                             reset_config(reset_config),
+                                             horizontal_pause_back(horizontal_pause_back),
+                                             vertical_pause_back(vertical_pause_back),
+                                             vertical_pause_above(vertical_pause_above),
+                                             grip_delay(grip_delay),
+                                             press_delay(press_delay) {}
 
 void ArmPlanner::sample_points(vector<geometry_msgs::Point> &points) {
   points.clear();
@@ -23,12 +25,13 @@ void ArmPlanner::sample_points(vector<geometry_msgs::Point> &points) {
     cout << "Tried sampling trajectory but no trajectory was planned!" << endl;
     return;
   }
-  bool dummy;
-  for (double t = segments[0].second.get_start_time();
-       t < segments.back().second.get_end_time();
+  bool grip_dummy;
+  bool press_dummy;
+  for (double t = segments[0].interpolator.get_start_time();
+       t < segments.back().interpolator.get_end_time();
        t += 0.1) {
     geometry_msgs::Point point;
-    VectorXd tppt = eval(t, dummy);
+    VectorXd tppt = eval(t, grip_dummy, press_dummy);
     point.x = tppt(0);
     point.y = tppt(1);
     point.z = tppt(2);
@@ -38,13 +41,13 @@ void ArmPlanner::sample_points(vector<geometry_msgs::Point> &points) {
 
 void ArmPlanner::reset_arm(const VectorXd &start,
                            double start_time) {
-  start_plan(start_time, false, start, reset_config);
+  start_plan(start_time, false, false, start, reset_config);
   current_segment = segments.begin();
 }
 
 void ArmPlanner::stop_arm(const VectorXd &start,
                           double start_time) {
-  start_plan(start_time, false, start, start);
+  start_plan(start_time, false, false, start, start);
   current_segment = segments.begin();
 }
 
@@ -65,7 +68,7 @@ void ArmPlanner::spin_rotary(const VectorXd &start,
     waypoint(1) -= horizontal_pause_back;
   }
 
-  start_plan(start_time, false, start, waypoint);
+  start_plan(start_time, false, false, start, waypoint);
                                          
   if (vertical_spin_axis) {
     // If vertical axis, move forward, then down
@@ -121,7 +124,7 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
       waypoint(1) -= vertical_pause_back;
       waypoint(2) += vertical_pause_above;
       
-      start_plan(start_time, false, start, waypoint);
+      start_plan(start_time, false, false, start, waypoint);
 
       // Move forward and downward
       waypoint(1) += vertical_pause_back + shuttlecock_tip_to_joint;
@@ -147,7 +150,7 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
       waypoint(0) -= shuttlecock_handle_center_to_joint;
       waypoint(1) -= horizontal_pause_back;
       
-      start_plan(start_time, false, start, waypoint);
+      start_plan(start_time, false, false, start, waypoint);
 
       // Move forward
       waypoint(1) += horizontal_pause_back + shuttlecock_depth;
@@ -174,7 +177,7 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
       waypoint(2) += vertical_pause_above;
       waypoint(0) -= shuttlecock_handle_center_to_joint;
       
-      start_plan(start_time, false, start, waypoint);
+      start_plan(start_time, false, false, start, waypoint);
 
       // Move forward
       waypoint(1) += vertical_pause_back;
@@ -202,7 +205,7 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
       // The handle is pointing up. Pause backward from it
       waypoint(1) -= horizontal_pause_back;
       
-      start_plan(start_time, false, start, waypoint);
+      start_plan(start_time, false, false, start, waypoint);
 
       // Harden end-effector
       add_grip_phase(true);
@@ -239,7 +242,7 @@ void ArmPlanner::switch_breaker(const VectorXd &start,
   waypoint(2) += push_up ? -horizontal_pause_back : horizontal_pause_back;
   waypoint(3) = push_up ? M_PI/4 : -M_PI/4;
 
-  start_plan(start_time, false, start, waypoint);
+  start_plan(start_time, false, false, start, waypoint);
                                          
   // Move forward and upward/downward depending on which way we're pushing 
   waypoint(1) += horizontal_pause_back;
@@ -263,15 +266,16 @@ void ArmPlanner::switch_breaker(const VectorXd &start,
   current_segment = segments.begin();
 }
 
-VectorXd ArmPlanner::eval(double t, bool &grip) {
+VectorXd ArmPlanner::eval(double t, bool &grip, bool &press) {
   if (segments.size() == 0) {
     cout << "No plan to evaluate!" << endl;
     exit(1);
   }
   retrieve_segment(t);
 
-  grip = current_segment->first;
-  return current_segment->second.eval(t);
+  grip = current_segment->grip;
+  press = current_segment->press;
+  return current_segment->interpolator.eval(t);
 }
 
 VectorXd ArmPlanner::deriv1(double t) {
@@ -281,7 +285,7 @@ VectorXd ArmPlanner::deriv1(double t) {
   }
   retrieve_segment(t);
 
-  return current_segment->second.deriv1(t);
+  return current_segment->interpolator.deriv1(t);
 }
 
 VectorXd ArmPlanner::deriv2(double t) {
@@ -291,16 +295,16 @@ VectorXd ArmPlanner::deriv2(double t) {
   }
   retrieve_segment(t);
   
-  return current_segment->second.deriv2(t);
+  return current_segment->interpolator.deriv2(t);
 }
 
 void ArmPlanner::retrieve_segment(double t) {
-  if (t > segments.back().second.get_end_time()) {
+  if (t > segments.back().interpolator.get_end_time()) {
     current_segment = prev(segments.end());
-  } else if (t < segments.front().second.get_start_time()) {
+  } else if (t < segments.front().interpolator.get_start_time()) {
     current_segment = segments.begin();
   } else {
-    while (!current_segment->second.contains_time(t)) {
+    while (!current_segment->interpolator.contains_time(t)) {
       ++current_segment;
       if (current_segment == segments.end()) {
         current_segment = segments.begin();
@@ -314,21 +318,37 @@ bool ArmPlanner::planned() {
 }
 
 double ArmPlanner::get_end_time() {
-  return segments.back().second.get_end_time();
+  return segments.back().interpolator.get_end_time();
 }
 
 void ArmPlanner::add_grip_phase(bool grip) {
   if (segments.size() == 0) {
-    cout << "Cannot call add_waypoint on empty plan" << endl;
+    cout << "Cannot call add_grip_phase on empty plan" << endl;
     return;
   }
-  VectorXd start = segments.back().second.get_end();
-  double start_time = segments.back().second.get_end_time(); 
-  double end_time = start_time + grip_wait;
-  segments.push_back(make_pair(grip, MinJerkInterpolator(start,
-                                                         start,
-                                                         start_time,
-                                                         end_time)));
+  VectorXd start = segments.back().interpolator.get_end();
+  double start_time = segments.back().interpolator.get_end_time(); 
+  double end_time = start_time + grip_delay;
+  bool press = segments.back().press;
+  segments.push_back(Segment(grip, press, MinJerkInterpolator(start,
+                                                              start,
+                                                              start_time,
+                                                              end_time)));
+}
+
+void ArmPlanner::add_press_phase(bool press) {
+  if (segments.size() == 0) {
+    cout << "Cannot call add_press_phase on empty plan" << endl;
+    return;
+  }
+  VectorXd start = segments.back().interpolator.get_end();
+  double start_time = segments.back().interpolator.get_end_time(); 
+  double end_time = start_time + press_delay;
+  bool grip = segments.back().grip;
+  segments.push_back(Segment(grip, press, MinJerkInterpolator(start,
+                                                              start,
+                                                              start_time,
+                                                              end_time)));
 }
 
 void ArmPlanner::add_waypoint(const VectorXd &waypoint) {
@@ -337,23 +357,24 @@ void ArmPlanner::add_waypoint(const VectorXd &waypoint) {
     return;
   }
 
-  VectorXd start = segments.back().second.get_end();
-  double start_time = segments.back().second.get_end_time(); 
+  VectorXd start = segments.back().interpolator.get_end();
+  double start_time = segments.back().interpolator.get_end_time(); 
   Vector3d diff = waypoint.head<3>() - start.head<3>();
   double end_time = start_time + seconds_per_meter*diff.norm();
-  bool grip = segments.back().first;
-  segments.push_back(make_pair(grip, MinJerkInterpolator(start,
-                                                         waypoint,
-                                                         start_time,
-                                                         end_time)));
+  bool grip = segments.back().grip;
+  bool press = segments.back().press;
+  segments.push_back(Segment(grip, press, MinJerkInterpolator(start,
+                                                              waypoint,
+                                                              start_time,
+                                                              end_time)));
 }
 
-void ArmPlanner::start_plan(double start_time, bool grip, const VectorXd &start, const VectorXd &waypoint) {
+void ArmPlanner::start_plan(double start_time, bool grip, bool press, const VectorXd &start, const VectorXd &waypoint) {
   segments.clear();
   Vector3d diff = waypoint.head<3>() - start.head<3>();
   double end_time = start_time + seconds_per_meter*diff.norm();
-  segments.push_back(make_pair(grip, MinJerkInterpolator(start,
-                                                         waypoint,
-                                                         start_time,
-                                                         end_time)));
+  segments.push_back(Segment(grip, press, MinJerkInterpolator(start,
+                                                              waypoint,
+                                                              start_time,
+                                                              end_time)));
 }

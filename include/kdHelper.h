@@ -62,6 +62,14 @@ class KDHelper {
     void grav_comp(VectorXd &joint_torques);
 
     /*
+     * apply_force: get torques needed to apply some amount of force at the end effector
+     * ARGUMENTS
+     * joint_torques: populated with joint torques
+     * force: apply this much force in Newtons in the direction of the end-effector
+     */
+    void apply_force(VectorXd &joint_torques, double force);
+
+    /*
      * tsid: get torques needed to achieve desired task-space acceleration, where the task
      * space is defined as x, y, z, pitch, roll
      * ARGUMENTS
