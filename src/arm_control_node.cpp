@@ -25,6 +25,7 @@ using namespace std;
 static visualization_msgs::Marker marker;
 static double start_time;
 static bool called_done;
+static double base_offset;
 
 class reset_arm {
   private:
@@ -54,6 +55,7 @@ class reset_arm {
       planner->reset_arm(*task_space_config,
                          ros::Time::now().toSec() - start_time);
       planner->sample_points(marker.points);
+      base_offset = 0;
       called_done = false;
       return true;
     }
@@ -87,6 +89,7 @@ class stop_arm {
       planner->stop_arm(*task_space_config,
                          ros::Time::now().toSec() - start_time);
       planner->sample_points(marker.points);
+      base_offset = 0;
       called_done = false;
       return true;
     }
@@ -123,6 +126,7 @@ class spin_rotary {
                            (double)req.degrees,
                            ros::Time::now().toSec() - start_time);
       planner->sample_points(marker.points);
+      base_offset = req.base_offset;
       called_done = false;
       return true;
     }
@@ -159,6 +163,7 @@ class spin_shuttlecock {
                                 req.do_open,
                                 ros::Time::now().toSec() - start_time);
       planner->sample_points(marker.points);
+      base_offset = req.base_offset;
       called_done = false;
       return true;
     }
@@ -194,6 +199,7 @@ class switch_breaker {
                               req.push_up, req.num,
                               ros::Time::now().toSec() - start_time);
       planner->sample_points(marker.points);
+      base_offset = req.base_offset;
       called_done = false;
       return true;
     }
@@ -202,6 +208,8 @@ class switch_breaker {
 int main(int argc, char** argv) {
   ros::init(argc, argv, "arm_control_node");
   ros::NodeHandle nh("~");
+
+  base_offset = 0;
 
   string urdf_file;
   double rate = 20;
@@ -357,6 +365,7 @@ int main(int argc, char** argv) {
     group->getNextFeedback(group_feedback);
     group_feedback.getPosition(position_fbk);
     position_fbk += encoder_offsets;
+    position_fbk(0) -= base_offset;
     group_feedback.getVelocity(velocity_fbk);
     group_feedback.getEffort(effort_fbk);
 
@@ -401,6 +410,7 @@ int main(int argc, char** argv) {
 
       // Send commands to HEBI modules
       position_cmds -= encoder_offsets;
+      position_cmds(0) += base_offset;
       group_command.setPosition(position_cmds);
       //group_command.setVelocity(velocity_cmds);
       group_command.setEffort(effort_cmds);

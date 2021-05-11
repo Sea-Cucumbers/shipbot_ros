@@ -1,5 +1,6 @@
 geometry_msgs/Vector3 position # Position of switch
 bool push_up # If not, we assume we're pushing it down
 int8 num # 1 means leftmost, 2 means middle, 3 means rightmost
+float64 base_offset # If we're manipulating the device from the side, this will be pi/2
 ---
 int8 no_response

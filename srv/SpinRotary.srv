@@ -1,5 +1,6 @@
 geometry_msgs/Vector3 position # Position of center
 bool vertical_spin_axis # If not, we assume the spin axis is horizontal
 int16 degrees # Counterclockwise about the spin axis
+float64 base_offset # If we're manipulating the device from the side, this will be pi/2
 ---
 int8 no_response
