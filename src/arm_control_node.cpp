@@ -213,7 +213,12 @@ int main(int argc, char** argv) {
   double pause_left = 0.05;
   double grip_delay = 5;
   double press_delay = 2;
-  double press_force = 5; // Newtons
+  double shuttlecock_force_h;
+  double shuttlecock_force_v;
+  double breaker_force_up;
+  double breaker_force_down;
+  double rotary_force_h;
+  double rotary_force_v;
   vector<double> reset_configv;
   reset_configv.push_back(-0.135214);
   reset_configv.push_back(0.18142);
@@ -232,7 +237,12 @@ int main(int argc, char** argv) {
   nh.getParam("pause_left", pause_left);
   nh.getParam("grip_delay", grip_delay);
   nh.getParam("press_delay", press_delay);
-  nh.getParam("press_force", press_force);
+  nh.getParam("shuttlecock_force_h", shuttlecock_force_h);
+  nh.getParam("shuttlecock_force_v", shuttlecock_force_v);
+  nh.getParam("breaker_force_up", breaker_force_up);
+  nh.getParam("breaker_force_down", breaker_force_down);
+  nh.getParam("rotary_force_h", rotary_force_h);
+  nh.getParam("rotary_force_v", rotary_force_v);
   nh.getParam("/reset_config", reset_configv);
   nh.getParam("/encoder_offsets", encoder_offsetsv);
 
@@ -303,7 +313,7 @@ int main(int argc, char** argv) {
   VectorXd velocity_fbk = VectorXd::Zero(group->size());
   VectorXd effort_fbk = VectorXd::Zero(group->size());
   
-  shared_ptr<ArmPlanner> planner = make_shared<ArmPlanner>(seconds_per_meter, seconds_per_degree, reset_config, horizontal_pause_back, vertical_pause_back, vertical_pause_above, pause_left, grip_delay, press_delay);
+  shared_ptr<ArmPlanner> planner = make_shared<ArmPlanner>(seconds_per_meter, seconds_per_degree, reset_config, horizontal_pause_back, vertical_pause_back, vertical_pause_above, pause_left, grip_delay, press_delay, shuttlecock_force_h, shuttlecock_force_v, breaker_force_up, breaker_force_down, rotary_force_h, rotary_force_v);
 
   Vector3d position(0, 0, 0);
   Quaterniond orientation(1, 0, 0, 0);
@@ -361,8 +371,8 @@ int main(int argc, char** argv) {
 
     if (planner->planned()) {
       bool grip = false;
-      bool press = false;
-      VectorXd task_config = planner->eval(t, grip, press);
+      Vector3d force(0, 0, 0);
+      VectorXd task_config = planner->eval(t, grip, force);
       grip_msg.data = grip;
       VectorXd task_vel = planner->deriv1(t);
       VectorXd task_acc = planner->deriv2(t);
@@ -381,11 +391,9 @@ int main(int argc, char** argv) {
       */
 
       kd.grav_comp(effort_cmds);
-      if (press) {
-        VectorXd press_torque = VectorXd::Zero(5);
-        kd.apply_force(press_torque, press_force);
-        effort_cmds += press_torque;
-      }
+      VectorXd press_torque = VectorXd::Zero(5);
+      kd.apply_force(press_torque, force);
+      effort_cmds += press_torque;
 
       // These don't seem to help
       //kd.tsid(effort_cmds, task_acc);

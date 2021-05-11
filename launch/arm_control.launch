@@ -8,6 +8,12 @@
     <param name="grip_delay" value="5"/>
     <param name="press_delay" value="2"/>
     <param name="press_force" value="10"/>
+    <param name="shuttlecock_force_h" value="5"/>
+    <param name="shuttlecock_force_v" value="10"/>
+    <param name="breaker_force_up" value="10"/>
+    <param name="breaker_force_down" value="10"/>
+    <param name="rotary_force_h" value="5"/>
+    <param name="rotary_force_v" value="5"/>
     <param name="horizontal_pause_back" value="0.05"/>
     <param name="vertical_pause_back" value="0.1"/>
     <param name="vertical_pause_above" value="0.1"/>

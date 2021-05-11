@@ -8,11 +8,11 @@ using namespace std;
 
 struct Segment {
   bool grip;
-  bool press;
+  Vector3d force;
   MinJerkInterpolator interpolator;
 
-  Segment(bool grip, bool press, const MinJerkInterpolator &interpolator) : grip(grip), press(press),
-                                                                            interpolator(interpolator) {}
+  Segment(bool grip, const Vector3d &force, const MinJerkInterpolator &interpolator) : grip(grip), force(force),
+                                                                                       interpolator(interpolator) {}
 };
 
 /*
@@ -32,8 +32,15 @@ class ArmPlanner {
     // How long do we wait for the jammer to grip/ungrip
     const double grip_delay;
 
-    // How long do we wait when we start/stop applying pressure?
+    // How long do we wait when we change the amount of force we apply
     const double press_delay;
+
+    const double shuttlecock_force_h;
+    const double shuttlecock_force_v;
+    const double breaker_force_up;
+    const double breaker_force_down;
+    const double rotary_force_h;
+    const double rotary_force_v;
 
     const double shuttlecock_tip_to_joint = 0.092075;
     const double shuttlecock_handle_center_to_joint = 0.0635;
@@ -58,7 +65,7 @@ class ArmPlanner {
      * add_waypoint: augment our current plan to take us from
      * the current end to the new waypoint. The plan now
      * ends at the given waypoint. This segment adopts the
-     * grip status and press status of the previous segment
+     * grip status and force of the previous segment
      * ARGUMENTS
      * waypoint: waypoint which we append to trajectory
      */
@@ -73,12 +80,15 @@ class ArmPlanner {
     void add_grip_phase(bool grip);
 
     /*
-     * add_press_phase: augment our current plan with a segment where
-     * we start or stop pressing
+     * change_force: augment our current plan with a segment where
+     * we change the amount of force we apply, expressed in local
+     * coordinates in the unrolled end-effector frame (i.e.
+     * expressed in the end-effector frame when the last joint has
+     * zero rotation)
      * ARGUMENTS
-     * press: if true, we press, if false, we stop pressing
+     * force: how much force to apply
      */
-    void add_press_phase(bool press);
+    void change_force(const Vector3d &force);
 
     /*
      * start_plan: clears the plan and begins a new
@@ -87,11 +97,11 @@ class ArmPlanner {
      * ARGUMENTS
      * start_time: starting time of first segment
      * grip: do we grip during the first segment?
-     * press: do we press during the first segment?
+     * force: how much force to apply during the first segment
      * start: starting configuration of first segment
      * waypoint: ending configuration of first segment
      */
-    void start_plan(double start_time, bool grip, bool press, const VectorXd &start, const VectorXd &waypoint);
+    void start_plan(double start_time, bool grip, const Vector3d &force, const VectorXd &start, const VectorXd &waypoint);
 
   public:
     /*
@@ -107,6 +117,13 @@ class ArmPlanner {
      * vertical_pause_above: how far above do we pause before engaging vertical devices?
      * pause_left: how far to the left do we pause when pushing something?
      * grip_delay: how long do we wait for the gripper to grip/ungrip
+     * press_delay: how long do we wait for the gripper to change the amount of force it's applying?
+     * shuttlecock_force_h: amount of force to press horizontal shuttlecock with
+     * shuttlecock_force_v: amount of force to press vertical shuttlecock with
+     * breaker_force_up: amount of force to push breakers up with
+     * breaker_force_down: amount of force to push breakers down with
+     * rotary_force_h: amount of force to press horizontal rotary valves with
+     * rotary_force_v: amount of force to press vertical rotary valves with
      */
     ArmPlanner(double seconds_per_meter,
                double seconds_per_degree,
@@ -116,7 +133,13 @@ class ArmPlanner {
                double vertical_pause_above,
                double pause_left,
                double grip_delay,
-               double press_delay);
+               double press_delay,
+               double shuttlecock_force_h,
+               double shuttlecock_force_v,
+               double breaker_force_up,
+               double breaker_force_down,
+               double rotary_force_h,
+               double rotary_force_v);
 
     /*
      * sample_points: sample points along current trajectory
@@ -188,10 +211,10 @@ class ArmPlanner {
      * ARGUMENTS
      * t: time to evaluate
      * grip: populated with true if we're supposed to be gripping, false otherwise
-     * press: populated with true if we're supposed to be pressing, false otherwise
+     * force: populated with how much force to apply in the unrolled end-effector frame
      * RETURN: task state at time t
      */
-    VectorXd eval(double t, bool &grip, bool &press);
+    VectorXd eval(double t, bool &grip, Vector3d &force);
 
     /*
      * deriv1: returns the desired task velocity at time t. If t is outside the

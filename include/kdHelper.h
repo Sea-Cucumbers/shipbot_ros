@@ -62,12 +62,14 @@ class KDHelper {
     void grav_comp(VectorXd &joint_torques);
 
     /*
-     * apply_force: get torques needed to apply some amount of force at the end effector
+     * apply_force: get torques needed to apply some amount of force at the end effector,
+     * expressed in the unrolled end-effector frame (i.e. the frame where the last joint
+     * is at zero)
      * ARGUMENTS
      * joint_torques: populated with joint torques
-     * force: apply this much force in Newtons in the direction of the end-effector
+     * force: apply this much force in Newtons in the unrolled end-effector frame
      */
-    void apply_force(VectorXd &joint_torques, double force);
+    void apply_force(VectorXd &joint_torques, const Vector3d &force);
 
     /*
      * tsid: get torques needed to achieve desired task-space acceleration, where the task

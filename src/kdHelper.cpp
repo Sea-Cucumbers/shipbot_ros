@@ -105,12 +105,18 @@ void KDHelper::grav_comp(VectorXd &joint_torques) {
   joint_torques = pin::computeGeneralizedGravity(model, *model_data, config);
 }
 
-void KDHelper::apply_force(VectorXd &joint_torques, double force) {
+void KDHelper::apply_force(VectorXd &joint_torques, const Vector3d &force) {
   // End-effector points along z axis of ee frame. Get local frame Jacobian
   // and transpose the z row
   MatrixXd Jee = MatrixXd::Zero(6, 5);
   pin::getFrameJacobian(model, *model_data, ee_fid, pin::ReferenceFrame::LOCAL, Jee);
-  joint_torques = force*Jee.row(2).transpose();
+  Matrix3d unroll;
+  double c = config(8);
+  double s = config(9);
+  unroll << c, -s, 0,
+            s, c, 0,
+            0, 0, 1;
+  joint_torques = Jee.topRows<3>().transpose()*unroll.transpose()*force;
 }
 
 void KDHelper::tsid(VectorXd &joint_torques, const VectorXd &acc) {
