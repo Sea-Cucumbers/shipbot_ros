@@ -8,3 +8,14 @@ def fmodp(x, y):
 
 def angle_mod(theta):
   return fmodp(theta, 2*math.pi)
+
+def angdiff(th1, th2):
+  th1 = angle_mod(th1)
+  th2 = angle_mod(th2)
+
+  if th2 - th1 > M_PI:
+    th2 -= 2*math.pi
+  elif th2 - th1 < -M_PI:
+    th2 += 2*math.pi
+
+  return th2 - th1

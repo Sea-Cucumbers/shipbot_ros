@@ -21,6 +21,11 @@ short_wall = 0.95
 maxx = long_wall - robot_width
 maxy = short_wall - robot_width
 
+t0 = np.array([0.1651, -0.09525])
+t1 = np.array([-0.1016, 0.15875])
+t2 = np.array([-0.1651, 0.1143])
+t3 = np.array([0.1016, -0.15875])
+
 got_fbk = False 
 got_cmd = False 
 t = 0
@@ -82,11 +87,11 @@ def command_callback(cmd_msg):
 rospy.init_node('localization_node', anonymous=True)
 
 print('Waiting for mission control node')
-rospy.wait_for_service('/localization_mux_node/loc_prep_done_pf')
+rospy.wait_for_service('/mission_control_node/loc_prep_done')
 
 chassis_sub = rospy.Subscriber('/shipbot/chassis_feedback', ChassisFeedback, chassis_callback)
 command_sub = rospy.Subscriber('/shipbot/chassis_command', ChassisCommand, command_callback)
-state_pub = rospy.Publisher('/shipbot/chassis_state_pf', ChassisState, queue_size=1)
+state_pub = rospy.Publisher('/shipbot/chassis_state', ChassisState, queue_size=1)
 state_msg = ChassisState()
 
 collect_idx = 0
@@ -102,6 +107,8 @@ nyaws = 8
 log_weights = np.log(np.ones(nyaws*50)/(nyaws*50))
 prev_t = 0
 prev_yaw = 0
+
+yaw_av = 0
 
 queue = Queue.Queue()
 pf_thread = threading.Thread(target=dummy)
@@ -163,7 +170,7 @@ guiderail_pub = rospy.Publisher('/shipbot/guiderail', Marker, queue_size=1)
 guiderail_marker.points = [Point(1.524, 0, 0), Point(0, 0, 0), Point(0, 0, 0), Point(0, 0.9144, 0)]
 '''
 
-loc_prep_done_client = rospy.ServiceProxy('/localization_mux_node/loc_prep_done_pf', Empty)
+loc_prep_done_client = rospy.ServiceProxy('/mission_control_node/loc_prep_done', Empty)
 
 rate = rospy.Rate(10) # 10 Hz
 while not rospy.is_shutdown():
@@ -207,7 +214,27 @@ while not rospy.is_shutdown():
           log_weights = queue.get()
           Neff = 1.0/np.exp(2*log_weights).sum()
           if Neff < nparticles/2.0:
+            '''
+            if abs(angdiff(av_yaw, 0)) < np.pi/16:
+              particles[0] = tofs[2] - t2[0] + np.random.normal(scale=0.02, size=(nparticles,))
+              particles[1] = tofs[3] - t3[1] + np.random.normal(scale=0.02, size=(nparticles,))
+              log_weights = -np.log(nparticles)
+            elif abs(angdiff(av_yaw, 0)) < np.pi/16:
+              particles[0] = tofs[1] + t1[1] + np.random.normal(scale=0.02, size=(nparticles,))
+              particles[1] = tofs[2] - t2[0] + np.random.normal(scale=0.02, size=(nparticles,))
+              log_weights = -np.log(nparticles)
+            elif abs(angdiff(av_yaw, np.pi/2)) < np.pi/16:
+              particles[0] = tofs[0] + t0[0] + np.random.normal(scale=0.02, size=(nparticles,))
+              particles[1] = tofs[1] + t1[1] + np.random.normal(scale=0.02, size=(nparticles,))
+              log_weights = -np.log(nparticles)
+            elif abs(angdiff(av_yaw, 3*np.pi/2)) < np.pi/16:
+              particles[0] = tofs[3] - t3[1] + np.random.normal(scale=0.02, size=(nparticles,))
+              particles[1] = tofs[0] + t0[0] + np.random.normal(scale=0.02, size=(nparticles,))
+              log_weights = -np.log(nparticles)
+            else:
+            '''
             particles, log_weights = resample(particles, log_weights, nparticles)
+
         pf_thread = threading.Thread(target=update_weights, args=(queue, particles.copy(), log_weights, np.array(tofs)))
         pf_thread.start()
 
@@ -220,9 +247,24 @@ while not rospy.is_shutdown():
       av_dir = np.matmul(directions, weights)
       state[2] = np.arctan2(av_dir[1], av_dir[0])
 
-      state_msg.x = state[0]
-      state_msg.y = state[1]
+      if abs(angdiff(state[2], 0)) < np.pi/16:
+        state_msg.x = tofs[2] - t2[0]
+        state_msg.y = tofs[3] - t3[1]
+      elif abs(angdiff(state[2], 0)) < np.pi/16:
+        state_msg.x = tofs[1] + t1[1]
+        state_msg.y = tofs[2] - t2[0]
+      elif abs(angdiff(state[2], np.pi/2)) < np.pi/16:
+        state_msg.x = tofs[0] + t0[0]
+        state_msg.y = tofs[1] + t1[1]
+      elif abs(angdiff(state[2], 3*np.pi/2)) < np.pi/16:
+        state_msg.x = tofs[3] - t3[1]
+        state_msg.y = tofs[0] + t0[0]
+      else:
+        state_msg.x = state[0]
+        state_msg.y = state[1]
+
       state_msg.yaw = state[2]
+      yaw_av = state[2]
       state_msg.header.stamp = rospy.Time().now()
       state_pub.publish(state_msg)
 
