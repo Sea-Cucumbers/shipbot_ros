@@ -17,6 +17,7 @@
     <param name="horizontal_pause_back" value="0.05"/>
     <param name="vertical_pause_back" value="0.1"/>
     <param name="vertical_pause_above" value="0.1"/>
+    <param name="pause_side" value="0.0254"/>
     <param name="rate" value="100"/>
     <param name="gains_file" value="$(find shipbot_ros)/config/hebi_gains.xml"/>
   </node>

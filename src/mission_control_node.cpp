@@ -706,6 +706,13 @@ int main(int argc, char** argv) {
         switch_breaker_srv.request.position.x = dev_pos(0);
         switch_breaker_srv.request.position.y = dev_pos(1);
         switch_breaker_srv.request.position.z = dev_pos(2);
+        if (tokens[1] == "B1") {
+          switch_breaker_srv.request.num = 1;
+        } else if (tokens[1] == "B2") {
+          switch_breaker_srv.request.num = 2;
+        } else if (tokens[1] == "B3") {
+          switch_breaker_srv.request.num = 3;
+        }
         switch_breaker_srv.request.push_up = tokens[2] == "U";
 
         if (switch_breaker_client.call(switch_breaker_srv)) {
@@ -724,6 +731,13 @@ int main(int argc, char** argv) {
         ROS_ERROR("Failed to command arm to reset");
       }
       spin_until_completion(r, arm_done_ptr);
+
+      wheel_ptr->visible = false;
+      spigot_ptr->visible = false;
+      breaker_ptr->switches[0].visible = false;
+      breaker_ptr->switches[1].visible = false;
+      breaker_ptr->switches[2].visible = false;
+      shuttlecock_ptr->visible = false;
     }
   }  
 

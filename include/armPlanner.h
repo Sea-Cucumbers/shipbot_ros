@@ -27,7 +27,7 @@ class ArmPlanner {
     const double horizontal_pause_back;
     const double vertical_pause_back;
     const double vertical_pause_above;
-    const double pause_left;
+    const double pause_side;
 
     // How long do we wait for the jammer to grip/ungrip
     const double grip_delay;
@@ -115,7 +115,7 @@ class ArmPlanner {
      * horizontal_pause_back: how far back do we pause before engaging horizontal devices?
      * vertical_pause_back: how far back do we pause before engaging vertical devices?
      * vertical_pause_above: how far above do we pause before engaging vertical devices?
-     * pause_left: how far to the left do we pause when pushing something?
+     * pause_side: how far to the left do we pause when pushing something?
      * grip_delay: how long do we wait for the gripper to grip/ungrip
      * press_delay: how long do we wait for the gripper to change the amount of force it's applying?
      * shuttlecock_force_h: amount of force to press horizontal shuttlecock with
@@ -131,7 +131,7 @@ class ArmPlanner {
                double horizontal_pause_back,
                double vertical_pause_back,
                double vertical_pause_above,
-               double pause_left,
+               double pause_side,
                double grip_delay,
                double press_delay,
                double shuttlecock_force_h,
@@ -194,15 +194,17 @@ class ArmPlanner {
                           double start_time);
 
     /*
-     * switch_breaker: generate task-space motion plan to manipulate a rotary valve
+     * switch_breaker: generate task-space motion plan to push a breaker switch
      * start: starting task-space configuration
-     * position: position of valve center
+     * position: position of switch
      * push_up: if true, we push the switch up. If false, push it down
+     * num: switch 1 is leftmost, switch 2 is middle, switch 3 is rightmost
      * start_time: start time for trajectory
      */
     void switch_breaker(const VectorXd &start,
                         const Vector3d &position,
                         bool push_up,
+                        int num,
                         double start_time);
 
     /*

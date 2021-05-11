@@ -191,7 +191,7 @@ class switch_breaker {
                       shipbot_ros::SwitchBreaker::Response &res) {
       planner->switch_breaker(*task_space_config,
                               Vector3d(req.position.x, req.position.y, req.position.z),
-                              req.push_up,
+                              req.push_up, req.num,
                               ros::Time::now().toSec() - start_time);
       planner->sample_points(marker.points);
       called_done = false;
@@ -210,7 +210,7 @@ int main(int argc, char** argv) {
   double horizontal_pause_back = 0.1;
   double vertical_pause_back = 0.1;
   double vertical_pause_above = 0.1;
-  double pause_left = 0.05;
+  double pause_side = 0.0254;
   double grip_delay = 5;
   double press_delay = 2;
   double shuttlecock_force_h;
@@ -234,7 +234,7 @@ int main(int argc, char** argv) {
   nh.getParam("horizontal_pause_back", horizontal_pause_back);
   nh.getParam("vertical_pause_back", vertical_pause_back);
   nh.getParam("vertical_pause_above", vertical_pause_above);
-  nh.getParam("pause_left", pause_left);
+  nh.getParam("pause_side", pause_side);
   nh.getParam("grip_delay", grip_delay);
   nh.getParam("press_delay", press_delay);
   nh.getParam("shuttlecock_force_h", shuttlecock_force_h);
@@ -313,7 +313,7 @@ int main(int argc, char** argv) {
   VectorXd velocity_fbk = VectorXd::Zero(group->size());
   VectorXd effort_fbk = VectorXd::Zero(group->size());
   
-  shared_ptr<ArmPlanner> planner = make_shared<ArmPlanner>(seconds_per_meter, seconds_per_degree, reset_config, horizontal_pause_back, vertical_pause_back, vertical_pause_above, pause_left, grip_delay, press_delay, shuttlecock_force_h, shuttlecock_force_v, breaker_force_up, breaker_force_down, rotary_force_h, rotary_force_v);
+  shared_ptr<ArmPlanner> planner = make_shared<ArmPlanner>(seconds_per_meter, seconds_per_degree, reset_config, horizontal_pause_back, vertical_pause_back, vertical_pause_above, pause_side, grip_delay, press_delay, shuttlecock_force_h, shuttlecock_force_v, breaker_force_up, breaker_force_down, rotary_force_h, rotary_force_v);
 
   Vector3d position(0, 0, 0);
   Quaterniond orientation(1, 0, 0, 0);

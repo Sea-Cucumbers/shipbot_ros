@@ -9,7 +9,7 @@ ArmPlanner::ArmPlanner(double seconds_per_meter,
                        double horizontal_pause_back,
                        double vertical_pause_back,
                        double vertical_pause_above,
-                       double pause_left,
+                       double pause_side,
                        double grip_delay,
                        double press_delay,
                        double shuttlecock_force_h,
@@ -23,7 +23,7 @@ ArmPlanner::ArmPlanner(double seconds_per_meter,
                                                 horizontal_pause_back(horizontal_pause_back),
                                                 vertical_pause_back(vertical_pause_back),
                                                 vertical_pause_above(vertical_pause_above),
-                                                pause_left(pause_left),
+                                                pause_side(pause_side),
                                                 grip_delay(grip_delay),
                                                 press_delay(press_delay),
                                                 shuttlecock_force_h(shuttlecock_force_h),
@@ -279,21 +279,37 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
 void ArmPlanner::switch_breaker(const VectorXd &start,
                                 const Vector3d &position,
                                 bool push_up,
+                                int num,
                                 double start_time) {
   double pause_vertical = push_up ? -horizontal_pause_back : horizontal_pause_back;
   double angle = push_up ? M_PI/4 : -M_PI/4;
   double force = push_up ? breaker_force_up : breaker_force_down;
 
-  // Pause back and up/down depending on which way we're pushing
+  int pause_horizontal = 0;
+  if (num == 1) {
+    pause_horizontal = pause_side;
+  } else if (num == 2) {
+    pause_horizontal = 0;
+  } else if (num == 3) {
+    pause_horizontal = -pause_side;
+  } else {
+    return;
+  }
+
+  // Pause back and up/down depending on which way we're pushing, and left/right
+  // depending on which switch we're pushing
   VectorXd waypoint = VectorXd::Zero(5);
   waypoint.head<3>() = position;
+  waypoint(0) += pause_horizontal;
   waypoint(1) -= horizontal_pause_back;
   waypoint(2) += pause_vertical;
   waypoint(3) = angle;
 
   start_plan(start_time, false, Vector3d::Zero(), start, waypoint);
                                          
-  // Move forward and upward/downward depending on which way we're pushing 
+  // Move forward and upward/downward depending on which way we're pushing,
+  // and leftward/rightward depending on which switch we're pushing
+  waypoint(0) -= pause_horizontal;
   waypoint(1) += horizontal_pause_back;
   waypoint(2) = waypoint(2) - pause_vertical;
   add_waypoint(waypoint);
