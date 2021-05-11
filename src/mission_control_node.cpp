@@ -341,16 +341,21 @@ int main(int argc, char** argv) {
   vector<double> poseB;
   vector<double> poseC;
   vector<double> poseD;
-  vector<double> poseE;
-  vector<double> poseF;
+  vector<double> poseE_sense;
+  vector<double> poseF_sense;
+  vector<double> poseE_act;
+  vector<double> poseF_act;
   vector<double> poseG;
   vector<double> poseH;
   nh.getParam("/poseA", poseA);
   nh.getParam("/poseB", poseB);
   nh.getParam("/poseC", poseC);
   nh.getParam("/poseD", poseD);
-  nh.getParam("/poseE", poseE);
-  nh.getParam("/poseF", poseF);
+  nh.getParam("/poseE_sense", poseE_sense);
+  nh.getParam("/poseF_sense", poseF_sense);
+  nh.getParam("/poseE_act", poseE_act);
+  nh.getParam("/poseF_act", poseF_act);
+  nh.getParam("/poseG", poseG);
   nh.getParam("/poseG", poseG);
   nh.getParam("/poseH", poseH);
 
@@ -508,10 +513,10 @@ int main(int argc, char** argv) {
           station_pose = poseD;
           break;
         case 'E':
-          station_pose = poseE;
+          station_pose = poseE_sense;
           break;
         case 'F':
-          station_pose = poseF;
+          station_pose = poseF_sense;
           break;
         case 'G':
           station_pose = poseG;
@@ -634,7 +639,7 @@ int main(int argc, char** argv) {
         dev_pos(2) = state.position.z;
       }
 
-      // Transform device position into chassis frame and f
+      // Transform device position into chassis frame and
       // figure out how much to shift along the arm's x axis such that
       // the device is centered with the arm
       dev_pos = H_cam_arm*dev_pos;
@@ -647,20 +652,29 @@ int main(int argc, char** argv) {
       H_chassis_world.topLeftCorner<3, 3>() = AngleAxisd(chassis_state_ptr->yaw, Vector3d(0, 0, 1)).toRotationMatrix();
       dev_pos = H_chassis_world*H_arm_chassis*dev_pos;
 
-      // If we can, translate the chassis to center the arm
-      if (station != 'E' && station != 'F') {
+      // Translate the chassis to center the arm
+      if (station == 'E') {
+        travel_abs_srv.request.x = poseE_act[0];
+        travel_abs_srv.request.y = poseE_act[1];
+        travel_abs_srv.request.theta = poseE_act[2];
+      } else if (station == 'F') {
+        travel_abs_srv.request.x = poseF_act[0];
+        travel_abs_srv.request.y = poseF_act[1];
+        travel_abs_srv.request.theta = poseF_act[2];
+      } else {
         Vector4d goal = H_chassis_world.col(3) + H_chassis_world*H_arm_chassis*shift;
 
         travel_abs_srv.request.x = goal(0);
         travel_abs_srv.request.y = goal(1);
         travel_abs_srv.request.theta = chassis_state_ptr->yaw;
-        if (travel_abs_client.call(travel_abs_srv)) {
-          ROS_INFO("Commanded chassis to center the arm with the device");
-        } else {
-          ROS_ERROR("Failed to command chassis to center the arm with the device");
-        }
-        spin_until_completion(r, chassis_done_ptr);
       }
+
+      if (travel_abs_client.call(travel_abs_srv)) {
+        ROS_INFO("Commanded chassis to center the arm with the device");
+      } else {
+        ROS_ERROR("Failed to command chassis to center the arm with the device");
+      }
+      spin_until_completion(r, chassis_done_ptr);
 
       // Now get the new device position in the arm frame
       H_chassis_world.topRightCorner<3, 1>() = Vector3d(chassis_state_ptr->x, chassis_state_ptr->y, 0);
