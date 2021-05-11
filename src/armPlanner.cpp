@@ -176,11 +176,11 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
       start_plan(start_time, false, Vector3d::Zero(), start, waypoint);
 
       // Move forward
-      waypoint(1) += 0.02;
+      waypoint(1) += vertical_pause_back;
       add_waypoint(waypoint);
 
       // Face down
-      waypoint(3) = -M_PI/2;
+      waypoint(3) = -M_PI/3;
       add_waypoint(waypoint);
 
       // Start pressing
