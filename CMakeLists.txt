@@ -141,10 +141,10 @@ include_directories(
   /opt/openrobots/include
 )
 
-add_executable(gazebo_control_node src/gazebo_control_node.cpp $<TARGET_OBJECTS:arm_control>)
+add_executable(gazebo_control_node src/gazebo_control_node.cpp $<TARGET_OBJECTS:angle_mod> $<TARGET_OBJECTS:arm_control>)
 target_link_libraries(gazebo_control_node ${catkin_LIBRARIES} pinocchio::pinocchio)
 
-add_executable(arm_control_node src/arm_control_node.cpp $<TARGET_OBJECTS:arm_control>)
+add_executable(arm_control_node src/arm_control_node.cpp $<TARGET_OBJECTS:angle_mod> $<TARGET_OBJECTS:arm_control>)
 target_link_libraries(arm_control_node ${catkin_LIBRARIES} pinocchio::pinocchio)
 
 add_executable(chassis_control_node src/chassis_control_node.cpp $<TARGET_OBJECTS:chassis_control> $<TARGET_OBJECTS:angle_mod>)
