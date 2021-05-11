@@ -688,13 +688,6 @@ int main(int argc, char** argv) {
         spin_rotary_srv.request.position.z = dev_pos(2);
         spin_rotary_srv.request.vertical_spin_axis = spigot_ptr->vertical;
         spin_rotary_srv.request.degrees = stoi(tokens[1]);
-
-        if (station == 'E') {
-          spin_rotary_srv.request.base_offset = M_PI/2;
-        } else {
-          spin_rotary_srv.request.base_offset = 0;
-        }
-
         if (spin_rotary_client.call(spin_rotary_srv)) {
           ROS_INFO("Commanded arm to spin spigot valve");
         } else {
@@ -706,13 +699,6 @@ int main(int argc, char** argv) {
         spin_rotary_srv.request.position.z = dev_pos(2);
         spin_rotary_srv.request.vertical_spin_axis = false;
         spin_rotary_srv.request.degrees = stoi(tokens[1]);
-
-        if (station == 'E') {
-          spin_rotary_srv.request.base_offset = M_PI/2;
-        } else {
-          spin_rotary_srv.request.base_offset = 0;
-        }
-
         if (spin_rotary_client.call(spin_rotary_srv)) {
           ROS_INFO("Commanded arm to spin wheel valve");
         } else {
@@ -724,12 +710,6 @@ int main(int argc, char** argv) {
         spin_shuttlecock_srv.request.position.z = dev_pos(2);
         spin_shuttlecock_srv.request.vertical_spin_axis = shuttlecock_ptr->vertical;
         spin_shuttlecock_srv.request.do_open = tokens[1] == "0";
-
-        if (station == 'E') {
-          spin_shuttlecock_srv.request.base_offset = M_PI/2;
-        } else {
-          spin_shuttlecock_srv.request.base_offset = 0;
-        }
 
         if (spin_shuttlecock_client.call(spin_shuttlecock_srv)) {
           ROS_INFO("Commanded arm to spin shuttlecock valve");
@@ -748,12 +728,6 @@ int main(int argc, char** argv) {
           switch_breaker_srv.request.num = 3;
         }
         switch_breaker_srv.request.push_up = tokens[2] == "U";
-
-        if (station == 'E') {
-          switch_breaker_srv.request.base_offset = M_PI/2;
-        } else {
-          switch_breaker_srv.request.base_offset = 0;
-        }
 
         if (switch_breaker_client.call(switch_breaker_srv)) {
           ROS_INFO("Commanded arm to switch a breaker switch");
