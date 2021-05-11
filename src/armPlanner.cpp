@@ -199,7 +199,6 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
       // The handle is pointing right. Stop above it and backward
       waypoint(1) -= vertical_pause_back;
       waypoint(2) += vertical_pause_above;
-      waypoint(0) -= shuttlecock_handle_center_to_joint + 0.02;
       waypoint(3) = -M_PI/4;
       
       start_plan(start_time, false, false, start, waypoint);
@@ -221,6 +220,8 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
 
       // Spin
       waypoint(4) -= 3*M_PI/4;
+      waypoint(0) -= shuttlecock_tip_to_joint;
+      waypoint(1) -= shuttlecock_tip_to_joint;
       add_waypoint(waypoint);
 
       // Stop pressing
@@ -230,7 +231,6 @@ void ArmPlanner::spin_shuttlecock(const VectorXd &start,
       add_grip_phase(false);
 
       // Move up and back
-      waypoint(1) -= vertical_pause_back;
       waypoint(2) += vertical_pause_above + shuttlecock_depth;
       add_waypoint(waypoint);
     } else {
