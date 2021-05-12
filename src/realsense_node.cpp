@@ -86,6 +86,7 @@ int main(int argc, char** argv) {
   // black, original, rgb
   Scalar black_min(0,0,0);
   Scalar black_max(40, 45, 60);
+  Scalar black_max_B(80, 80, 80);
 
   Scalar thresh_min, thresh_max;
 
@@ -535,7 +536,13 @@ int main(int argc, char** argv) {
       }
 
       Mat black_mask;
-      inRange(rsimagec_rgb, black_min, black_max, black_mask);
+      if (*device_type == shipbot_ros::FindDevice::Request::BREAKERA) {
+          inRange(rsimagec_rgb, black_min, black_max, black_mask);
+        }
+      else if (*device_type == shipbot_ros::FindDevice::Request::BREAKERB) {
+          inRange(rsimagec_rgb, black_min, black_max_B, black_mask);
+      }
+      
       bitwise_or(black_mask, rsimagec_segmented, rsimagec_segmented);
       // check b1 and b3 position to find roi
       double dx = (breaker[2].pixel.x - breaker[0].pixel.x)/5;
@@ -601,7 +608,7 @@ int main(int argc, char** argv) {
           breaker_state.switches[i].up = (float)dy_up / dy_low < 0.35;
         }
         else if (*device_type == shipbot_ros::FindDevice::Request::BREAKERB) {
-          breaker_state.switches[i].up = (float)dy_low / dy_up >= 0.35;
+          breaker_state.switches[i].up = (float)dy_low / dy_up >= 0.54;
         }
         std::string tx;
         if (breaker_state.switches[i].up) {
