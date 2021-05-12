@@ -239,17 +239,17 @@ void ArmPlanner::switch_breaker(const VectorXd &start,
                                 bool push_up,
                                 int num,
                                 double start_time) {
-  double pause_vertical = push_up ? -horizontal_pause_back : horizontal_pause_back;
-  double angle = push_up ? M_PI/4 : -M_PI/4;
+  double move_vertical = push_up ? 0.05 : -0.05;
+  double angle = push_up ? M_PI/6 : -M_PI/6;
   double force = push_up ? breaker_force_up : breaker_force_down;
 
-  int pause_horizontal = 0;
+  double pause_horizontal = 0;
   if (num == 1) {
     pause_horizontal = pause_side;
   } else if (num == 2) {
     pause_horizontal = 0;
   } else if (num == 3) {
-    pause_horizontal = -pause_side;
+    pause_horizontal = 0.025;
   } else {
     return;
   }
@@ -260,16 +260,15 @@ void ArmPlanner::switch_breaker(const VectorXd &start,
   waypoint.head<3>() = position;
   waypoint(0) += pause_horizontal;
   waypoint(1) -= horizontal_pause_back;
-  waypoint(2) += pause_vertical;
+  waypoint(2) -= push_up ? 0 : 0.0254;
   waypoint(3) = angle;
 
   start_plan(start_time, false, Vector3d::Zero(), start, waypoint);
                                          
-  // Move forward and upward/downward depending on which way we're pushing,
+  // Move forward depending on which way we're pushing,
   // and leftward/rightward depending on which switch we're pushing
   waypoint(0) -= pause_horizontal;
   waypoint(1) += horizontal_pause_back;
-  waypoint(2) = waypoint(2) - pause_vertical;
   add_waypoint(waypoint);
 
   // Start pressing
@@ -278,13 +277,15 @@ void ArmPlanner::switch_breaker(const VectorXd &start,
   // Grip
   add_grip_phase(true);
 
-  // Press up if we're pushing up
   if (push_up) {
-    change_force(Vector3d(0, -breaker_force_up, breaker_force_up)/sqrt(2));
+    change_force(force*Vector3d(0, -1, 1)/sqrt(2));
+  } else {
+    change_force(force*Vector3d(0, 1, 1)/sqrt(2));
   }
 
   // Push the switch
-  waypoint(2) = waypoint(2) + (push_up ? 0.1 : -0.1);
+  waypoint(2) = waypoint(2) + (push_up ? 0.1254 : -0.1254);
+  waypoint(3) = push_up ? M_PI/4 : -M_PI/4;
   add_waypoint(waypoint);
 
   // Stop pressing

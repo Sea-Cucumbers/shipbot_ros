@@ -62,6 +62,14 @@ class KDHelper {
     void grav_comp(VectorXd &joint_torques);
 
     /*
+     * fvk: get forward velocity kinematics of end-effector. update_state must be called beforehand
+     * ARGUMENTS
+     * linear_velocity: populated with linear velocity
+     * angular_velocity: populated with angular velocity
+     */
+    void fvk(Vector3d &linear_velocity, Vector3d &angular_velocity);
+
+    /*
      * apply_force: get torques needed to apply some amount of force at the end effector,
      * expressed in the unrolled end-effector frame (i.e. the frame where the last joint
      * is at zero)

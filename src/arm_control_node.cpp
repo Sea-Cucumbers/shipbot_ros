@@ -391,9 +391,21 @@ int main(int argc, char** argv) {
       */
 
       kd.grav_comp(effort_cmds);
+
+      //Vector3d linear_velocity(0, 0, 0);
+      //Vector3d angular_velocity(0, 0, 0);
+      ///kd.fvk(linear_velocity, angular_velocity);
+
       VectorXd press_torque = VectorXd::Zero(5);
       kd.apply_force(press_torque, force);
-      effort_cmds += press_torque;
+
+      VectorXd pos_err = task_config.head<3>() - current_task_config.head<3>();
+      if (force.norm() > 0.1 && pos_err.norm() > 0.3) {
+        planner->reset_arm(current_task_config,
+                           ros::Time::now().toSec() - start_time);
+      } else {
+        effort_cmds += press_torque;
+      }
 
       // These don't seem to help
       //kd.tsid(effort_cmds, task_acc);
