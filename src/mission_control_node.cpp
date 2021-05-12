@@ -718,20 +718,27 @@ int main(int argc, char** argv) {
         travel_abs_srv.request.x = poseF_act[0];
         travel_abs_srv.request.y = poseF_act[1];
         travel_abs_srv.request.theta = poseF_act[2];
+
+        if (travel_abs_client.call(travel_abs_srv)) {
+          ROS_INFO("Commanded chassis to center the arm with the device");
+        } else {
+          ROS_ERROR("Failed to command chassis to center the arm with the device");
+        }
+        spin_until_completion(r, chassis_done_ptr);
       } else if (station != 'E') {
         Vector4d goal = H_chassis_world.col(3) + H_chassis_world*H_arm_chassis*shift;
 
         travel_abs_srv.request.x = goal(0);
         travel_abs_srv.request.y = goal(1);
         travel_abs_srv.request.theta = chassis_state_ptr->yaw;
-      }
 
-      if (travel_abs_client.call(travel_abs_srv)) {
-        ROS_INFO("Commanded chassis to center the arm with the device");
-      } else {
-        ROS_ERROR("Failed to command chassis to center the arm with the device");
+        if (travel_abs_client.call(travel_abs_srv)) {
+          ROS_INFO("Commanded chassis to center the arm with the device");
+        } else {
+          ROS_ERROR("Failed to command chassis to center the arm with the device");
+        }
+        spin_until_completion(r, chassis_done_ptr);
       }
-      spin_until_completion(r, chassis_done_ptr);
 
       // Now get the new device position in the arm frame
       H_chassis_world.topRightCorner<3, 1>() = Vector3d(chassis_state_ptr->x, chassis_state_ptr->y, 0);
