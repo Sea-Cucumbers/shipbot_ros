@@ -78,6 +78,7 @@ add_service_files(
   SwitchBreaker.srv
   TravelAbs.srv
   TravelRel.srv
+  SwitchLocalization.srv
 )
 
 ## Generate actions in the 'action' folder

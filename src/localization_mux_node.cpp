@@ -5,6 +5,7 @@
 #include <thread>
 #include "shipbot_ros/ChassisState.h"
 #include "shipbot_ros/ChassisFeedback.h"
+#include "shipbot_ros/SwitchLocalization.h"
 #include "std_srvs/Empty.h"
 #include "angle_mod.h"
 
@@ -23,7 +24,7 @@ class loc_prep_done {
      loc_prep_done(shared_ptr<bool> _done_ptr) : done_ptr(_done_ptr) {}
 
     /*
-     * operator (): tell the chassis controller to stop
+     * operator (): localization prep is done
      * ARGUMENTS
      * req: request, not used
      * res: technically supposed to be populated with the response, but
@@ -32,6 +33,32 @@ class loc_prep_done {
     bool operator () (std_srvs::Empty::Request &req,
                       std_srvs::Empty::Response &res) {
       *done_ptr = true;
+      return true;
+    }
+};
+
+class switch_alg {
+  private:
+    shared_ptr<int> alg_ptr;
+
+  public:
+    /*
+     * switch_alg: constructor
+     * ARGUMENTS
+     * _alg_ptr: pointer to set
+     */
+     switch_alg(shared_ptr<int> _alg_ptr) : alg_ptr(_alg_ptr) {}
+
+    /*
+     * operator (): switch localization algorithms
+     * ARGUMENTS
+     * req: request
+     * res: technically supposed to be populated with the response, but
+     * the response isn't used
+     */
+    bool operator () (shipbot_ros::SwitchLocalization::Request &req,
+                      shipbot_ros::SwitchLocalization::Response &res) {
+      *alg_ptr = req.algorithm;
       return true;
     }
 };
@@ -104,6 +131,9 @@ int main(int argc, char** argv) {
   shared_ptr<bool> loc_prep_done_ptr = make_shared<bool>(false);
   ros::ServiceServer loc_prep_done_service = nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>("loc_prep_done_pf", loc_prep_done(loc_prep_done_ptr));
 
+  shared_ptr<int> alg_ptr = make_shared<int>(shipbot_ros::SwitchLocalization::Request::PF);
+  ros::ServiceServer switch_alg_service = nh.advertiseService<shipbot_ros::SwitchLocalization::Request, shipbot_ros::SwitchLocalization::Response>("switch_alg", switch_alg(alg_ptr));
+
   shared_ptr<shipbot_ros::ChassisFeedback> fbk_ptr = make_shared<shipbot_ros::ChassisFeedback>();
   shared_ptr<bool> got_fbk = make_shared<bool>(false);
   ros::Subscriber fbk_sub = nh.subscribe<shipbot_ros::ChassisFeedback>("/shipbot/chassis_feedback", 1, handle_feedback(fbk_ptr, got_fbk));
@@ -130,32 +160,31 @@ int main(int argc, char** argv) {
 
   while (ros::ok())
   {
-    /*
-    if (abs(angdiff(state_ptr->yaw, 0)) < M_PI/16) {
+    if (*alg_ptr == shipbot_ros::SwitchLocalization::Request::AWAY_SHORT) {
       // Facing away from short wall. Use sensors 2 and 3
       state_msg.x = fbk_ptr->tofs[2] - t2[0];
       state_msg.y = fbk_ptr->tofs[3] - t3[1];
-    } else if (abs(angdiff(state_ptr->yaw, M_PI/2)) < M_PI/16) {
+      state_msg.yaw = 0;
+    } else if (*alg_ptr == shipbot_ros::SwitchLocalization::Request::AWAY_LONG) {
       // Facing away from long wall. Use sensors 1 and 2
       state_msg.x = fbk_ptr->tofs[1] + t1[1];
       state_msg.y = fbk_ptr->tofs[2] - t2[0];
-    } else if (abs(angdiff(state_ptr->yaw, M_PI)) < M_PI/16) {
+      state_msg.yaw = M_PI/2;
+    } else if (*alg_ptr == shipbot_ros::SwitchLocalization::Request::TOWARD_SHORT) {
       // Facing toward short wall. Use sensors 0 and 1
       state_msg.x = fbk_ptr->tofs[0] + t0[0];
       state_msg.y = fbk_ptr->tofs[1] + t1[1];
-    } else if (abs(angdiff(state_ptr->yaw, 3*M_PI/2)) < M_PI/16) {
+      state_msg.yaw = M_PI;
+    } else if (*alg_ptr == shipbot_ros::SwitchLocalization::Request::TOWARD_LONG) {
       // Facing toward long wall. Use sensors 3 and 0
       state_msg.x = fbk_ptr->tofs[3] - t3[1];
       state_msg.y = fbk_ptr->tofs[0] + t0[0];
+      state_msg.yaw = 3*M_PI/2;
     } else {
       state_msg.x = state_ptr->x;     
       state_msg.y = state_ptr->y;     
+      state_msg.yaw = state_ptr->yaw;
     }
-    state_msg.yaw = state_ptr->yaw;
-    */
-    state_msg.x = fbk_ptr->tofs[3] - t3[1];
-    state_msg.y = fbk_ptr->tofs[0] + t0[0];
-    state_msg.yaw = -M_PI/2;
 
     state_pub.publish(state_msg);
     r.sleep();

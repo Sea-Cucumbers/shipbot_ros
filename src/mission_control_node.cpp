@@ -17,6 +17,7 @@
 #include "shipbot_ros/TravelAbs.h"
 #include "shipbot_ros/TravelRel.h"
 #include "shipbot_ros/ChassisState.h"
+#include "shipbot_ros/SwitchLocalization.h"
 #include <std_srvs/Empty.h>
 #include <Eigen/Dense>
 #include <tf2_ros/transform_listener.h>
@@ -387,23 +388,22 @@ int main(int argc, char** argv) {
 
   sort(commands.begin(), commands.end());
 
-  if (do_manipulation) {
-    // Wait for vision services
-    ros::service::waitForService("/realsense_node/find_device", -1);
+  // Wait for vision services
+  ros::service::waitForService("/realsense_node/find_device", -1);
 
-    // Wait for arm services
-    ros::service::waitForService("/arm_control_node/spin_rotary", -1);
-    ros::service::waitForService("/arm_control_node/spin_shuttlecock", -1);
-    ros::service::waitForService("/arm_control_node/switch_breaker", -1);
-    ros::service::waitForService("/arm_control_node/reset_arm", -1);
-  }
-
+  // Wait for arm services
+  ros::service::waitForService("/arm_control_node/spin_rotary", -1);
+  ros::service::waitForService("/arm_control_node/spin_shuttlecock", -1);
+  ros::service::waitForService("/arm_control_node/switch_breaker", -1);
+  ros::service::waitForService("/arm_control_node/reset_arm", -1);
 
   // Wait for chassis services
   ros::service::waitForService("/chassis_control_node/stop_chassis", -1);
   ros::service::waitForService("/chassis_control_node/travel_abs", -1);
   ros::service::waitForService("/chassis_control_node/travel_rel", -1);
   ros::service::waitForService("/chassis_control_node/localize", -1);
+
+  ros::service::waitForService("/localization_mux_node/switch_alg", -1);
 
   // Initialize vision service clients and srvs
   ros::ServiceClient find_device_client = nh.serviceClient<shipbot_ros::FindDevice>("/realsense_node/find_device");
@@ -446,6 +446,9 @@ int main(int argc, char** argv) {
   shipbot_ros::TravelRel travel_rel_srv;
   std_srvs::Empty localize_srv;
 
+  ros::ServiceClient switch_alg_client = nh.serviceClient<shipbot_ros::SwitchLocalization>("/localization_mux_node/switch_alg");
+  shipbot_ros::SwitchLocalization switch_alg_srv;
+
   // Advertise services for the chassis and arm to call when they're done whatever they're doing
   shared_ptr<bool> chassis_done_ptr = make_shared<bool>(false);
   ros::ServiceServer chassis_done_service = nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>("chassis_done", handle_done(chassis_done_ptr));
@@ -461,21 +464,19 @@ int main(int argc, char** argv) {
 
   // INITIAL LOCALIZATION PHASE
 
-  if (do_manipulation) {
-    // Reset the arm
-    if (reset_arm_client.call(reset_arm_srv)) {
-      ROS_INFO("Commanded arm to reset");
-    } else {
-      ROS_ERROR("Failed to command arm to reset");
-    }
-    spin_until_completion(r, arm_done_ptr);
+  // Reset the arm
+  if (reset_arm_client.call(reset_arm_srv)) {
+    ROS_INFO("Commanded arm to reset");
+  } else {
+    ROS_ERROR("Failed to command arm to reset");
+  }
+  spin_until_completion(r, arm_done_ptr);
 
-    find_device_srv.request.device_type = shipbot_ros::FindDevice::Request::NONE;
-    if (find_device_client.call(find_device_srv)) {
-      ROS_INFO("Told vision node to find nothing");
-    } else {
-      ROS_ERROR("Failed to tell vision node to find nothing");
-    }
+  find_device_srv.request.device_type = shipbot_ros::FindDevice::Request::NONE;
+  if (find_device_client.call(find_device_srv)) {
+    ROS_INFO("Told vision node to find nothing");
+  } else {
+    ROS_ERROR("Failed to tell vision node to find nothing");
   }
 
   // Wait for localization to initialize
@@ -492,6 +493,19 @@ int main(int argc, char** argv) {
     spin_until_completion(r, chassis_done_ptr);
   }
 
+  travel_abs_srv.request.x = chassis_state_ptr->x;
+  travel_abs_srv.request.y = chassis_state_ptr->y;
+  travel_abs_srv.request.theta = 3*M_PI/2;
+  if (travel_abs_client.call(travel_abs_srv)) {
+    ROS_INFO("Commanded chassis to make itself parallel with the wall");
+  } else {
+    ROS_ERROR("Failed to command chassis to make itself parallel with the wall");
+  }
+  spin_until_completion(r, chassis_done_ptr);
+
+  switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_LONG;
+  switch_alg_client.call(switch_alg_srv);
+
   for (int cmd = 0; cmd < commands.size(); ++cmd) {
     char station = commands[cmd][0];
 
@@ -502,27 +516,84 @@ int main(int argc, char** argv) {
       switch (station) {
         case 'A':
           station_pose = poseA;
+
+          switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_LONG;
+          switch_alg_client.call(switch_alg_srv);
           break;
         case 'B':
           station_pose = poseB;
+
+          switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_LONG;
+          switch_alg_client.call(switch_alg_srv);
           break;
         case 'C':
           station_pose = poseC;
+
+          switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_LONG;
+          switch_alg_client.call(switch_alg_srv);
           break;
         case 'D':
           station_pose = poseD;
+
+          switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_LONG;
+          switch_alg_client.call(switch_alg_srv);
           break;
         case 'E':
           station_pose = poseE_sense;
+
+          switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_LONG;
+          switch_alg_client.call(switch_alg_srv);
           break;
         case 'F':
           station_pose = poseF_sense;
+
+          switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::PF;
+          switch_alg_client.call(switch_alg_srv);
+          travel_abs_srv.request.x = chassis_state_ptr->x;
+          travel_abs_srv.request.y = chassis_state_ptr->y;
+          travel_abs_srv.request.theta = M_PI;
+          if (travel_abs_client.call(travel_abs_srv)) {
+            ROS_INFO("Commanded chassis to make itself parallel with the wall");
+          } else {
+            ROS_ERROR("Failed to command chassis to make itself parallel with the wall");
+          }
+
+          switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_SHORT;
+          switch_alg_client.call(switch_alg_srv);
           break;
         case 'G':
           station_pose = poseG;
+
+          switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::PF;
+          switch_alg_client.call(switch_alg_srv);
+          travel_abs_srv.request.x = chassis_state_ptr->x;
+          travel_abs_srv.request.y = chassis_state_ptr->y;
+          travel_abs_srv.request.theta = M_PI;
+          if (travel_abs_client.call(travel_abs_srv)) {
+            ROS_INFO("Commanded chassis to make itself parallel with the wall");
+          } else {
+            ROS_ERROR("Failed to command chassis to make itself parallel with the wall");
+          }
+
+          switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_SHORT;
+          switch_alg_client.call(switch_alg_srv);
           break;
         case 'H':
           station_pose = poseH;
+
+          switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::PF;
+          switch_alg_client.call(switch_alg_srv);
+          travel_abs_srv.request.x = chassis_state_ptr->x;
+          travel_abs_srv.request.y = chassis_state_ptr->y;
+          travel_abs_srv.request.theta = M_PI;
+          if (travel_abs_client.call(travel_abs_srv)) {
+            ROS_INFO("Commanded chassis to make itself parallel with the wall");
+          } else {
+            ROS_ERROR("Failed to command chassis to make itself parallel with the wall");
+          }
+
+          switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_SHORT;
+          switch_alg_client.call(switch_alg_srv);
           break;
         default:
           cout << "Bad mission file" << endl;
@@ -653,15 +724,14 @@ int main(int argc, char** argv) {
       dev_pos = H_chassis_world*H_arm_chassis*dev_pos;
 
       // Translate the chassis to center the arm
-      if (station == 'E') {
-        travel_abs_srv.request.x = poseE_act[0];
-        travel_abs_srv.request.y = poseE_act[1];
-        travel_abs_srv.request.theta = poseE_act[2];
-      } else if (station == 'F') {
+      if (station == 'F') {
+        switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::PF;
+        switch_alg_client.call(switch_alg_srv);
+
         travel_abs_srv.request.x = poseF_act[0];
         travel_abs_srv.request.y = poseF_act[1];
         travel_abs_srv.request.theta = poseF_act[2];
-      } else {
+      } else if (station != 'E') {
         Vector4d goal = H_chassis_world.col(3) + H_chassis_world*H_arm_chassis*shift;
 
         travel_abs_srv.request.x = goal(0);
@@ -745,6 +815,9 @@ int main(int argc, char** argv) {
         ROS_ERROR("Failed to command arm to reset");
       }
       spin_until_completion(r, arm_done_ptr);
+
+      switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::PF;
+      switch_alg_client.call(switch_alg_srv);
 
       wheel_ptr->visible = false;
       spigot_ptr->visible = false;
