@@ -5,6 +5,6 @@
     <param name="mission_file" value="$(find shipbot_ros)/config/mission_file.txt"/>
     <param name="do_localization_routine" value="true"/>
     <param name="do_locomotion" value="true"/>
-    <param name="do_manipulation" value="false"/>
+    <param name="do_manipulation" value="true"/>
   </node>
 </launch>

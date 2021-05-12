@@ -77,10 +77,11 @@ void ArmPlanner::spin_rotary(const VectorXd &start,
 
   if (vertical_spin_axis) {
     waypoint(2) += vertical_pause_above;
-    waypoint(1) += vertical_pause_back;
-    waypoint(3) = -M_PI/2;
+    waypoint(1) -= vertical_pause_back;
+    waypoint(3) = -M_PI/3;
   } else {
     waypoint(1) -= horizontal_pause_back;
+    waypoint(2) -= 0.0508;
   }
 
   start_plan(start_time, false, Vector3d::Zero(), start, waypoint);
@@ -89,11 +90,11 @@ void ArmPlanner::spin_rotary(const VectorXd &start,
     // If vertical axis, move forward, then down
     waypoint(1) += vertical_pause_back;
     add_waypoint(waypoint);
-    waypoint(2) -= vertical_pause_above;
+    waypoint(2) -= vertical_pause_above + 0.075;
     add_waypoint(waypoint);
 
     // Start pressing
-    change_force(Vector3d(0, 0, rotary_force_v));
+    //change_force(Vector3d(0, 0, rotary_force_v));
   } else {
     // If horizontal axis, move forward
     waypoint(1) += horizontal_pause_back;
@@ -118,9 +119,9 @@ void ArmPlanner::spin_rotary(const VectorXd &start,
 
   if (vertical_spin_axis) {
     // If vertical axis, move up then back
-    waypoint(2) += vertical_pause_above;
+    waypoint(2) += 0.05;
     add_waypoint(waypoint);
-    waypoint(1) -= vertical_pause_back;
+    waypoint(1) -= 0.05;
     add_waypoint(waypoint);
   } else {
     // If horizontal axis, move back
@@ -260,7 +261,7 @@ void ArmPlanner::switch_breaker(const VectorXd &start,
   waypoint.head<3>() = position;
   waypoint(0) += pause_horizontal;
   waypoint(1) -= horizontal_pause_back;
-  waypoint(2) -= push_up ? 0 : 0.0254;
+  waypoint(2) += push_up ? 0 : 0;
   waypoint(3) = angle;
 
   start_plan(start_time, false, Vector3d::Zero(), start, waypoint);
