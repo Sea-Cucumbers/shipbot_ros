@@ -493,6 +493,9 @@ int main(int argc, char** argv) {
     spin_until_completion(r, chassis_done_ptr);
   }
 
+  switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::PF;
+  switch_alg_client.call(switch_alg_srv);
+
   travel_abs_srv.request.x = chassis_state_ptr->x;
   travel_abs_srv.request.y = chassis_state_ptr->y;
   travel_abs_srv.request.theta = 3*M_PI/2;
@@ -503,11 +506,16 @@ int main(int argc, char** argv) {
   }
   spin_until_completion(r, chassis_done_ptr);
 
+  /*
   switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_LONG;
   switch_alg_client.call(switch_alg_srv);
+  */
 
   for (int cmd = 0; cmd < commands.size(); ++cmd) {
     char station = commands[cmd][0];
+
+    switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::PF;
+    switch_alg_client.call(switch_alg_srv);
 
     // LOCOMOTION PHASE
     if (do_locomotion) {
@@ -516,84 +524,27 @@ int main(int argc, char** argv) {
       switch (station) {
         case 'A':
           station_pose = poseA;
-
-          switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_LONG;
-          switch_alg_client.call(switch_alg_srv);
           break;
         case 'B':
           station_pose = poseB;
-
-          switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_LONG;
-          switch_alg_client.call(switch_alg_srv);
           break;
         case 'C':
           station_pose = poseC;
-
-          switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_LONG;
-          switch_alg_client.call(switch_alg_srv);
           break;
         case 'D':
           station_pose = poseD;
-
-          switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_LONG;
-          switch_alg_client.call(switch_alg_srv);
           break;
         case 'E':
           station_pose = poseE_sense;
-
-          switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_LONG;
-          switch_alg_client.call(switch_alg_srv);
           break;
         case 'F':
           station_pose = poseF_sense;
-
-          switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::PF;
-          switch_alg_client.call(switch_alg_srv);
-          travel_abs_srv.request.x = chassis_state_ptr->x;
-          travel_abs_srv.request.y = chassis_state_ptr->y;
-          travel_abs_srv.request.theta = M_PI;
-          if (travel_abs_client.call(travel_abs_srv)) {
-            ROS_INFO("Commanded chassis to make itself parallel with the wall");
-          } else {
-            ROS_ERROR("Failed to command chassis to make itself parallel with the wall");
-          }
-
-          switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_SHORT;
-          switch_alg_client.call(switch_alg_srv);
           break;
         case 'G':
           station_pose = poseG;
-
-          switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::PF;
-          switch_alg_client.call(switch_alg_srv);
-          travel_abs_srv.request.x = chassis_state_ptr->x;
-          travel_abs_srv.request.y = chassis_state_ptr->y;
-          travel_abs_srv.request.theta = M_PI;
-          if (travel_abs_client.call(travel_abs_srv)) {
-            ROS_INFO("Commanded chassis to make itself parallel with the wall");
-          } else {
-            ROS_ERROR("Failed to command chassis to make itself parallel with the wall");
-          }
-
-          switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_SHORT;
-          switch_alg_client.call(switch_alg_srv);
           break;
         case 'H':
           station_pose = poseH;
-
-          switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::PF;
-          switch_alg_client.call(switch_alg_srv);
-          travel_abs_srv.request.x = chassis_state_ptr->x;
-          travel_abs_srv.request.y = chassis_state_ptr->y;
-          travel_abs_srv.request.theta = M_PI;
-          if (travel_abs_client.call(travel_abs_srv)) {
-            ROS_INFO("Commanded chassis to make itself parallel with the wall");
-          } else {
-            ROS_ERROR("Failed to command chassis to make itself parallel with the wall");
-          }
-
-          switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_SHORT;
-          switch_alg_client.call(switch_alg_srv);
           break;
         default:
           cout << "Bad mission file" << endl;
@@ -609,6 +560,42 @@ int main(int argc, char** argv) {
         ROS_ERROR("Failed to command chassis to travel to station");
       }
       spin_until_completion(r, chassis_done_ptr);
+    }
+
+    switch (station) {
+      case 'A':
+        switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_LONG;
+        switch_alg_client.call(switch_alg_srv);
+        break;
+      case 'B':
+        switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_LONG;
+        switch_alg_client.call(switch_alg_srv);
+        break;
+      case 'C':
+        switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_LONG;
+        switch_alg_client.call(switch_alg_srv);
+        break;
+      case 'D':
+        switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_LONG;
+        switch_alg_client.call(switch_alg_srv);
+        break;
+      case 'E':
+        switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_LONG;
+        switch_alg_client.call(switch_alg_srv);
+        break;
+      case 'F':
+        break;
+      case 'G':
+        switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_SHORT;
+        switch_alg_client.call(switch_alg_srv);
+        break;
+      case 'H':
+        switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::TOWARD_SHORT;
+        switch_alg_client.call(switch_alg_srv);
+        break;
+      default:
+        cout << "Bad mission file" << endl;
+        exit(1);
     }
 
     // MANIPULATION PHASE
@@ -815,9 +802,6 @@ int main(int argc, char** argv) {
         ROS_ERROR("Failed to command arm to reset");
       }
       spin_until_completion(r, arm_done_ptr);
-
-      switch_alg_srv.request.algorithm = shipbot_ros::SwitchLocalization::Request::PF;
-      switch_alg_client.call(switch_alg_srv);
 
       wheel_ptr->visible = false;
       spigot_ptr->visible = false;
